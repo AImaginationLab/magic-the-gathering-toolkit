@@ -158,38 +158,9 @@ search_by_price(min_price=100, max_price=500)
 get_card_printings(name="Lightning Bolt")
 ```
 
-## Architecture
-
-- **FastMCP**: Decorator-based tool registration with automatic schema generation
-- **Pydantic v2**: Type-safe request/response handling with `pydantic-settings` for config
-- **Lifespan Context**: Dependency injection for database connections
-- **Async/Await**: Non-blocking database access with aiosqlite
-- **LRU Cache**: Async-safe card caching for performance
-- **Exception Handling**: Custom exceptions (`CardNotFoundError`, etc.) instead of error unions
-
-## Development
-
-```bash
-# Format code
-uv run ruff format src/
-
-# Lint
-uv run ruff check src/
-
-# Type check
-uv run mypy src/
-
-# Run tests
-uv run pytest
-```
-
 ## Updating Data
 
 Re-download the database files to update:
 
 1. **MTGJson**: Download `AllPrintings.sqlite` from https://mtgjson.com/downloads/all-files/
 2. **Scryfall**: Download `unique-artwork` JSON and run import script
-
-## License
-
-MIT
