@@ -1,84 +1,71 @@
 # Magic: The Gathering MCP Server
 
-An MCP (Model Context Protocol) server for Magic: The Gathering. Provides card lookup, deck building assistance, pricing, and more using local data from [MTGJson](https://mtgjson.com) and [Scryfall](https://scryfall.com).
+A fast, local MCP server and CLI for Magic: The Gathering. Search 33,000+ cards, browse artwork, check prices, validate decks, and get AI-powered deck building assistance—all powered by offline SQLite databases.
 
-## Features
-
-- **Card Search**: Find cards by name, color, type, mana cost, keywords, format legality, and more
-- **Card Details**: Comprehensive card information with images and prices
-- **Pricing**: Current USD/EUR prices from TCGPlayer and Cardmarket
-- **Rulings**: Official card rulings
-- **Format Legality**: Check legality in Standard, Modern, Commander, etc.
-- **Set Information**: Browse all MTG sets
-- **Resources**: Browse cards, sets, and rulings via `mtg://` URIs
-- **Prompts**: Pre-built templates for deck building, card analysis, and strategy
-
-## Data Sources
-
-This server uses two offline SQLite databases:
-
-| Database | Source | Size | Contents |
-|----------|--------|------|----------|
-| `AllPrintings.sqlite` | [MTGJson](https://mtgjson.com) | ~500MB | 33,000+ unique cards, rules, legalities |
-| `scryfall.sqlite` | [Scryfall](https://scryfall.com) | ~75MB | Card images, prices, purchase links |
-
-## Setup
-
-### 1. Clone the repository
+## Quick Start
 
 ```bash
-git clone git@github.com:AImaginationLab/magic-the-gathering-mcp.git
+# Install
+git clone git@github.com:aimaginationlab/magic-the-gathering-mcp.git
 cd magic-the-gathering-mcp
-```
-
-### 2. Download the databases
-
-```bash
-mkdir -p resources
-```
-
-**Required:** Download `AllPrintings.sqlite` from MTGJson:
-- https://mtgjson.com/downloads/all-files/
-
-**Optional (for images/prices):** Create Scryfall database:
-- Download `unique-artwork` from https://scryfall.com/docs/api/bulk-data
-- Run the import script to create `scryfall.sqlite`
-
-```
-resources/
-├── AllPrintings.sqlite
-└── scryfall.sqlite  (optional)
-```
-
-### 3. Configure environment
-
-```bash
-cp .env.example .env
-```
-
-### 4. Install
-
-```bash
 uv sync
+
+# Download AllPrintings.sqlite from https://mtgjson.com/downloads/all-files/
+# Place in resources/ directory
+
+# Run the CLI
+uv run mtg repl
 ```
 
-For development tools (ruff, mypy, pytest):
+## Two Ways to Use
+
+### 1. Interactive CLI
+
+A themed REPL for quick card lookups, artwork browsing, and deck analysis.
 
 ```bash
-uv sync --all-extras
+uv run mtg repl
 ```
 
-## Usage
+```
 
-### Run the server
+    ╔╦╗╔═╗╔═╗╦╔═╗  ┌┬┐┬ ┬┌─┐
+    ║║║╠═╣║ ╦║║     │ ├─┤├┤
+    ╩ ╩╩ ╩╚═╝╩╚═╝   ┴ ┴ ┴└─┘
+  ╔═╗╔═╗╔╦╗╦ ╦╔═╗╦═╗╦╔╗╔╔═╗
+  ║ ╦╠═╣ ║ ╠═╣║╣ ╠╦╝║║║║║ ╦
+  ╚═╝╩ ╩ ╩ ╩ ╩╚═╝╩╚═╩╝╚╝╚═╝
+
+"Every planeswalker was once a beginner."
+
+Tapping mana sources...
+
+
+Library loaded! 33,044 cards across 839 sets
+Type a card name to look it up, or ? for help
+
+⚡ Sol Ring
+⚡ art Lightning Bolt
+⚡ set final fantasy
+⚡ search dragon
+```
+
+**Features:**
+- Just type a card name to look it up
+- `art <card>` — Browse all unique artworks, pick one to display
+- `set <name>` — Find sets by name or code
+- `search`, `rulings`, `legal`, `price`, `random`
+- Card images display directly in iTerm2, Kitty, or any true-color terminal
+
+### 2. MCP Server
+
+Integrate with Claude Desktop or any MCP-compatible client for AI-powered assistance.
 
 ```bash
-mtg-mcp
+uv run mtg-mcp
 ```
 
-### Claude Desktop Configuration
-
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Add to Claude Desktop config (default OSX: `~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
@@ -91,76 +78,91 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
+Then ask Claude things like:
+- "Build me a budget Mono-Red Commander deck under $50"
+- "What are the best counterspells in Modern?"
+- "Compare Lightning Bolt vs Chain Lightning"
+- "Is this deck legal in Pioneer?" (paste your decklist)
+
 ## Tools
 
-### Card Tools
-
+### Card Lookup
 | Tool | Description |
 |------|-------------|
-| `search_cards` | Search with filters (name, color, type, keywords, format, etc.) |
-| `get_card` | Detailed card info with images, prices, purchase links |
-| `get_card_rulings` | Official rulings |
-| `get_card_legalities` | Format legalities |
-| `get_random_card` | Random card for discovery |
+| `search_cards` | Filter by name, colors, type, CMC, keywords, format, rarity, set |
+| `get_card` | Full card details with images and prices |
+| `get_card_rulings` | Official rulings from Gatherer |
+| `get_card_legalities` | Format legality (Standard, Modern, Commander, etc.) |
+| `get_random_card` | Discover something new |
 
-### Image & Price Tools
-
+### Images & Prices
 | Tool | Description |
 |------|-------------|
-| `get_card_image` | Image URLs and pricing for a card |
-| `get_card_printings` | All printings with images and prices |
-| `get_card_price` | Current prices |
+| `get_card_image` | Image URLs in multiple sizes |
+| `get_card_printings` | Every printing with artwork and prices |
+| `get_card_price` | Current USD/EUR prices |
 | `search_by_price` | Find cards in a price range |
 
-### Set Tools
-
+### Deck Analysis
 | Tool | Description |
 |------|-------------|
-| `get_sets` | List and search sets |
-| `get_set` | Set details |
-| `get_database_stats` | Database version and counts |
+| `validate_deck` | Check format legality, deck size, copy limits |
+| `analyze_mana_curve` | CMC distribution and average |
+| `analyze_colors` | Color balance and recommended land ratios |
+| `analyze_deck_composition` | Creature/spell/land breakdown |
+| `analyze_deck_price` | Total cost and expensive cards |
 
-## Resources
+### Sets
+| Tool | Description |
+|------|-------------|
+| `get_sets` | List and search all sets |
+| `get_set` | Set details (release date, card count, type) |
+| `get_database_stats` | Database version and statistics |
 
-Browse data via URI templates:
+## CLI Commands
 
-| URI | Description |
-|-----|-------------|
-| `mtg://cards/{name}` | Card details |
-| `mtg://sets/{code}` | Set details |
-| `mtg://rulings/{name}` | Card rulings |
-| `mtg://stats` | Database statistics |
+```bash
+# Card commands
+mtg card search -n "Lightning" -c R           # Search red cards with "Lightning"
+mtg card get "Sol Ring"                       # Card details
+mtg card rulings "Doubling Season"            # Rulings
+mtg card price "Black Lotus"                  # Prices
 
-## Prompts
+# Set commands
+mtg set list --type expansion                 # List expansion sets
+mtg set get DOM                               # Dominaria details
 
-Pre-built templates for common tasks:
+# Deck commands
+mtg deck validate deck.txt -f modern          # Validate Modern deck
+mtg deck curve deck.txt                       # Mana curve analysis
+mtg deck price deck.txt                       # Price breakdown
 
-| Prompt | Description |
-|--------|-------------|
-| `build_commander_deck` | EDH deck building with budget support |
-| `analyze_card` | Comprehensive card analysis |
-| `find_cards_for_strategy` | Strategy-based card search |
-| `compare_cards` | Side-by-side card comparison |
-
-## Example Queries
-
-```python
-# Search for red dragons legal in Commander
-search_cards(colors=["R"], subtype="Dragon", format_legal="commander")
-
-# Get card with images and prices
-get_card(name="Sol Ring")
-
-# Find expensive cards
-search_by_price(min_price=100, max_price=500)
-
-# Get all printings
-get_card_printings(name="Lightning Bolt")
+# Database stats
+mtg stats
 ```
 
-## Updating Data
+## Data Sources
 
-Re-download the database files to update:
+| Database | Source | Contents |
+|----------|--------|----------|
+| `AllPrintings.sqlite` | [MTGJson](https://mtgjson.com/downloads/all-files/) | Cards, rules, legalities (required) |
+| `scryfall.sqlite` | [Scryfall](https://scryfall.com/docs/api/bulk-data) | Images, prices, purchase links (optional) |
 
-1. **MTGJson**: Download `AllPrintings.sqlite` from https://mtgjson.com/downloads/all-files/
-2. **Scryfall**: Download `unique-artwork` JSON and run import script
+Place databases in `resources/` or set paths via environment variables:
+
+```bash
+MTG_DB_PATH=resources/AllPrintings.sqlite
+SCRYFALL_DB_PATH=resources/scryfall.sqlite
+```
+
+## Development
+
+```bash
+uv sync --all-extras    # Install dev dependencies
+uv run pytest           # Run tests
+uv run ruff check src/  # Lint
+uv run mypy src/        # Type check
+```
+
+## Copyright 
+All rights to Magic: The Gathering belong to Wizards of the Coast, a subsidiary of Hasbro, Inc.

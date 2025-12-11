@@ -35,6 +35,7 @@ env/
 # Database
 data/*.db
 resources/*.sqlite
+resources/*.sqlite*
 
 # Environment
 .env

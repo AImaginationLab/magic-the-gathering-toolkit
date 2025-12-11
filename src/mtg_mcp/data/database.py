@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -97,13 +98,13 @@ class QueryBuilder:
             self.conditions.append(f"{column} NOT LIKE ?")
         self.params.append(f"%{value}%")
 
-    def add_colors(self, colors: list[str] | None) -> None:
+    def add_colors(self, colors: Sequence[str] | None) -> None:
         """Add color filter conditions (card must have all colors)."""
         if colors:
             for color in colors:
                 self.add_like("c.colors", color)
 
-    def add_color_identity(self, identity: list[str] | None) -> None:
+    def add_color_identity(self, identity: Sequence[str] | None) -> None:
         """Add color identity filter (card must be subset of identity)."""
         if identity:
             # Card must NOT contain any colors outside the given identity
@@ -209,46 +210,46 @@ class MTGDatabase:
 
     def _row_to_card(self, row: aiosqlite.Row) -> Card:
         """Convert a database row to a Card model."""
-        return Card(
-            uuid=row["uuid"],
-            name=row["name"],
-            mana_cost=row["manaCost"],
-            cmc=row["manaValue"],
-            colors=self._parse_list(row["colors"]),
-            color_identity=self._parse_list(row["colorIdentity"]),
-            type=row["type"],
-            supertypes=self._parse_list(row["supertypes"]),
-            types=self._parse_list(row["types"]),
-            subtypes=self._parse_list(row["subtypes"]),
-            text=row["text"],
-            flavor=row["flavorText"],
-            power=row["power"],
-            toughness=row["toughness"],
-            loyalty=row["loyalty"],
-            defense=row["defense"],
-            set_code=row["setCode"],
-            rarity=row["rarity"],
-            number=row["number"],
-            artist=row["artist"],
-            layout=row["layout"],
-            keywords=self._parse_list(row["keywords"]),
-            edhrec_rank=row["edhrecRank"],
-        )
+        return Card.model_validate({
+            "uuid": row["uuid"],
+            "name": row["name"],
+            "manaCost": row["manaCost"],
+            "manaValue": row["manaValue"],
+            "colors": self._parse_list(row["colors"]),
+            "colorIdentity": self._parse_list(row["colorIdentity"]),
+            "type": row["type"],
+            "supertypes": self._parse_list(row["supertypes"]),
+            "types": self._parse_list(row["types"]),
+            "subtypes": self._parse_list(row["subtypes"]),
+            "text": row["text"],
+            "flavorText": row["flavorText"],
+            "power": row["power"],
+            "toughness": row["toughness"],
+            "loyalty": row["loyalty"],
+            "defense": row["defense"],
+            "setCode": row["setCode"],
+            "rarity": row["rarity"],
+            "number": row["number"],
+            "artist": row["artist"],
+            "layout": row["layout"],
+            "keywords": self._parse_list(row["keywords"]),
+            "edhrecRank": row["edhrecRank"],
+        })
 
     def _row_to_set(self, row: aiosqlite.Row) -> Set:
         """Convert a database row to a Set model."""
-        return Set(
-            code=row["code"],
-            name=row["name"],
-            type=row["type"],
-            release_date=row["releaseDate"],
-            block=row["block"],
-            base_set_size=row["baseSetSize"],
-            total_set_size=row["totalSetSize"],
-            is_online_only=bool(row["isOnlineOnly"]),
-            is_foil_only=bool(row["isFoilOnly"]),
-            keyrune_code=row["keyruneCode"],
-        )
+        return Set.model_validate({
+            "code": row["code"],
+            "name": row["name"],
+            "type": row["type"],
+            "releaseDate": row["releaseDate"],
+            "block": row["block"],
+            "baseSetSize": row["baseSetSize"],
+            "totalSetSize": row["totalSetSize"],
+            "isOnlineOnly": bool(row["isOnlineOnly"]),
+            "isFoilOnly": bool(row["isFoilOnly"]),
+            "keyruneCode": row["keyruneCode"],
+        })
 
     # -------------------------------------------------------------------------
     # Card Methods
@@ -335,9 +336,13 @@ class MTGDatabase:
             if not row:
                 return []
 
-            return [
-                CardLegality(format=fmt, legality=row[fmt]) for fmt in VALID_FORMATS if row[fmt]
-            ]
+            # Get column names from the row to check which formats exist
+            row_keys = row.keys()
+            legalities = []
+            for fmt in VALID_FORMATS:
+                if fmt in row_keys and row[fmt]:
+                    legalities.append(CardLegality(format=fmt, legality=row[fmt]))
+            return legalities
 
     async def _get_rulings(self, uuid: str) -> list[CardRuling]:
         """Get rulings for a card."""
@@ -526,6 +531,9 @@ class ScryfallDatabase:
             highres_image=bool(row["highres_image"]),
             full_art=bool(row["full_art"]),
             border_color=row["border_color"],
+            illustration_id=row["illustration_id"],
+            frame=row["frame"],
+            finishes=row["finishes"],
         )
 
     async def get_card_image(self, name: str, set_code: str | None = None) -> CardImage | None:
@@ -567,6 +575,25 @@ class ScryfallDatabase:
         images = []
         async with self._db.execute(
             "SELECT * FROM cards WHERE name = ? ORDER BY set_code",
+            (name,),
+        ) as cursor:
+            async for row in cursor:
+                images.append(self._row_to_card_image(row))
+        return images
+
+    async def get_unique_artworks(self, name: str) -> list[CardImage]:
+        """Get all unique artworks for a card (one per illustration_id)."""
+        images = []
+        async with self._db.execute(
+            """
+            SELECT * FROM cards
+            WHERE name = ?
+            GROUP BY illustration_id
+            ORDER BY
+                CASE WHEN border_color = 'borderless' THEN 0 ELSE 1 END,
+                full_art DESC,
+                set_code
+            """,
             (name,),
         ) as cursor:
             async for row in cursor:

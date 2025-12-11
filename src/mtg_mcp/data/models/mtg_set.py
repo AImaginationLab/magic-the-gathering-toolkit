@@ -1,10 +1,12 @@
 """Set-related models."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Set(BaseModel):
     """A Magic: The Gathering set."""
+
+    model_config = ConfigDict(populate_by_name=True)
 
     code: str
     name: str
@@ -16,6 +18,3 @@ class Set(BaseModel):
     is_online_only: bool | None = Field(default=None, alias="isOnlineOnly")
     is_foil_only: bool | None = Field(default=None, alias="isFoilOnly")
     keyrune_code: str | None = Field(default=None, alias="keyruneCode")
-
-    class Config:
-        populate_by_name = True
