@@ -1,6 +1,6 @@
 # Magic: The Gathering MCP Server
 
-A fast, local MCP server and CLI for Magic: The Gathering. Search 33,000+ cards, browse artwork, check prices, validate decks, and get AI-powered deck building assistance—all powered by offline SQLite databases.
+A fast, local MCP server and CLI for Magic: The Gathering. Search 33,000+ cards, browse artwork, check prices, validate decks, and get AI-powered deck-building assistance—all powered by offline SQLite databases.
 
 ## Quick Start
 
@@ -27,8 +27,7 @@ A themed REPL for quick card lookups, artwork browsing, and deck analysis.
 uv run mtg repl
 ```
 
-```
-
+```text
     ╔╦╗╔═╗╔═╗╦╔═╗  ┌┬┐┬ ┬┌─┐
     ║║║╠═╣║ ╦║║     │ ├─┤├┤
     ╩ ╩╩ ╩╚═╝╩╚═╝   ┴ ┴ ┴└─┘
@@ -39,7 +38,6 @@ uv run mtg repl
 "Every planeswalker was once a beginner."
 
 Tapping mana sources...
-
 
 Library loaded! 33,044 cards across 839 sets
 Type a card name to look it up, or ? for help
@@ -87,6 +85,7 @@ Then ask Claude things like:
 ## Tools
 
 ### Card Lookup
+
 | Tool | Description |
 |------|-------------|
 | `search_cards` | Filter by name, colors, type, CMC, keywords, format, rarity, set |
@@ -96,6 +95,7 @@ Then ask Claude things like:
 | `get_random_card` | Discover something new |
 
 ### Images & Prices
+
 | Tool | Description |
 |------|-------------|
 | `get_card_image` | Image URLs in multiple sizes |
@@ -104,6 +104,7 @@ Then ask Claude things like:
 | `search_by_price` | Find cards in a price range |
 
 ### Deck Analysis
+
 | Tool | Description |
 |------|-------------|
 | `validate_deck` | Check format legality, deck size, copy limits |
@@ -113,6 +114,7 @@ Then ask Claude things like:
 | `analyze_deck_price` | Total cost and expensive cards |
 
 ### Sets
+
 | Tool | Description |
 |------|-------------|
 | `get_sets` | List and search all sets |

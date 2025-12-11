@@ -472,7 +472,7 @@ async def analyze_deck_price(
                     missing_prices.append(card_input.name)
             else:
                 missing_prices.append(card_input.name)
-        except Exception:
+        except (CardNotFoundError, KeyError, AttributeError, TypeError):
             missing_prices.append(card_input.name)
 
     # Sort by total price descending, take top 10

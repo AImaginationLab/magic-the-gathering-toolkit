@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ..data.models import (
+from mtg_mcp.data.models import (
     Card,
     CardDetail,
     CardSummary,
@@ -18,10 +18,10 @@ from ..data.models import (
     SearchCardsInput,
     SearchResult,
 )
-from ..exceptions import CardNotFoundError, ValidationError
+from mtg_mcp.exceptions import CardNotFoundError, ValidationError
 
 if TYPE_CHECKING:
-    from ..data.database import MTGDatabase, ScryfallDatabase
+    from mtg_mcp.data.database import MTGDatabase, ScryfallDatabase
 
 
 async def search_cards(

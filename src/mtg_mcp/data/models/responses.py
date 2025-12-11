@@ -348,5 +348,6 @@ class PriceAnalysisResult(BaseModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def cards_with_prices(self) -> int:
+    def most_expensive_count(self) -> int:
+        """Number of cards in the most_expensive list (up to 10)."""
         return len(self.most_expensive)
