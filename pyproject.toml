@@ -23,6 +23,10 @@ dependencies = [
     "aiosqlite>=0.19.0,<1",
     "pydantic>=2.10,<3",
     "pydantic-settings>=2.6,<3",
+    "typer>=0.15,<1",
+    "rich>=13.0,<14",
+    "httpx>=0.27,<1",
+    "pillow>=10.0,<12",
 ]
 
 [project.optional-dependencies]
@@ -35,6 +39,7 @@ dev = [
 
 [project.scripts]
 mtg-mcp = "mtg_mcp.server:main"
+mtg = "mtg_mcp.cli:cli"
 
 [project.urls]
 Homepage = "https://github.com/yourusername/magic-the-gathering-mcp"
@@ -76,6 +81,10 @@ select = [
 ignore = [
     "E501",   # line too long (handled by formatter)
     "B008",   # function call in default argument (needed for FastMCP)
+    "TC001",  # move into type-checking block - breaks FastMCP runtime introspection
+    "TC002",  # move third-party import into type-checking block - breaks FastMCP
+    "TC003",  # move stdlib import into type-checking block - Sequence used at runtime
+    "RUF022", # __all__ not sorted - we prefer logical grouping
 ]
 
 [tool.ruff.lint.isort]

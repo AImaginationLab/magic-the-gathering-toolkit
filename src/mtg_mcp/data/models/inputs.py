@@ -88,3 +88,40 @@ class GetSetInput(BaseModel):
     """Input parameters for get_set tool."""
 
     code: str = Field(..., min_length=1, description="Set code")
+
+
+# =============================================================================
+# Deck Analysis Input Models
+# =============================================================================
+
+
+class DeckCardInput(BaseModel):
+    """A card entry in a deck."""
+
+    name: str = Field(..., min_length=1, description="Card name")
+    quantity: int = Field(default=1, ge=1, le=99, description="Number of copies")
+    sideboard: bool = Field(default=False, description="Is in sideboard")
+
+
+class ValidateDeckInput(BaseModel):
+    """Input parameters for validate_deck tool."""
+
+    cards: list[DeckCardInput] = Field(..., description="Deck cards")
+    format: Format = Field(..., description="Format to validate against")
+    commander: str | None = Field(default=None, description="Commander card name")
+    # Configurable rules
+    check_legality: bool = Field(default=True, description="Check card legality")
+    check_deck_size: bool = Field(default=True, description="Check deck size requirements")
+    check_copy_limit: bool = Field(default=True, description="Check copy limit (4 or singleton)")
+    check_singleton: bool = Field(default=True, description="Check singleton rule (Commander)")
+    check_color_identity: bool = Field(
+        default=True, description="Check color identity (Commander)"
+    )
+
+
+class AnalyzeDeckInput(BaseModel):
+    """Input parameters for deck analysis tools."""
+
+    cards: list[DeckCardInput] = Field(..., description="Deck cards")
+    format: Format | None = Field(default=None, description="Format (optional)")
+    commander: str | None = Field(default=None, description="Commander card name")

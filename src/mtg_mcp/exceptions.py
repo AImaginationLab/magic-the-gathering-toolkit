@@ -37,3 +37,11 @@ class DatabaseNotAvailableError(MTGError):
     def __init__(self, database: str):
         super().__init__(f"{database} database not available")
         self.database = database
+
+
+class DeckValidationError(MTGError):
+    """Raised when deck validation fails."""
+
+    def __init__(self, message: str, issues: list[str] | None = None):
+        super().__init__(message)
+        self.issues = issues or []

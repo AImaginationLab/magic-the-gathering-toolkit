@@ -106,7 +106,7 @@ class SearchResult(BaseModel):
     page: int
     page_size: int
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def count(self) -> int:
         return len(self.cards)
@@ -126,7 +126,7 @@ class RulingsResponse(BaseModel):
     rulings: list[RulingEntry]
     note: str | None = None
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def count(self) -> int:
         return len(self.rulings)
@@ -169,7 +169,7 @@ class SetsResponse(BaseModel):
 
     sets: list[SetSummary]
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def count(self) -> int:
         return len(self.sets)
@@ -213,7 +213,7 @@ class PrintingsResponse(BaseModel):
     card_name: str
     printings: list[PrintingInfo]
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def count(self) -> int:
         return len(self.printings)
@@ -244,7 +244,109 @@ class PriceSearchResponse(BaseModel):
     page: int
     page_size: int
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def count(self) -> int:
         return len(self.cards)
+
+
+# =============================================================================
+# Deck Analysis Response Models
+# =============================================================================
+
+
+class CardIssue(BaseModel):
+    """An issue with a card in deck validation."""
+
+    card_name: str
+    issue: str  # "not_found", "not_legal", "over_copy_limit", "outside_color_identity"
+    details: str | None = None
+
+
+class DeckValidationResult(BaseModel):
+    """Deck validation result."""
+
+    format: str
+    is_valid: bool
+    total_cards: int
+    sideboard_count: int
+    issues: list[CardIssue] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ManaCurveResult(BaseModel):
+    """Mana curve analysis result."""
+
+    curve: dict[int, int]  # {0: 5, 1: 12, 2: 15, 3: 10, ...}
+    average_cmc: float
+    median_cmc: float
+    land_count: int
+    nonland_count: int
+    x_spell_count: int
+
+
+class ColorBreakdown(BaseModel):
+    """Color breakdown for a single color."""
+
+    color: str  # "W", "U", "B", "R", "G"
+    color_name: str  # "White", "Blue", etc.
+    card_count: int
+    mana_symbols: int  # Total colored pips needed
+
+
+class ColorAnalysisResult(BaseModel):
+    """Color analysis result."""
+
+    colors: list[str]  # Deck's colors in WUBRG order
+    color_identity: list[str]  # Full color identity
+    breakdown: list[ColorBreakdown]
+    multicolor_count: int
+    colorless_count: int
+    mana_pip_totals: dict[str, int]  # {"W": 15, "U": 8, ...}
+    recommended_land_ratio: dict[str, float]  # {"W": 0.4, "U": 0.2, ...}
+
+
+class TypeCount(BaseModel):
+    """Card type count."""
+
+    type: str
+    count: int
+    percentage: float
+
+
+class CompositionResult(BaseModel):
+    """Deck composition analysis result."""
+
+    total_cards: int
+    types: list[TypeCount]
+    creatures: int
+    noncreatures: int
+    lands: int
+    spells: int  # Instants + Sorceries
+    interaction: int  # Removal, counterspells (heuristic)
+    ramp_count: int  # Detected ramp cards (heuristic)
+
+
+class CardPrice(BaseModel):
+    """Price info for a card in deck."""
+
+    name: str
+    quantity: int
+    unit_price: float | None
+    total_price: float | None
+
+
+class PriceAnalysisResult(BaseModel):
+    """Deck price analysis result."""
+
+    total_price: float | None
+    mainboard_price: float | None
+    sideboard_price: float | None
+    average_card_price: float | None
+    most_expensive: list[CardPrice]  # Top 10
+    missing_prices: list[str]  # Cards with no price data
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def cards_with_prices(self) -> int:
+        return len(self.most_expensive)

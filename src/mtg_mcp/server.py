@@ -12,23 +12,8 @@ from mcp.server.fastmcp import Context, FastMCP
 
 from .config import get_settings
 from .data.database import DatabaseManager, MTGDatabase, ScryfallDatabase
-from .data.models import (
-    CardDetail,
-    CardImageResponse,
-    Color,
-    Format,
-    LegalitiesResponse,
-    PriceResponse,
-    PriceSearchResponse,
-    PrintingsResponse,
-    Rarity,
-    RulingsResponse,
-    SearchCardsInput,
-    SearchResult,
-    SetDetail,
-    SetsResponse,
-)
-from .tools import cards, images, sets
+from .routes import register_all_routes
+from .tools import cards, sets
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -82,183 +67,25 @@ async def lifespan(_server: FastMCP) -> AsyncIterator[AppContext]:
         logger.info("MTG MCP Server stopped.")
 
 
+# Create MCP server instance
 mcp = FastMCP("mtg-mcp", lifespan=lifespan)
 
+# Register all tool routes
+register_all_routes(mcp)
 
-def get_app(ctx: Context) -> AppContext:
+
+# =============================================================================
+# Helper for context access (used by routes)
+# =============================================================================
+
+# Type alias for Context with our AppContext
+ToolContext = Context[Any, AppContext, Any]
+
+
+def get_app(ctx: ToolContext) -> AppContext:
     """Get application context from request context."""
-    return ctx.request_context.lifespan_context  # type: ignore[return-value]
-
-
-# =============================================================================
-# Card Tools
-# =============================================================================
-
-
-@mcp.tool()
-async def search_cards(
-    ctx: Context,
-    name: Annotated[str | None, "Card name (partial match)"] = None,
-    colors: Annotated[list[Color] | None, "Filter by colors (W, U, B, R, G)"] = None,
-    color_identity: Annotated[list[Color] | None, "Filter by color identity (Commander)"] = None,
-    type: Annotated[str | None, "Card type (Creature, Instant, etc.)"] = None,
-    subtype: Annotated[str | None, "Subtype (Elf, Dragon, Wizard)"] = None,
-    supertype: Annotated[str | None, "Supertype (Legendary, Basic, Snow)"] = None,
-    rarity: Annotated[Rarity | None, "Card rarity"] = None,
-    set_code: Annotated[str | None, "Set code (DOM, MH2)"] = None,
-    cmc: Annotated[float | None, "Exact mana value"] = None,
-    cmc_min: Annotated[float | None, "Minimum mana value"] = None,
-    cmc_max: Annotated[float | None, "Maximum mana value"] = None,
-    power: Annotated[str | None, "Creature power"] = None,
-    toughness: Annotated[str | None, "Creature toughness"] = None,
-    text: Annotated[str | None, "Search in card text"] = None,
-    keywords: Annotated[list[str] | None, "Filter by keywords (Flying, Trample)"] = None,
-    format_legal: Annotated[Format | None, "Filter by format legality"] = None,
-    page: Annotated[int, "Page number"] = 1,
-    page_size: Annotated[int, "Results per page (max 100)"] = 25,
-) -> SearchResult:
-    """Search for Magic: The Gathering cards with filters."""
-    app = get_app(ctx)
-    filters = SearchCardsInput(
-        name=name,
-        colors=colors,
-        color_identity=color_identity,
-        type=type,
-        subtype=subtype,
-        supertype=supertype,
-        rarity=rarity,
-        set_code=set_code,
-        cmc=cmc,
-        cmc_min=cmc_min,
-        cmc_max=cmc_max,
-        power=power,
-        toughness=toughness,
-        text=text,
-        keywords=keywords,
-        format_legal=format_legal,
-        page=page,
-        page_size=min(page_size, 100),
-    )
-    return await cards.search_cards(app.db, app.scryfall, filters)
-
-
-@mcp.tool()
-async def get_card(
-    ctx: Context,
-    name: Annotated[str | None, "Exact card name"] = None,
-    uuid: Annotated[str | None, "Card UUID"] = None,
-) -> CardDetail:
-    """Get detailed information about a specific card."""
-    app = get_app(ctx)
-    return await cards.get_card(app.db, app.scryfall, name, uuid)
-
-
-@mcp.tool()
-async def get_card_rulings(
-    ctx: Context,
-    name: Annotated[str, "Exact card name"],
-) -> RulingsResponse:
-    """Get official rulings for a card."""
-    return await cards.get_card_rulings(get_app(ctx).db, name)
-
-
-@mcp.tool()
-async def get_card_legalities(
-    ctx: Context,
-    name: Annotated[str, "Exact card name"],
-) -> LegalitiesResponse:
-    """Get format legalities for a card."""
-    return await cards.get_card_legalities(get_app(ctx).db, name)
-
-
-@mcp.tool()
-async def get_random_card(ctx: Context) -> CardDetail:
-    """Get a random Magic card."""
-    app = get_app(ctx)
-    return await cards.get_random_card(app.db, app.scryfall)
-
-
-# =============================================================================
-# Set Tools
-# =============================================================================
-
-
-@mcp.tool()
-async def get_sets(
-    ctx: Context,
-    name: Annotated[str | None, "Filter by set name (partial match)"] = None,
-    set_type: Annotated[str | None, "Filter by type (expansion, core, masters)"] = None,
-    include_online_only: Annotated[bool, "Include online-only sets"] = True,
-) -> SetsResponse:
-    """Get Magic: The Gathering sets."""
-    return await sets.get_sets(get_app(ctx).db, name, set_type, include_online_only)
-
-
-@mcp.tool()
-async def get_set(
-    ctx: Context,
-    code: Annotated[str, "Set code (DOM, MH2, LEA)"],
-) -> SetDetail:
-    """Get detailed information about a specific set."""
-    return await sets.get_set(get_app(ctx).db, code)
-
-
-@mcp.tool()
-async def get_database_stats(ctx: Context) -> dict[str, Any]:
-    """Get database statistics (card count, set count, version)."""
-    return await get_app(ctx).db.get_database_stats()
-
-
-# =============================================================================
-# Image/Price Tools
-# =============================================================================
-
-
-@mcp.tool()
-async def get_card_image(
-    ctx: Context,
-    name: Annotated[str, "Exact card name"],
-    set_code: Annotated[str | None, "Set code for specific printing"] = None,
-) -> CardImageResponse:
-    """Get card images in multiple sizes with pricing."""
-    return await images.get_card_image(get_app(ctx).scryfall, name, set_code)
-
-
-@mcp.tool()
-async def get_card_printings(
-    ctx: Context,
-    name: Annotated[str, "Exact card name"],
-) -> PrintingsResponse:
-    """Get all printings of a card with images and prices."""
-    return await images.get_card_printings(get_app(ctx).scryfall, name)
-
-
-@mcp.tool()
-async def get_card_price(
-    ctx: Context,
-    name: Annotated[str, "Exact card name"],
-    set_code: Annotated[str | None, "Set code for specific printing"] = None,
-) -> PriceResponse:
-    """Get current prices for a card (USD/EUR, regular/foil)."""
-    return await images.get_card_price(get_app(ctx).scryfall, name, set_code)
-
-
-@mcp.tool()
-async def search_by_price(
-    ctx: Context,
-    min_price: Annotated[float | None, "Minimum price in USD"] = None,
-    max_price: Annotated[float | None, "Maximum price in USD"] = None,
-    page: Annotated[int, "Page number"] = 1,
-    page_size: Annotated[int, "Results per page (max 100)"] = 25,
-) -> PriceSearchResponse:
-    """Search for cards by price range."""
-    return await images.search_by_price(
-        get_app(ctx).scryfall,
-        min_price,
-        max_price,
-        page,
-        min(page_size, 100),
-    )
+    assert ctx.request_context is not None
+    return ctx.request_context.lifespan_context
 
 
 # =============================================================================
@@ -272,7 +99,7 @@ def _model_to_json(model: BaseModel) -> str:
 
 
 @mcp.resource("mtg://cards/{name}")
-async def card_resource(name: str, ctx: Context) -> str:
+async def card_resource(name: str, ctx: ToolContext) -> str:
     """Get a card as a browsable resource."""
     app = get_app(ctx)
     result = await cards.get_card(app.db, app.scryfall, name=name)
@@ -280,21 +107,21 @@ async def card_resource(name: str, ctx: Context) -> str:
 
 
 @mcp.resource("mtg://sets/{code}")
-async def set_resource(code: str, ctx: Context) -> str:
+async def set_resource(code: str, ctx: ToolContext) -> str:
     """Get a set as a browsable resource."""
     result = await sets.get_set(get_app(ctx).db, code)
     return _model_to_json(result)
 
 
 @mcp.resource("mtg://rulings/{name}")
-async def rulings_resource(name: str, ctx: Context) -> str:
+async def rulings_resource(name: str, ctx: ToolContext) -> str:
     """Get card rulings as a browsable resource."""
     result = await cards.get_card_rulings(get_app(ctx).db, name)
     return _model_to_json(result)
 
 
 @mcp.resource("mtg://stats")
-async def stats_resource(ctx: Context) -> str:
+async def stats_resource(ctx: ToolContext) -> str:
     """Database statistics resource."""
     stats = await get_app(ctx).db.get_database_stats()
     return json.dumps(stats, indent=2)

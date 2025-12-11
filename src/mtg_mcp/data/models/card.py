@@ -1,6 +1,6 @@
 """Card-related models."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CardRuling(BaseModel):
@@ -19,6 +19,8 @@ class CardLegality(BaseModel):
 
 class Card(BaseModel):
     """A Magic: The Gathering card."""
+
+    model_config = ConfigDict(populate_by_name=True)
 
     # Core identifiers
     uuid: str | None = None
@@ -63,9 +65,6 @@ class Card(BaseModel):
     # Rules (populated on detailed lookups)
     rulings: list[CardRuling] | None = None
     legalities: list[CardLegality] | None = None
-
-    class Config:
-        populate_by_name = True
 
     def to_summary(self) -> str:
         """Return a concise summary of the card."""
@@ -137,6 +136,9 @@ class CardImage(BaseModel):
     highres_image: bool = False
     full_art: bool = False
     border_color: str | None = None
+    illustration_id: str | None = None
+    frame: str | None = None
+    finishes: str | None = None  # JSON array string like '["nonfoil", "foil"]'
 
     def get_price_usd(self) -> float | None:
         """Get USD price as float dollars."""
