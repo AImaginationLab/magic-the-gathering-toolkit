@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
+
 import pytest
 
 from mtg_mcp.config import get_settings
@@ -9,7 +11,7 @@ from mtg_mcp.data.database import DatabaseManager, MTGDatabase, ScryfallDatabase
 
 
 @pytest.fixture
-async def db_manager() -> DatabaseManager:
+async def db_manager() -> AsyncGenerator[DatabaseManager, None]:
     """Create and start a database manager for testing."""
     settings = get_settings()
     manager = DatabaseManager(settings)

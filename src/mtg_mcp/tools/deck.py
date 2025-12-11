@@ -44,41 +44,47 @@ FORMAT_RULES: dict[str, tuple[int, int, int, bool, bool]] = {
 }
 
 # Basic lands are exempt from singleton rules
-BASIC_LANDS = frozenset({
-    "Plains",
-    "Island",
-    "Swamp",
-    "Mountain",
-    "Forest",
-    "Wastes",
-    "Snow-Covered Plains",
-    "Snow-Covered Island",
-    "Snow-Covered Swamp",
-    "Snow-Covered Mountain",
-    "Snow-Covered Forest",
-})
+BASIC_LANDS = frozenset(
+    {
+        "Plains",
+        "Island",
+        "Swamp",
+        "Mountain",
+        "Forest",
+        "Wastes",
+        "Snow-Covered Plains",
+        "Snow-Covered Island",
+        "Snow-Covered Swamp",
+        "Snow-Covered Mountain",
+        "Snow-Covered Forest",
+    }
+)
 
 # Keywords/text patterns for detecting interaction
-INTERACTION_PATTERNS = frozenset({
-    "destroy",
-    "exile",
-    "counter target",
-    "return target",
-    "bounce",
-    "sacrifice",
-    "-1/-1",
-    "deals damage",
-})
+INTERACTION_PATTERNS = frozenset(
+    {
+        "destroy",
+        "exile",
+        "counter target",
+        "return target",
+        "bounce",
+        "sacrifice",
+        "-1/-1",
+        "deals damage",
+    }
+)
 
 # Keywords/text patterns for detecting ramp
-RAMP_PATTERNS = frozenset({
-    "add {",
-    "search your library for a basic land",
-    "search your library for a land",
-    "mana of any",
-    "add one mana",
-    "add two mana",
-})
+RAMP_PATTERNS = frozenset(
+    {
+        "add {",
+        "search your library for a basic land",
+        "search your library for a land",
+        "mana of any",
+        "add one mana",
+        "add two mana",
+    }
+)
 
 
 async def _resolve_deck_cards(
@@ -144,11 +150,13 @@ async def validate_deck(
             commander_card = await db.get_card_by_name(input.commander)
             commander_identity = set(commander_card.color_identity or [])
         except CardNotFoundError:
-            issues.append(CardIssue(
-                card_name=input.commander,
-                issue="not_found",
-                details="Commander card not found in database",
-            ))
+            issues.append(
+                CardIssue(
+                    card_name=input.commander,
+                    issue="not_found",
+                    details="Commander card not found in database",
+                )
+            )
 
     # Track card counts for copy limit check
     card_counts: dict[str, int] = defaultdict(int)
@@ -158,21 +166,25 @@ async def validate_deck(
 
         # Card not found
         if card is None:
-            issues.append(CardIssue(
-                card_name=card_name,
-                issue="not_found",
-                details="Card not found in database",
-            ))
+            issues.append(
+                CardIssue(
+                    card_name=card_name,
+                    issue="not_found",
+                    details="Card not found in database",
+                )
+            )
             continue
 
         # Check legality
         if input.check_legality and card.legalities and not card.is_legal_in(format_name):
             legality = card.get_legality(format_name)
-            issues.append(CardIssue(
-                card_name=card_name,
-                issue="not_legal",
-                details=f"Card is {legality or 'not legal'} in {format_name}",
-            ))
+            issues.append(
+                CardIssue(
+                    card_name=card_name,
+                    issue="not_legal",
+                    details=f"Card is {legality or 'not legal'} in {format_name}",
+                )
+            )
 
         # Track copy count
         card_counts[card_name] += card_input.quantity
@@ -182,11 +194,13 @@ async def validate_deck(
             card_identity = set(card.color_identity or [])
             if not card_identity.issubset(commander_identity):
                 outside_colors = card_identity - commander_identity
-                issues.append(CardIssue(
-                    card_name=card_name,
-                    issue="outside_color_identity",
-                    details=f"Card has colors {list(outside_colors)} outside commander's identity",
-                ))
+                issues.append(
+                    CardIssue(
+                        card_name=card_name,
+                        issue="outside_color_identity",
+                        details=f"Card has colors {list(outside_colors)} outside commander's identity",
+                    )
+                )
 
     # Check copy limits
     if input.check_copy_limit:
@@ -197,12 +211,22 @@ async def validate_deck(
 
             limit = 1 if (is_singleton and input.check_singleton) else copy_limit
             if count > limit:
-                issue_type = "over_singleton_limit" if is_singleton else "over_copy_limit"
-                issues.append(CardIssue(
-                    card_name=card_name,
-                    issue=issue_type,
-                    details=f"Has {count} copies, limit is {limit}",
-                ))
+                if is_singleton:
+                    issues.append(
+                        CardIssue(
+                            card_name=card_name,
+                            issue="over_singleton_limit",
+                            details=f"Has {count} copies, limit is {limit}",
+                        )
+                    )
+                else:
+                    issues.append(
+                        CardIssue(
+                            card_name=card_name,
+                            issue="over_copy_limit",
+                            details=f"Has {count} copies, limit is {limit}",
+                        )
+                    )
 
     # Check deck size
     if input.check_deck_size:
@@ -330,12 +354,14 @@ async def analyze_colors(
     breakdown: list[ColorBreakdown] = []
     for color in COLOR_ORDER:
         if color in deck_colors or mana_pip_totals.get(color, 0) > 0:
-            breakdown.append(ColorBreakdown(
-                color=color,
-                color_name=COLORS[color],
-                card_count=color_card_counts.get(color, 0),
-                mana_symbols=mana_pip_totals.get(color, 0),
-            ))
+            breakdown.append(
+                ColorBreakdown(
+                    color=color,
+                    color_name=COLORS[color],
+                    card_count=color_card_counts.get(color, 0),
+                    mana_symbols=mana_pip_totals.get(color, 0),
+                )
+            )
 
     # Calculate recommended land ratios
     total_pips = sum(mana_pip_totals.values())
@@ -412,11 +438,13 @@ async def analyze_deck_composition(
     type_list: list[TypeCount] = []
     for card_type, count in sorted(type_counts.items(), key=lambda x: -x[1]):
         percentage = (count / total_cards * 100) if total_cards > 0 else 0
-        type_list.append(TypeCount(
-            type=card_type,
-            count=count,
-            percentage=round(percentage, 1),
-        ))
+        type_list.append(
+            TypeCount(
+                type=card_type,
+                count=count,
+                percentage=round(percentage, 1),
+            )
+        )
 
     return CompositionResult(
         total_cards=total_cards,
@@ -458,12 +486,14 @@ async def analyze_deck_price(
                 unit_price = card_image.get_price_usd()
                 if unit_price is not None:
                     total_price = unit_price * card_input.quantity
-                    card_prices.append(CardPrice(
-                        name=card_input.name,
-                        quantity=card_input.quantity,
-                        unit_price=unit_price,
-                        total_price=total_price,
-                    ))
+                    card_prices.append(
+                        CardPrice(
+                            name=card_input.name,
+                            quantity=card_input.quantity,
+                            unit_price=unit_price,
+                            total_price=total_price,
+                        )
+                    )
                     if card_input.sideboard:
                         sideboard_total += total_price
                     else:
@@ -472,7 +502,15 @@ async def analyze_deck_price(
                     missing_prices.append(card_input.name)
             else:
                 missing_prices.append(card_input.name)
-        except Exception:
+        except CardNotFoundError:
+            missing_prices.append(card_input.name)
+        except (KeyError, AttributeError, TypeError) as e:
+            # Log unexpected errors for debugging but continue processing
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Unexpected error getting price for %s: %s", card_input.name, e
+            )
             missing_prices.append(card_input.name)
 
     # Sort by total price descending, take top 10
@@ -480,8 +518,9 @@ async def analyze_deck_price(
     most_expensive = card_prices[:10]
 
     total_price = mainboard_total + sideboard_total
-    cards_with_prices = len(card_prices)
-    average_price = total_price / cards_with_prices if cards_with_prices > 0 else None
+    # Calculate average per card, accounting for quantities
+    total_cards_with_prices = sum(cp.quantity for cp in card_prices)
+    average_price = total_price / total_cards_with_prices if total_cards_with_prices > 0 else None
 
     return PriceAnalysisResult(
         total_price=round(total_price, 2) if total_price > 0 else None,

@@ -1,6 +1,8 @@
 """Card-related models."""
 
-from pydantic import BaseModel, ConfigDict, Field
+import json
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class CardRuling(BaseModel):
@@ -138,7 +140,24 @@ class CardImage(BaseModel):
     border_color: str | None = None
     illustration_id: str | None = None
     frame: str | None = None
-    finishes: str | None = None  # JSON array string like '["nonfoil", "foil"]'
+    finishes: list[str] = Field(default_factory=list)  # e.g., ["nonfoil", "foil"]
+
+    @field_validator("finishes", mode="before")
+    @classmethod
+    def parse_finishes(cls, v: str | list[str] | None) -> list[str]:
+        """Parse finishes from JSON string if needed."""
+        if v is None:
+            return []
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return []
 
     def get_price_usd(self) -> float | None:
         """Get USD price as float dollars."""

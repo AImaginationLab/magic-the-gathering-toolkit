@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import Annotated, Any
 
-from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.fastmcp import FastMCP
 
-from ..data.models import (
+from mtg_mcp.context import ToolContext, get_app
+from mtg_mcp.data.models import (
     AnalyzeDeckInput,
     ColorAnalysisResult,
     CompositionResult,
@@ -17,23 +18,14 @@ from ..data.models import (
     PriceAnalysisResult,
     ValidateDeckInput,
 )
-from ..tools import deck
-
-if TYPE_CHECKING:
-    from ..server import AppContext
-
-# Type alias for Context with our AppContext
-ToolContext = Context[Any, "AppContext", Any]
-
-
-def _get_app(ctx: ToolContext) -> AppContext:
-    """Get application context from request context."""
-    assert ctx.request_context is not None
-    return ctx.request_context.lifespan_context
+from mtg_mcp.tools import deck
 
 
 def _parse_deck_cards(cards_data: list[dict[str, Any]]) -> list[DeckCardInput]:
-    """Parse raw card data into DeckCardInput list."""
+    """Parse raw card data into DeckCardInput list.
+
+    Filters out entries with missing or empty card names.
+    """
     return [
         DeckCardInput(
             name=c.get("name", ""),
@@ -41,6 +33,7 @@ def _parse_deck_cards(cards_data: list[dict[str, Any]]) -> list[DeckCardInput]:
             sideboard=c.get("sideboard", False),
         )
         for c in cards_data
+        if c.get("name", "").strip()  # Filter out empty/whitespace-only names
     ]
 
 
@@ -52,19 +45,15 @@ def register(mcp: FastMCP) -> None:
         ctx: ToolContext,
         cards: Annotated[list[dict[str, Any]], "Deck cards [{name, quantity, sideboard?}]"],
         format: Annotated[Format, "Format to validate against"],
-        commander: Annotated[
-            str | None, "Commander card name (for Commander format)"
-        ] = None,
+        commander: Annotated[str | None, "Commander card name (for Commander format)"] = None,
         check_legality: Annotated[bool, "Check card legality in format"] = True,
         check_deck_size: Annotated[bool, "Check minimum deck size"] = True,
         check_copy_limit: Annotated[bool, "Check 4-copy limit (or singleton)"] = True,
         check_singleton: Annotated[bool, "Check singleton rule (Commander)"] = True,
-        check_color_identity: Annotated[
-            bool, "Check color identity (Commander)"
-        ] = True,
+        check_color_identity: Annotated[bool, "Check color identity (Commander)"] = True,
     ) -> DeckValidationResult:
         """Validate a deck against format rules."""
-        app = _get_app(ctx)
+        app = get_app(ctx)
         input_data = ValidateDeckInput(
             cards=_parse_deck_cards(cards),
             format=format,
@@ -85,7 +74,7 @@ def register(mcp: FastMCP) -> None:
         commander: Annotated[str | None, "Commander card name"] = None,
     ) -> ManaCurveResult:
         """Analyze the mana curve of a deck."""
-        app = _get_app(ctx)
+        app = get_app(ctx)
         input_data = AnalyzeDeckInput(
             cards=_parse_deck_cards(cards),
             format=format,
@@ -101,7 +90,7 @@ def register(mcp: FastMCP) -> None:
         commander: Annotated[str | None, "Commander card name"] = None,
     ) -> ColorAnalysisResult:
         """Analyze the color distribution of a deck."""
-        app = _get_app(ctx)
+        app = get_app(ctx)
         input_data = AnalyzeDeckInput(
             cards=_parse_deck_cards(cards),
             format=format,
@@ -117,7 +106,7 @@ def register(mcp: FastMCP) -> None:
         commander: Annotated[str | None, "Commander card name"] = None,
     ) -> CompositionResult:
         """Analyze the card type composition of a deck."""
-        app = _get_app(ctx)
+        app = get_app(ctx)
         input_data = AnalyzeDeckInput(
             cards=_parse_deck_cards(cards),
             format=format,
@@ -133,7 +122,7 @@ def register(mcp: FastMCP) -> None:
         commander: Annotated[str | None, "Commander card name"] = None,
     ) -> PriceAnalysisResult:
         """Analyze the total price of a deck."""
-        app = _get_app(ctx)
+        app = get_app(ctx)
         input_data = AnalyzeDeckInput(
             cards=_parse_deck_cards(cards),
             format=format,

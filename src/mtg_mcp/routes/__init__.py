@@ -10,11 +10,15 @@ if TYPE_CHECKING:
 
 def register_all_routes(mcp: FastMCP) -> None:
     """Register all tool routes with the MCP server."""
-    # Import here to avoid circular imports - each module registers on import
-    from . import cards, deck, images, sets
+    # Import here to avoid circular imports
+    from . import cards, deck, images, prompts, resources, sets
 
-    # Each module has a register() function that takes mcp
+    # Tools
     cards.register(mcp)
     sets.register(mcp)
     images.register(mcp)
     deck.register(mcp)
+
+    # Resources and prompts
+    resources.register(mcp)
+    prompts.register(mcp)

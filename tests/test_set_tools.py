@@ -97,5 +97,5 @@ class TestDatabaseStats:
 
         # data_version may or may not be present depending on database
         # but if it is, it should be a string
-        if "data_version" in stats and stats["data_version"]:
+        if stats.get("data_version"):
             assert isinstance(stats["data_version"], str)

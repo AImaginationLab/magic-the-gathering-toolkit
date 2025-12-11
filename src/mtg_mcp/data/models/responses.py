@@ -1,6 +1,17 @@
 """Response models for API outputs."""
 
+from typing import Literal
+
 from pydantic import BaseModel, Field, computed_field
+
+# Issue types for deck validation
+IssueType = Literal[
+    "not_found",
+    "not_legal",
+    "over_copy_limit",
+    "over_singleton_limit",
+    "outside_color_identity",
+]
 
 
 class CardSummary(BaseModel):
@@ -105,10 +116,12 @@ class SearchResult(BaseModel):
     cards: list[CardSummary]
     page: int
     page_size: int
+    total_count: int | None = None  # Total matching cards (for pagination)
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def count(self) -> int:
+        """Number of cards on this page."""
         return len(self.cards)
 
 
@@ -259,7 +272,7 @@ class CardIssue(BaseModel):
     """An issue with a card in deck validation."""
 
     card_name: str
-    issue: str  # "not_found", "not_legal", "over_copy_limit", "outside_color_identity"
+    issue: IssueType
     details: str | None = None
 
 
@@ -348,5 +361,6 @@ class PriceAnalysisResult(BaseModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def cards_with_prices(self) -> int:
+    def most_expensive_count(self) -> int:
+        """Number of cards in the most_expensive list (up to 10)."""
         return len(self.most_expensive)

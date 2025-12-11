@@ -156,9 +156,7 @@ class TestValidateDeck:
 
         # No issues for basic lands having multiple copies
         land_issues = [
-            i
-            for i in result.issues
-            if i.card_name in ("Plains", "Island", "Swamp", "Forest")
+            i for i in result.issues if i.card_name in ("Plains", "Island", "Swamp", "Forest")
         ]
         assert len(land_issues) == 0
 

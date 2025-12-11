@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import Annotated
 
-from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.fastmcp import FastMCP
 
-from ..data.models import (
+from mtg_mcp.context import ToolContext, get_app
+from mtg_mcp.data.models import (
     CardDetail,
     Color,
     Format,
@@ -15,20 +16,10 @@ from ..data.models import (
     RulingsResponse,
     SearchCardsInput,
     SearchResult,
+    SortField,
+    SortOrder,
 )
-from ..tools import cards
-
-if TYPE_CHECKING:
-    from ..server import AppContext
-
-# Type alias for Context with our AppContext
-ToolContext = Context[Any, "AppContext", Any]
-
-
-def _get_app(ctx: ToolContext) -> AppContext:
-    """Get application context from request context."""
-    assert ctx.request_context is not None
-    return ctx.request_context.lifespan_context
+from mtg_mcp.tools import cards
 
 
 def register(mcp: FastMCP) -> None:
@@ -53,15 +44,15 @@ def register(mcp: FastMCP) -> None:
         power: Annotated[str | None, "Creature power"] = None,
         toughness: Annotated[str | None, "Creature toughness"] = None,
         text: Annotated[str | None, "Search in card text"] = None,
-        keywords: Annotated[
-            list[str] | None, "Filter by keywords (Flying, Trample)"
-        ] = None,
+        keywords: Annotated[list[str] | None, "Filter by keywords (Flying, Trample)"] = None,
         format_legal: Annotated[Format | None, "Filter by format legality"] = None,
+        sort_by: Annotated[SortField | None, "Sort by field (name, cmc, color, rarity, type)"] = None,
+        sort_order: Annotated[SortOrder, "Sort order (asc, desc)"] = "asc",
         page: Annotated[int, "Page number"] = 1,
         page_size: Annotated[int, "Results per page (max 100)"] = 25,
     ) -> SearchResult:
         """Search for Magic: The Gathering cards with filters."""
-        app = _get_app(ctx)
+        app = get_app(ctx)
         filters = SearchCardsInput(
             name=name,
             colors=colors,
@@ -79,6 +70,8 @@ def register(mcp: FastMCP) -> None:
             text=text,
             keywords=keywords,
             format_legal=format_legal,
+            sort_by=sort_by,
+            sort_order=sort_order,
             page=page,
             page_size=min(page_size, 100),
         )
@@ -91,7 +84,7 @@ def register(mcp: FastMCP) -> None:
         uuid: Annotated[str | None, "Card UUID"] = None,
     ) -> CardDetail:
         """Get detailed information about a specific card."""
-        app = _get_app(ctx)
+        app = get_app(ctx)
         return await cards.get_card(app.db, app.scryfall, name, uuid)
 
     @mcp.tool()
@@ -100,7 +93,7 @@ def register(mcp: FastMCP) -> None:
         name: Annotated[str, "Exact card name"],
     ) -> RulingsResponse:
         """Get official rulings for a card."""
-        return await cards.get_card_rulings(_get_app(ctx).db, name)
+        return await cards.get_card_rulings(get_app(ctx).db, name)
 
     @mcp.tool()
     async def get_card_legalities(
@@ -108,10 +101,10 @@ def register(mcp: FastMCP) -> None:
         name: Annotated[str, "Exact card name"],
     ) -> LegalitiesResponse:
         """Get format legalities for a card."""
-        return await cards.get_card_legalities(_get_app(ctx).db, name)
+        return await cards.get_card_legalities(get_app(ctx).db, name)
 
     @mcp.tool()
     async def get_random_card(ctx: ToolContext) -> CardDetail:
         """Get a random Magic card."""
-        app = _get_app(ctx)
+        app = get_app(ctx)
         return await cards.get_random_card(app.db, app.scryfall)

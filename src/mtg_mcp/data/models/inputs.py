@@ -1,8 +1,13 @@
 """Input validation models for MCP tools."""
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from .types import Color, Format, Rarity
+
+SortField = Literal["name", "cmc", "color", "rarity", "type"]
+SortOrder = Literal["asc", "desc"]
 
 
 class SearchCardsInput(BaseModel):
@@ -24,6 +29,8 @@ class SearchCardsInput(BaseModel):
     text: str | None = Field(default=None, description="Search in card text")
     keywords: list[str] | None = Field(default=None, description="Filter by keywords")
     format_legal: Format | None = Field(default=None, description="Filter by format legality")
+    sort_by: SortField | None = Field(default=None, description="Sort by field (name, cmc, color, rarity, type)")
+    sort_order: SortOrder = Field(default="asc", description="Sort order (asc, desc)")
     page: int = Field(default=1, ge=1, description="Page number")
     page_size: int = Field(default=25, ge=1, le=100, description="Results per page")
 
@@ -114,9 +121,7 @@ class ValidateDeckInput(BaseModel):
     check_deck_size: bool = Field(default=True, description="Check deck size requirements")
     check_copy_limit: bool = Field(default=True, description="Check copy limit (4 or singleton)")
     check_singleton: bool = Field(default=True, description="Check singleton rule (Commander)")
-    check_color_identity: bool = Field(
-        default=True, description="Check color identity (Commander)"
-    )
+    check_color_identity: bool = Field(default=True, description="Check color identity (Commander)")
 
 
 class AnalyzeDeckInput(BaseModel):
