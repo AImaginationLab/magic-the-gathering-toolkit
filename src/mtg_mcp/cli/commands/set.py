@@ -25,10 +25,9 @@ def list_sets_cmd(
     as_json: Annotated[bool, typer.Option("--json", help="Output JSON")] = False,
 ) -> None:
     """List Magic sets."""
-    ctx = DatabaseContext()
 
     async def _run() -> None:
-        try:
+        async with DatabaseContext() as ctx:
             db = await ctx.get_db()
             result = await sets.get_sets(db, name, set_type, include_online)
 
@@ -47,8 +46,6 @@ def list_sets_cmd(
                 console.print(table)
                 if result.count > 50:
                     console.print(f"[dim]... and {result.count - 50} more[/dim]")
-        finally:
-            await ctx.close()
 
     run_async(_run())
 
@@ -59,10 +56,9 @@ def get_set_cmd(
     as_json: Annotated[bool, typer.Option("--json", help="Output JSON")] = False,
 ) -> None:
     """Get details for a specific set."""
-    ctx = DatabaseContext()
 
     async def _run() -> None:
-        try:
+        async with DatabaseContext() as ctx:
             db = await ctx.get_db()
             result = await sets.get_set(db, code)
 
@@ -77,7 +73,5 @@ def get_set_cmd(
                 console.print(
                     Panel("\n".join(lines), title=f"[bold cyan]{result.name}[/] [{result.code}]")
                 )
-        finally:
-            await ctx.close()
 
     run_async(_run())

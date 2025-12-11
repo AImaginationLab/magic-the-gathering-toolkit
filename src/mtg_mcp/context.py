@@ -29,7 +29,7 @@ def get_app(ctx: ToolContext) -> AppContext:
         raise RuntimeError("Request context is not available")
     lifespan_ctx = ctx.request_context.lifespan_context
     if not isinstance(lifespan_ctx, AppContext):
-        raise RuntimeError(
+        raise TypeError(
             f"Expected AppContext but got {type(lifespan_ctx).__name__}. "
             "Server lifespan may be misconfigured."
         )

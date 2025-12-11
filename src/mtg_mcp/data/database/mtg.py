@@ -106,8 +106,10 @@ class MTGDatabase:
 
     async def get_card_by_name(self, name: str, include_extras: bool = True) -> Card:
         """Get a card by exact name. Returns most recent non-promo printing."""
-        # Check cache first
-        cached = await self._cache.get(f"name:{name.lower()}")
+        # Check cache first - include include_extras in cache key to avoid serving
+        # incomplete data when the flag differs between calls
+        cache_key = f"name:{name.lower()}:extras={include_extras}"
+        cached = await self._cache.get(cache_key)
         if cached:
             return cached
 
@@ -128,7 +130,7 @@ class MTGDatabase:
                 if include_extras:
                     card.legalities = await self._get_legalities(row["uuid"])
                     card.rulings = await self._get_rulings(row["uuid"])
-                await self._cache.set(f"name:{name.lower()}", card)
+                await self._cache.set(cache_key, card)
                 return card
         raise CardNotFoundError(name)
 

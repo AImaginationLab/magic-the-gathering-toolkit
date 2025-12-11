@@ -32,6 +32,7 @@ from .responses import (
     DatabaseStats,
     DeckValidationResult,
     ImageUrls,
+    IssueType,
     LegalitiesResponse,
     ManaCurveResult,
     PriceAnalysisResult,
@@ -111,6 +112,7 @@ __all__ = [
     # Type literals
     "Color",
     "Format",
+    "IssueType",
     "Rarity",
     "SortField",
     "SortOrder",

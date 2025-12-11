@@ -8,9 +8,7 @@ A command-line interface for Magic: The Gathering card lookup, deck analysis, an
 git clone git@github.com:aimaginationlab/magic-the-gathering-mcp.git
 cd magic-the-gathering-mcp
 uv sync
-
-# Download AllPrintings.sqlite from https://mtgjson.com/downloads/all-files/
-# Place in resources/ directory
+uv run create-datasources
 ```
 
 ## Quick Start
@@ -34,7 +32,7 @@ The REPL provides a themed, Magic-style interface for quick lookups:
 uv run mtg repl
 ```
 
-```text
+```
     ╔╦╗╔═╗╔═╗╦╔═╗  ┌┬┐┬ ┬┌─┐
     ║║║╠═╣║ ╦║║     │ ├─┤├┤
     ╩ ╩╩ ╩╚═╝╩╚═╝   ┴ ┴ ┴└─┘
@@ -138,12 +136,12 @@ Cards are rendered as styled panels with color-coded borders:
 - **Colorless/Artifacts**: Gray border
 
 Mana costs use emoji symbols:
-- 🌞 White
+- ⚪ White
 - 💧 Blue
 - 💀 Black
 - 🔥 Red
-- 🌳 Green
-- 💠 Colorless
+- 🌲 Green
+- ◇ Colorless
 - 🔄 Tap
 - ❄️ Snow
 
@@ -566,7 +564,7 @@ The CLI uses [Rich](https://rich.readthedocs.io/) for styled output. Best experi
 
 ### Validate a Commander deck
 ```bash
-$ mtg deck validate edh.txt -f commander --commander "Atraxa, Praetors' Voice"
+mtg deck validate edh.txt -f commander --commander "Atraxa, Praetors' Voice"
 
 Deck Validation: VALID
 Format: commander
@@ -578,5 +576,5 @@ Warnings:
 
 ### Find budget options
 ```bash
-$ mtg card search -f modern --cmc 1 -c R -t Creature --json | jq '.cards[] | select(.prices.usd < 1)'
+mtg card search -f modern --cmc 1 -c R -t Creature --json | jq '.cards[] | select(.prices.usd < 1)'
 ```

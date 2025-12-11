@@ -44,7 +44,7 @@ def get_scryfall_download_url(bulk_type: str = "unique_artwork") -> tuple[str, s
     """Get the download URL for Scryfall bulk data."""
     console.print("[dim]Fetching Scryfall bulk data info...[/]")
 
-    with httpx.Client() as client:
+    with httpx.Client(timeout=30.0) as client:
         response = client.get(SCRYFALL_BULK_API)
         response.raise_for_status()
         data = response.json()
@@ -58,7 +58,11 @@ def get_scryfall_download_url(bulk_type: str = "unique_artwork") -> tuple[str, s
 
 def download_file(url: str, dest: Path, description: str) -> None:
     """Download a file with progress bar."""
-    with httpx.Client(follow_redirects=True) as client, client.stream("GET", url) as response:
+    # Use longer read timeout for large file downloads
+    timeout = httpx.Timeout(connect=30.0, read=300.0, write=30.0, pool=30.0)
+    with httpx.Client(follow_redirects=True, timeout=timeout) as client, client.stream(
+        "GET", url
+    ) as response:
         response.raise_for_status()
         total = int(response.headers.get("content-length", 0))
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -291,12 +292,8 @@ class TestReplCommands:
 class TestDeckFileParsing:
     """Tests for deck file parsing."""
 
-    def test_parse_deck_file_format(self) -> None:
+    def test_parse_deck_file_format(self, tmp_path: Path) -> None:
         """Deck file format should be documented."""
-        # The parse_deck_file function is in commands/deck.py
-        import tempfile
-        from pathlib import Path
-
         from mtg_mcp.cli.commands.deck import parse_deck_file
 
         # Create a test deck file
@@ -305,42 +302,34 @@ class TestDeckFileParsing:
 4 Mountain
 SB: 2 Pyroblast
 """
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write(deck_content)
-            f.flush()
-            temp_path = Path(f.name)
+        deck_file = tmp_path / "deck.txt"
+        deck_file.write_text(deck_content)
 
-        try:
-            cards = parse_deck_file(temp_path)
+        cards = parse_deck_file(deck_file)
 
-            # Should have 3 entries
-            assert len(cards) == 3
+        # Should have 3 entries
+        assert len(cards) == 3
 
-            # Check Lightning Bolt
-            bolt = cards[0]
-            assert bolt.name == "Lightning Bolt"
-            assert bolt.quantity == 4
-            assert bolt.sideboard is False
+        # Check Lightning Bolt
+        bolt = cards[0]
+        assert bolt.name == "Lightning Bolt"
+        assert bolt.quantity == 4
+        assert bolt.sideboard is False
 
-            # Check Mountain
-            mountain = cards[1]
-            assert mountain.name == "Mountain"
-            assert mountain.quantity == 4
-            assert mountain.sideboard is False
+        # Check Mountain
+        mountain = cards[1]
+        assert mountain.name == "Mountain"
+        assert mountain.quantity == 4
+        assert mountain.sideboard is False
 
-            # Check sideboard Pyroblast
-            pyro = cards[2]
-            assert pyro.name == "Pyroblast"
-            assert pyro.quantity == 2
-            assert pyro.sideboard is True
-        finally:
-            temp_path.unlink()
+        # Check sideboard Pyroblast
+        pyro = cards[2]
+        assert pyro.name == "Pyroblast"
+        assert pyro.quantity == 2
+        assert pyro.sideboard is True
 
-    def test_parse_deck_file_comments(self) -> None:
+    def test_parse_deck_file_comments(self, tmp_path: Path) -> None:
         """Deck file parser should skip comments."""
-        import tempfile
-        from pathlib import Path
-
         from mtg_mcp.cli.commands.deck import parse_deck_file
 
         deck_content = """# This is a comment
@@ -348,22 +337,14 @@ SB: 2 Pyroblast
 # Another comment
 4 Mountain
 """
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write(deck_content)
-            f.flush()
-            temp_path = Path(f.name)
+        deck_file = tmp_path / "deck.txt"
+        deck_file.write_text(deck_content)
 
-        try:
-            cards = parse_deck_file(temp_path)
-            assert len(cards) == 2
-        finally:
-            temp_path.unlink()
+        cards = parse_deck_file(deck_file)
+        assert len(cards) == 2
 
-    def test_parse_deck_file_empty_lines(self) -> None:
+    def test_parse_deck_file_empty_lines(self, tmp_path: Path) -> None:
         """Deck file parser should skip empty lines."""
-        import tempfile
-        from pathlib import Path
-
         from mtg_mcp.cli.commands.deck import parse_deck_file
 
         deck_content = """4 Lightning Bolt
@@ -371,37 +352,24 @@ SB: 2 Pyroblast
 4 Mountain
 
 """
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write(deck_content)
-            f.flush()
-            temp_path = Path(f.name)
+        deck_file = tmp_path / "deck.txt"
+        deck_file.write_text(deck_content)
 
-        try:
-            cards = parse_deck_file(temp_path)
-            assert len(cards) == 2
-        finally:
-            temp_path.unlink()
+        cards = parse_deck_file(deck_file)
+        assert len(cards) == 2
 
-    def test_parse_deck_file_no_quantity(self) -> None:
+    def test_parse_deck_file_no_quantity(self, tmp_path: Path) -> None:
         """Deck file parser should handle cards without quantity."""
-        import tempfile
-        from pathlib import Path
-
         from mtg_mcp.cli.commands.deck import parse_deck_file
 
         deck_content = """Lightning Bolt
 Mountain
 """
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write(deck_content)
-            f.flush()
-            temp_path = Path(f.name)
+        deck_file = tmp_path / "deck.txt"
+        deck_file.write_text(deck_content)
 
-        try:
-            cards = parse_deck_file(temp_path)
-            assert len(cards) == 2
-            # Should default to quantity 1
-            assert cards[0].quantity == 1
-            assert cards[1].quantity == 1
-        finally:
-            temp_path.unlink()
+        cards = parse_deck_file(deck_file)
+        assert len(cards) == 2
+        # Should default to quantity 1
+        assert cards[0].quantity == 1
+        assert cards[1].quantity == 1

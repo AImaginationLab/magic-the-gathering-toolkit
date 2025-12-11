@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import random
 import re
 import textwrap
@@ -166,19 +165,29 @@ def parse_search_filters(args: str) -> tuple[str | None, SearchCardsInput]:
     if "keywords" in filters:
         keywords = [k.strip() for k in filters["keywords"].split(",")]
 
-    # Parse CMC values
+    # Parse CMC values with user-visible warnings on invalid input
     cmc = None
     cmc_min = None
     cmc_max = None
     if "cmc" in filters:
-        with contextlib.suppress(ValueError):
+        try:
             cmc = float(filters["cmc"])
+        except ValueError:
+            console.print(f"[yellow]Warning: Invalid cmc value '{filters['cmc']}', ignoring[/]")
     if "cmc_min" in filters:
-        with contextlib.suppress(ValueError):
+        try:
             cmc_min = float(filters["cmc_min"])
+        except ValueError:
+            console.print(
+                f"[yellow]Warning: Invalid cmc_min value '{filters['cmc_min']}', ignoring[/]"
+            )
     if "cmc_max" in filters:
-        with contextlib.suppress(ValueError):
+        try:
             cmc_max = float(filters["cmc_max"])
+        except ValueError:
+            console.print(
+                f"[yellow]Warning: Invalid cmc_max value '{filters['cmc_max']}', ignoring[/]"
+            )
 
     search_input = SearchCardsInput(
         name=name_query,

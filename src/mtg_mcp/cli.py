@@ -13,10 +13,25 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from .cli.formatting import (
+    FLAVOR_QUOTES as _FLAVOR_QUOTES,
+)
+from .cli.formatting import (
+    GOODBYE_QUOTES as _GOODBYE_QUOTES,
+)
+from .cli.formatting import (
+    MANA_SYMBOLS,
+    prettify_mana,
+    strip_quotes,
+)
 from .config import get_settings
 from .data.database import DatabaseManager, MTGDatabase, ScryfallDatabase
 from .data.models.inputs import AnalyzeDeckInput, DeckCardInput, SearchCardsInput
 from .tools import cards, deck, images, sets
+
+# Re-export for module-level access
+FLAVOR_QUOTES = _FLAVOR_QUOTES
+GOODBYE_QUOTES = _GOODBYE_QUOTES
 
 console = Console()
 
@@ -722,30 +737,6 @@ def stats(
 # =============================================================================
 
 
-MANA_SYMBOLS = {
-    "W": "[white on white]  [/]",  # White
-    "U": "[blue on blue]  [/]",  # Blue
-    "B": "[black on black]  [/]",  # Black
-    "R": "[red on red]  [/]",  # Red
-    "G": "[green on green]  [/]",  # Green
-}
-
-# Pretty mana symbol representations
-MANA_DISPLAY = {
-    "{W}": "⚪",  # White
-    "{U}": "🔵",  # Blue
-    "{B}": "⚫",  # Black
-    "{R}": "🔴",  # Red
-    "{G}": "🟢",  # Green
-    "{C}": "◇",  # Colorless
-    "{T}": "↩️",  # Tap
-    "{Q}": "↪️",  # Untap
-    "{X}": "Ⓧ",  # X
-    "{S}": "❄️",  # Snow
-    "{E}": "⚡",  # Energy
-}
-
-
 async def fetch_card_image(url: str) -> bytes | None:
     """Fetch card image from URL."""
     import httpx
@@ -912,69 +903,9 @@ def display_image_in_terminal(image_data: bytes, width: int = 25) -> bool:
         return False
 
 
-def prettify_mana(text: str) -> str:
-    """Convert mana symbols to pretty Unicode representations."""
-    import re
-
-    result = text
-
-    # Replace specific symbols
-    for symbol, pretty in MANA_DISPLAY.items():
-        result = result.replace(symbol, pretty)
-
-    # Replace generic mana {1}, {2}, etc with circled numbers
-    def replace_generic(match: re.Match[str]) -> str:
-        num = int(match.group(1))
-        if num == 0:
-            return "⓪"
-        elif num <= 20:
-            # Circled numbers ① through ⑳
-            return chr(0x2460 + num - 1)
-        else:
-            return f"({num})"
-
-    result = re.sub(r"\{(\d+)\}", replace_generic, result)
-
-    # Replace hybrid mana like {W/U} with both symbols
-    result = re.sub(
-        r"\{([WUBRGC])/([WUBRGC])\}",
-        lambda m: f"{MANA_DISPLAY.get('{' + m.group(1) + '}', m.group(1))}/{MANA_DISPLAY.get('{' + m.group(2) + '}', m.group(2))}",
-        result,
-    )
-
-    # Replace Phyrexian mana like {W/P}
-    result = re.sub(
-        r"\{([WUBRG])/P\}",
-        lambda m: f"{MANA_DISPLAY.get('{' + m.group(1) + '}', m.group(1))}ᵖ",
-        result,
-    )
-
-    return result
-
-
-FLAVOR_QUOTES = [
-    '"The spark ignites. The journey begins."',
-    '"In the multiverse, every spell tells a story."',
-    '"Knowledge is the ultimate power."',
-    '"From the chaos of mana, order is forged."',
-    '"Every planeswalker was once a beginner."',
-]
-
-GOODBYE_QUOTES = [
-    '"Until we meet again, planeswalker."',
-    '"May your draws be ever in your favor."',
-    '"The spell fades, but the magic remains."',
-    '"Go forth and conquer the multiverse!"',
-    '"Another chapter closes in the Blind Eternities..."',
-]
-
-
-def strip_quotes(s: str) -> str:
-    """Strip surrounding quotes from a string."""
-    s = s.strip()
-    if (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
-        return s[1:-1]
-    return s
+# Use the imported versions (aliased above to avoid shadowing)
+FLAVOR_QUOTES = _FLAVOR_QUOTES
+GOODBYE_QUOTES = _GOODBYE_QUOTES
 
 
 @cli.command()

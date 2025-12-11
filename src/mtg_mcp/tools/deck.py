@@ -211,14 +211,22 @@ async def validate_deck(
 
             limit = 1 if (is_singleton and input.check_singleton) else copy_limit
             if count > limit:
-                issue_type = "over_singleton_limit" if is_singleton else "over_copy_limit"
-                issues.append(
-                    CardIssue(
-                        card_name=card_name,
-                        issue=issue_type,
-                        details=f"Has {count} copies, limit is {limit}",
+                if is_singleton:
+                    issues.append(
+                        CardIssue(
+                            card_name=card_name,
+                            issue="over_singleton_limit",
+                            details=f"Has {count} copies, limit is {limit}",
+                        )
                     )
-                )
+                else:
+                    issues.append(
+                        CardIssue(
+                            card_name=card_name,
+                            issue="over_copy_limit",
+                            details=f"Has {count} copies, limit is {limit}",
+                        )
+                    )
 
     # Check deck size
     if input.check_deck_size:

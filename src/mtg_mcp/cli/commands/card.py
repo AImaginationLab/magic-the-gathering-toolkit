@@ -36,10 +36,9 @@ def search_cards_cmd(
     as_json: Annotated[bool, typer.Option("--json", help="Output JSON")] = False,
 ) -> None:
     """Search for cards with filters."""
-    ctx = DatabaseContext()
 
     async def _run() -> None:
-        try:
+        async with DatabaseContext() as ctx:
             db = await ctx.get_db()
             scryfall = await ctx.get_scryfall()
 
@@ -81,8 +80,6 @@ def search_cards_cmd(
                 console.print(table)
                 if result.count > page * page_size:
                     console.print(f"[dim]... and {result.count - page * page_size} more[/dim]")
-        finally:
-            await ctx.close()
 
     run_async(_run())
 
@@ -93,10 +90,9 @@ def get_card_cmd(
     as_json: Annotated[bool, typer.Option("--json", help="Output JSON")] = False,
 ) -> None:
     """Get detailed card information."""
-    ctx = DatabaseContext()
 
     async def _run() -> None:
-        try:
+        async with DatabaseContext() as ctx:
             db = await ctx.get_db()
             scryfall = await ctx.get_scryfall()
 
@@ -118,8 +114,6 @@ def get_card_cmd(
                     lines.append(f"\n[dim]${result.prices.usd:.2f}[/dim]")
 
                 console.print(Panel("\n".join(lines), title=f"[bold cyan]{result.name}[/]"))
-        finally:
-            await ctx.close()
 
     run_async(_run())
 
@@ -130,10 +124,9 @@ def get_rulings_cmd(
     as_json: Annotated[bool, typer.Option("--json", help="Output JSON")] = False,
 ) -> None:
     """Get official rulings for a card."""
-    ctx = DatabaseContext()
 
     async def _run() -> None:
-        try:
+        async with DatabaseContext() as ctx:
             db = await ctx.get_db()
             result = await cards.get_card_rulings(db, name)
 
@@ -144,8 +137,6 @@ def get_rulings_cmd(
                 for ruling in result.rulings:
                     console.print(f"[dim]{ruling.date}[/]")
                     console.print(f"  {ruling.text}\n")
-        finally:
-            await ctx.close()
 
     run_async(_run())
 
@@ -156,10 +147,9 @@ def get_legality_cmd(
     as_json: Annotated[bool, typer.Option("--json", help="Output JSON")] = False,
 ) -> None:
     """Get format legalities for a card."""
-    ctx = DatabaseContext()
 
     async def _run() -> None:
-        try:
+        async with DatabaseContext() as ctx:
             db = await ctx.get_db()
             result = await cards.get_card_legalities(db, name)
 
@@ -175,8 +165,6 @@ def get_legality_cmd(
                     table.add_row(fmt, f"[{style}]{status}[/]")
 
                 console.print(table)
-        finally:
-            await ctx.close()
 
     run_async(_run())
 
@@ -188,10 +176,9 @@ def get_price_cmd(
     as_json: Annotated[bool, typer.Option("--json", help="Output JSON")] = False,
 ) -> None:
     """Get current prices for a card."""
-    ctx = DatabaseContext()
 
     async def _run() -> None:
-        try:
+        async with DatabaseContext() as ctx:
             scryfall = await ctx.get_scryfall()
             if scryfall is None:
                 console.print("[red]Error: Scryfall database not available[/]")
@@ -217,8 +204,6 @@ def get_price_cmd(
                     table.add_row("EUR", eur, eur_foil)
 
                 console.print(table)
-        finally:
-            await ctx.close()
 
     run_async(_run())
 
@@ -228,10 +213,9 @@ def random_card_cmd(
     as_json: Annotated[bool, typer.Option("--json", help="Output JSON")] = False,
 ) -> None:
     """Get a random card."""
-    ctx = DatabaseContext()
 
     async def _run() -> None:
-        try:
+        async with DatabaseContext() as ctx:
             db = await ctx.get_db()
             scryfall = await ctx.get_scryfall()
 
@@ -248,7 +232,5 @@ def random_card_cmd(
                     lines.append(f"\n{result.text}")
 
                 console.print(Panel("\n".join(lines), title=f"[bold cyan]{result.name}[/]"))
-        finally:
-            await ctx.close()
 
     run_async(_run())

@@ -1,6 +1,17 @@
 """Response models for API outputs."""
 
+from typing import Literal
+
 from pydantic import BaseModel, Field, computed_field
+
+# Issue types for deck validation
+IssueType = Literal[
+    "not_found",
+    "not_legal",
+    "over_copy_limit",
+    "over_singleton_limit",
+    "outside_color_identity",
+]
 
 
 class CardSummary(BaseModel):
@@ -261,7 +272,7 @@ class CardIssue(BaseModel):
     """An issue with a card in deck validation."""
 
     card_name: str
-    issue: str  # "not_found", "not_legal", "over_copy_limit", "outside_color_identity"
+    issue: IssueType
     details: str | None = None
 
 
