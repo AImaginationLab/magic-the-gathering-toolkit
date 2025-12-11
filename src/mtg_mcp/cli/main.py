@@ -51,34 +51,35 @@ def stats(
     ctx = DatabaseContext()
 
     async def _run() -> None:
-        db = await ctx.get_db()
-        scryfall = await ctx.get_scryfall()
+        try:
+            db = await ctx.get_db()
+            scryfall = await ctx.get_scryfall()
 
-        db_stats = await db.get_database_stats()
+            db_stats = await db.get_database_stats()
 
-        if as_json:
-            data: dict[str, Any] = {"mtg_database": db_stats}
-            if scryfall:
-                data["scryfall_database"] = await scryfall.get_database_stats()
-            output_json(data)
-        else:
-            table = Table(title="Database Statistics")
-            table.add_column("Metric", style="cyan")
-            table.add_column("Value", justify="right")
+            if as_json:
+                data: dict[str, Any] = {"mtg_database": db_stats}
+                if scryfall:
+                    data["scryfall_database"] = await scryfall.get_database_stats()
+                output_json(data)
+            else:
+                table = Table(title="Database Statistics")
+                table.add_column("Metric", style="cyan")
+                table.add_column("Value", justify="right")
 
-            table.add_row("Unique cards", str(db_stats.get("unique_cards", "?")))
-            table.add_row("Total printings", str(db_stats.get("total_cards", "?")))
-            table.add_row("Sets", str(db_stats.get("total_sets", "?")))
-            table.add_row("Data version", db_stats.get("data_version", "unknown"))
+                table.add_row("Unique cards", str(db_stats.get("unique_cards", "?")))
+                table.add_row("Total printings", str(db_stats.get("total_cards", "?")))
+                table.add_row("Sets", str(db_stats.get("total_sets", "?")))
+                table.add_row("Data version", db_stats.get("data_version", "unknown"))
 
-            if scryfall:
-                sf_stats = await scryfall.get_database_stats()
-                table.add_row("", "")  # Separator
-                table.add_row("Scryfall cards", str(sf_stats.get("total_cards", "?")))
+                if scryfall:
+                    sf_stats = await scryfall.get_database_stats()
+                    table.add_row("", "")  # Separator
+                    table.add_row("Scryfall cards", str(sf_stats.get("total_cards", "?")))
 
-            console.print(table)
-
-        await ctx.close()
+                console.print(table)
+        finally:
+            await ctx.close()
 
     run_async(_run())
 

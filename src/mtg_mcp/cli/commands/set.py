@@ -28,26 +28,27 @@ def list_sets_cmd(
     ctx = DatabaseContext()
 
     async def _run() -> None:
-        db = await ctx.get_db()
-        result = await sets.get_sets(db, name, set_type, include_online)
+        try:
+            db = await ctx.get_db()
+            result = await sets.get_sets(db, name, set_type, include_online)
 
-        if as_json:
-            output_json(result)
-        else:
-            table = Table(title=f"Found {result.count} sets")
-            table.add_column("Code", style="cyan")
-            table.add_column("Name", style="white")
-            table.add_column("Released", style="dim")
-            table.add_column("Type", style="green")
+            if as_json:
+                output_json(result)
+            else:
+                table = Table(title=f"Found {result.count} sets")
+                table.add_column("Code", style="cyan")
+                table.add_column("Name", style="white")
+                table.add_column("Released", style="dim")
+                table.add_column("Type", style="green")
 
-            for s in result.sets[:50]:
-                table.add_row(s.code, s.name, s.release_date or "????", s.type or "")
+                for s in result.sets[:50]:
+                    table.add_row(s.code, s.name, s.release_date or "????", s.type or "")
 
-            console.print(table)
-            if result.count > 50:
-                console.print(f"[dim]... and {result.count - 50} more[/dim]")
-
-        await ctx.close()
+                console.print(table)
+                if result.count > 50:
+                    console.print(f"[dim]... and {result.count - 50} more[/dim]")
+        finally:
+            await ctx.close()
 
     run_async(_run())
 
@@ -61,21 +62,22 @@ def get_set_cmd(
     ctx = DatabaseContext()
 
     async def _run() -> None:
-        db = await ctx.get_db()
-        result = await sets.get_set(db, code)
+        try:
+            db = await ctx.get_db()
+            result = await sets.get_set(db, code)
 
-        if as_json:
-            output_json(result)
-        else:
-            lines = [
-                f"[bold]Type:[/] {result.type}",
-                f"[bold]Released:[/] {result.release_date or 'Unknown'}",
-                f"[bold]Cards:[/] {result.total_set_size or 'Unknown'}",
-            ]
-            console.print(
-                Panel("\n".join(lines), title=f"[bold cyan]{result.name}[/] [{result.code}]")
-            )
-
-        await ctx.close()
+            if as_json:
+                output_json(result)
+            else:
+                lines = [
+                    f"[bold]Type:[/] {result.type}",
+                    f"[bold]Released:[/] {result.release_date or 'Unknown'}",
+                    f"[bold]Cards:[/] {result.total_set_size or 'Unknown'}",
+                ]
+                console.print(
+                    Panel("\n".join(lines), title=f"[bold cyan]{result.name}[/] [{result.code}]")
+                )
+        finally:
+            await ctx.close()
 
     run_async(_run())

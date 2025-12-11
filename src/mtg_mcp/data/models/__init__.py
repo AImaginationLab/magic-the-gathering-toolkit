@@ -15,6 +15,8 @@ from .inputs import (
     GetSetsInput,
     SearchByPriceInput,
     SearchCardsInput,
+    SortField,
+    SortOrder,
     ValidateDeckInput,
 )
 from .mtg_set import Set
@@ -110,4 +112,6 @@ __all__ = [
     "Color",
     "Format",
     "Rarity",
+    "SortField",
+    "SortOrder",
 ]

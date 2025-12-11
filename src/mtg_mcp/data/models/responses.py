@@ -105,10 +105,12 @@ class SearchResult(BaseModel):
     cards: list[CardSummary]
     page: int
     page_size: int
+    total_count: int | None = None  # Total matching cards (for pagination)
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def count(self) -> int:
+        """Number of cards on this page."""
         return len(self.cards)
 
 

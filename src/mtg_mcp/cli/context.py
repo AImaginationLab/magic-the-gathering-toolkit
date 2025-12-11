@@ -4,21 +4,41 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any
-
-from rich import print as rprint
+from typing import TYPE_CHECKING, Any
 
 from mtg_mcp.config import get_settings
 from mtg_mcp.data.database import DatabaseManager, MTGDatabase, ScryfallDatabase
 
+if TYPE_CHECKING:
+    from types import TracebackType
+
 
 class DatabaseContext:
-    """Lazy database connection manager for CLI."""
+    """Lazy database connection manager for CLI.
+
+    Supports async context manager protocol for guaranteed cleanup:
+        async with DatabaseContext() as ctx:
+            db = await ctx.get_db()
+            ...
+    """
 
     def __init__(self) -> None:
         self._manager: DatabaseManager | None = None
         self._db: MTGDatabase | None = None
         self._scryfall: ScryfallDatabase | None = None
+
+    async def __aenter__(self) -> DatabaseContext:
+        """Enter async context manager."""
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        """Exit async context manager, ensuring cleanup."""
+        await self.close()
 
     async def get_db(self) -> MTGDatabase:
         """Get MTGDatabase, connecting if needed."""
@@ -41,6 +61,8 @@ class DatabaseContext:
         if self._manager is not None:
             await self._manager.stop()
             self._manager = None
+            self._db = None
+            self._scryfall = None
 
 
 def run_async(coro: Any) -> Any:

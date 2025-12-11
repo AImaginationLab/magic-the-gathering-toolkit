@@ -107,7 +107,7 @@ def display_image_sixel(image_data: bytes, width: int = 25) -> bool:
         px_height = int(px_width * aspect_ratio)
 
         resized = img.resize((px_width, px_height), Image.Resampling.LANCZOS)
-        resized.convert("P", palette=Image.Palette.ADAPTIVE, colors=256)
+        palette_img = resized.convert("P", palette=Image.Palette.ADAPTIVE, colors=256)  # noqa: F841
 
         # This would require a sixel encoder - skip for now
         return False

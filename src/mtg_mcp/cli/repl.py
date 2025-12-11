@@ -74,6 +74,9 @@ FILTER_ALIASES: dict[str, str] = {
     "power": "power",
     "tou": "toughness",
     "toughness": "toughness",
+    # Sorting
+    "sort": "sort_by",
+    "order": "sort_order",
 }
 
 
@@ -97,16 +100,48 @@ def parse_search_filters(args: str) -> tuple[str | None, SearchCardsInput]:
 
     filters: dict[str, Any] = {}
 
+    # Valid color values
+    valid_colors = frozenset({"W", "U", "B", "R", "G"})
+    # Valid rarity values
+    valid_rarities = frozenset({"common", "uncommon", "rare", "mythic"})
+    # Valid sort fields
+    valid_sort_fields = frozenset({"name", "cmc", "color", "rarity", "type"})
+    # Valid sort orders
+    valid_sort_orders = frozenset({"asc", "desc"})
+
     # Find all filter:value matches
     filter_matches = list(filter_pattern.finditer(args))
 
-    # Extract filters
+    # Extract filters with validation
     for match in filter_matches:
         key = match.group(1).lower()
         value = match.group(2) or match.group(3)  # Quoted or unquoted
 
         canonical = FILTER_ALIASES.get(key)
         if canonical:
+            # Validate specific filter values
+            if canonical in ("colors", "color_identity"):
+                # Validate each color character
+                clean_value = value.upper().replace(",", "")
+                invalid_colors = set(clean_value) - valid_colors
+                if invalid_colors:
+                    # Skip invalid colors but continue
+                    clean_value = "".join(c for c in clean_value if c in valid_colors)
+                    if not clean_value:
+                        continue
+                value = clean_value
+            elif canonical == "rarity":
+                if value.lower() not in valid_rarities:
+                    continue  # Skip invalid rarity
+                value = value.lower()
+            elif canonical == "sort_by":
+                if value.lower() not in valid_sort_fields:
+                    continue  # Skip invalid sort field
+                value = value.lower()
+            elif canonical == "sort_order":
+                if value.lower() not in valid_sort_orders:
+                    continue  # Skip invalid sort order
+                value = value.lower()
             filters[canonical] = value
 
     # Everything not part of a filter is the name query
@@ -149,18 +184,20 @@ def parse_search_filters(args: str) -> tuple[str | None, SearchCardsInput]:
         name=name_query,
         type=filters.get("type"),
         subtype=filters.get("subtype"),
-        colors=colors,  # type: ignore[arg-type]
-        color_identity=color_identity,  # type: ignore[arg-type]
+        colors=colors,
+        color_identity=color_identity,
         cmc=cmc,
         cmc_min=cmc_min,
         cmc_max=cmc_max,
         power=filters.get("power"),
         toughness=filters.get("toughness"),
-        rarity=filters.get("rarity"),  # type: ignore[arg-type]
+        rarity=filters.get("rarity"),
         set_code=filters.get("set"),
-        format_legal=filters.get("format"),  # type: ignore[arg-type]
+        format_legal=filters.get("format"),
         text=filters.get("text"),
         keywords=keywords,
+        sort_by=filters.get("sort_by"),
+        sort_order=filters.get("sort_order", "asc"),
         page_size=15,
     )
 
@@ -178,9 +215,7 @@ BANNER = """
 """
 
 
-async def show_card(
-    db: MTGDatabase, scryfall: ScryfallDatabase | None, name: str
-) -> None:
+async def show_card(db: MTGDatabase, scryfall: ScryfallDatabase | None, name: str) -> None:
     """Display a card with MTG card-like formatting."""
     card_result = await cards.get_card(db, scryfall, name=name)
 
@@ -254,7 +289,11 @@ async def show_card(
         rarity_icons = {"common": "○", "uncommon": "◐", "rare": "●", "mythic": "★"}
         rarity_colors = {"common": "white", "uncommon": "cyan", "rare": "yellow", "mythic": "red"}
         icon = rarity_icons.get(card_result.rarity.lower(), "○") if card_result.rarity else "○"
-        r_color = rarity_colors.get(card_result.rarity.lower(), "white") if card_result.rarity else "white"
+        r_color = (
+            rarity_colors.get(card_result.rarity.lower(), "white")
+            if card_result.rarity
+            else "white"
+        )
         footer_parts.append(f"[{r_color}]{icon} {card_result.set_code.upper()}[/]")
     if card_result.prices and card_result.prices.usd:
         footer_parts.append(f"💰 [green]${card_result.prices.usd:.2f}[/]")
@@ -305,6 +344,156 @@ def display_set_detail(s: Any) -> None:
     )
 
 
+async def handle_search_command(
+    db: MTGDatabase, scryfall: ScryfallDatabase | None, args: str
+) -> None:
+    """Handle the search command with pagination support."""
+    _, base_filters = parse_search_filters(args)
+
+    # Build filter description for display
+    filter_desc = []
+    if base_filters.type:
+        filter_desc.append(f"type:{base_filters.type}")
+    if base_filters.colors:
+        filter_desc.append(f"colors:{''.join(base_filters.colors)}")
+    if base_filters.cmc is not None:
+        filter_desc.append(f"cmc:{base_filters.cmc}")
+    if base_filters.cmc_min is not None:
+        filter_desc.append(f"cmc>{base_filters.cmc_min}")
+    if base_filters.cmc_max is not None:
+        filter_desc.append(f"cmc<{base_filters.cmc_max}")
+    if base_filters.format_legal:
+        filter_desc.append(f"format:{base_filters.format_legal}")
+    if base_filters.rarity:
+        filter_desc.append(f"rarity:{base_filters.rarity}")
+    if base_filters.set_code:
+        filter_desc.append(f"set:{base_filters.set_code}")
+    if base_filters.text:
+        filter_desc.append(f'text:"{base_filters.text}"')
+    if base_filters.sort_by:
+        filter_desc.append(f"sort:{base_filters.sort_by} {base_filters.sort_order}")
+
+    page_size = 20
+    page = 1
+
+    while True:
+        # Create new filters for current page
+        search_filters = SearchCardsInput(
+            name=base_filters.name,
+            type=base_filters.type,
+            subtype=base_filters.subtype,
+            colors=base_filters.colors,
+            color_identity=base_filters.color_identity,
+            cmc=base_filters.cmc,
+            cmc_min=base_filters.cmc_min,
+            cmc_max=base_filters.cmc_max,
+            power=base_filters.power,
+            toughness=base_filters.toughness,
+            rarity=base_filters.rarity,
+            set_code=base_filters.set_code,
+            format_legal=base_filters.format_legal,
+            text=base_filters.text,
+            keywords=base_filters.keywords,
+            sort_by=base_filters.sort_by,
+            sort_order=base_filters.sort_order,
+            page=page,
+            page_size=page_size,
+        )
+
+        search_result = await cards.search_cards(db, scryfall, search_filters)
+
+        if search_result.count == 0:
+            console.print("[yellow]No cards found matching your criteria[/]")
+            return
+
+        # Calculate pagination info
+        total = search_result.total_count or search_result.count
+        start = (page - 1) * page_size + 1
+        end = min(page * page_size, total)
+        total_pages = (total + page_size - 1) // page_size
+
+        # Display header
+        header = f"Found {total} cards"
+        if filter_desc:
+            header += f" [dim]({' '.join(filter_desc)})[/]"
+        console.print(f"\n[bold]{header}:[/]")
+
+        # Display cards
+        for i, c in enumerate(search_result.cards, start=start):
+            mana = f" {prettify_mana(c.mana_cost)}" if c.mana_cost else ""
+            type_info = f" [dim]{c.type}[/]" if c.type else ""
+            price = f" [green]${c.price_usd:.2f}[/]" if c.price_usd else ""
+            console.print(f"  [dim]{i:3}.[/] [cyan]{c.name}[/]{mana}{type_info}{price}")
+
+        # If only one page of results, exit immediately
+        if total <= page_size:
+            console.print()
+            return
+
+        # Show pagination info and prompt
+        console.print(
+            f"\n[dim]Showing {start}-{end} of {total} (page {page}/{total_pages})[/]"
+        )
+
+        hints = []
+        if page < total_pages:
+            hints.append("Enter=more")
+        if page > 1:
+            hints.append("b=back")
+        hints.append("#=view card")
+        hints.append("q=done")
+        console.print(f"[dim]{' | '.join(hints)}[/]")
+
+        try:
+            nav = console.input("[bold magenta]search>[/] ").strip()
+            if nav == "" and page < total_pages:
+                page += 1
+            elif nav.lower() == "b" and page > 1:
+                page -= 1
+            elif nav.lower() in ("q", "quit", ""):
+                break
+            elif nav.isdigit():
+                idx = int(nav)
+                if 1 <= idx <= total:
+                    # Find and display the card
+                    card_idx = idx - 1
+                    card_page = card_idx // page_size + 1
+                    if card_page != page:
+                        # Fetch the right page
+                        fetch_filters = SearchCardsInput(
+                            name=base_filters.name,
+                            type=base_filters.type,
+                            subtype=base_filters.subtype,
+                            colors=base_filters.colors,
+                            color_identity=base_filters.color_identity,
+                            cmc=base_filters.cmc,
+                            cmc_min=base_filters.cmc_min,
+                            cmc_max=base_filters.cmc_max,
+                            power=base_filters.power,
+                            toughness=base_filters.toughness,
+                            rarity=base_filters.rarity,
+                            set_code=base_filters.set_code,
+                            format_legal=base_filters.format_legal,
+                            text=base_filters.text,
+                            keywords=base_filters.keywords,
+                            page=card_page,
+                            page_size=page_size,
+                        )
+                        card_result = await cards.search_cards(db, scryfall, fetch_filters)
+                        card_in_page = card_idx % page_size
+                        if card_in_page < len(card_result.cards):
+                            await show_card(db, scryfall, card_result.cards[card_in_page].name)
+                    else:
+                        card_in_page = card_idx % page_size
+                        if card_in_page < len(search_result.cards):
+                            await show_card(db, scryfall, search_result.cards[card_in_page].name)
+                else:
+                    console.print(f"[yellow]Invalid selection (1-{total})[/]")
+        except (EOFError, KeyboardInterrupt):
+            break
+    console.print()
+
+
 async def handle_art_command(scryfall: ScryfallDatabase, args: str) -> None:
     """Handle the art/image command."""
     try:
@@ -326,7 +515,9 @@ async def handle_art_command(scryfall: ScryfallDatabase, args: str) -> None:
                 else:
                     console.print("[red]Failed to download image[/]")
         else:
-            console.print(f"\n[bold]🎨 {len(artworks)} unique artworks for {artworks[0].name}:[/]\n")
+            console.print(
+                f"\n[bold]🎨 {len(artworks)} unique artworks for {artworks[0].name}:[/]\n"
+            )
             for i, art in enumerate(artworks[:15], 1):
                 desc = describe_art(art)
                 price_str = f"[green]${art.get_price_usd():.2f}[/]" if art.get_price_usd() else ""
@@ -472,7 +663,7 @@ def show_help() -> None:
     console.print("\n[bold]⚔️  Spell Book[/]\n")
     console.print("  [bold cyan]Just type a card name[/] to look it up!")
     console.print("")
-    console.print("  [cyan]search[/] <query>   Search with filters (see below)")
+    console.print("  [cyan]search[/] <query>   Search with filters (paginated)")
     console.print("  [cyan]art[/] <name>       Browse & display card art (pick from variants)")
     console.print("  [cyan]rulings[/] <name>   Official card rulings")
     console.print("  [cyan]legal[/] <name>     Format legalities")
@@ -496,14 +687,17 @@ def show_help() -> None:
     console.print("  [cyan]f:[/]format       Format legal (modern, commander...)")
     console.print("  [cyan]r:[/]rarity       Rarity (common, uncommon, rare, mythic)")
     console.print("  [cyan]set:[/]CODE       Set code (e.g., set:DOM)")
-    console.print("  [cyan]text:[/]\"...\"     Oracle text search")
+    console.print('  [cyan]text:[/]"..."     Oracle text search')
     console.print("  [cyan]kw:[/]keyword     Keyword (flying, trample...)")
+    console.print("  [cyan]sort:[/]field     Sort by: name, cmc, color, rarity, type")
+    console.print("  [cyan]order:[/]dir      Sort order: asc (default) or desc")
     console.print()
     console.print("[dim]  Examples:[/]")
     console.print("    search dragon t:creature c:R")
     console.print("    search t:instant f:modern cmc<:3")
-    console.print("    search text:\"draw a card\" c:U")
+    console.print('    search text:"draw a card" c:U')
     console.print("    search r:mythic set:MOM")
+    console.print("    search t:creature c:R sort:cmc order:desc")
     console.print()
 
 
@@ -571,45 +765,12 @@ def start_repl() -> None:
                 elif cmd == "search":
                     if not args:
                         console.print("[yellow]Usage: search <name> [filters][/]")
-                        console.print("[dim]  Filters: t:type c:colors cmc:N f:format r:rarity set:CODE text:\"...\"[/]")
-                        console.print("[dim]  Example: search dragon t:creature c:R cmc>:4[/]")
+                        console.print(
+                            '[dim]  Filters: t:type c:colors cmc:N f:format r:rarity set:CODE text:"..." sort:field order:asc|desc[/]'
+                        )
+                        console.print("[dim]  Example: search dragon t:creature c:R sort:cmc order:desc[/]")
                         continue
-                    _, search_filters = parse_search_filters(args)
-                    search_result = await cards.search_cards(db, scryfall, search_filters)
-
-                    # Build filter description for display
-                    filter_desc = []
-                    if search_filters.type:
-                        filter_desc.append(f"type:{search_filters.type}")
-                    if search_filters.colors:
-                        filter_desc.append(f"colors:{''.join(search_filters.colors)}")
-                    if search_filters.cmc is not None:
-                        filter_desc.append(f"cmc:{search_filters.cmc}")
-                    if search_filters.cmc_min is not None:
-                        filter_desc.append(f"cmc>{search_filters.cmc_min}")
-                    if search_filters.cmc_max is not None:
-                        filter_desc.append(f"cmc<{search_filters.cmc_max}")
-                    if search_filters.format_legal:
-                        filter_desc.append(f"format:{search_filters.format_legal}")
-                    if search_filters.rarity:
-                        filter_desc.append(f"rarity:{search_filters.rarity}")
-                    if search_filters.set_code:
-                        filter_desc.append(f"set:{search_filters.set_code}")
-                    if search_filters.text:
-                        filter_desc.append(f"text:\"{search_filters.text}\"")
-
-                    header = f"Found {search_result.count} cards"
-                    if filter_desc:
-                        header += f" [dim]({' '.join(filter_desc)})[/]"
-                    console.print(f"\n[bold]{header}:[/]")
-
-                    for c in search_result.cards:
-                        mana = f" [yellow]{c.mana_cost}[/]" if c.mana_cost else ""
-                        type_info = f" [dim]{c.type[:30]}[/]" if c.type else ""
-                        console.print(f"  [cyan]{c.name}[/]{mana}{type_info}")
-                    if search_result.count > 15:
-                        console.print(f"  [dim]... and {search_result.count - 15} more[/]")
-                    console.print()
+                    await handle_search_command(db, scryfall, args)
 
                 elif cmd in ("card", "c"):
                     if not args:
@@ -646,11 +807,25 @@ def start_repl() -> None:
                         continue
                     legality_result = await cards.get_card_legalities(db, args)
                     console.print(f"\n[bold]⚖️  {legality_result.card_name}[/]")
-                    for fmt in ["standard", "pioneer", "modern", "legacy", "vintage", "commander", "pauper"]:
+                    for fmt in [
+                        "standard",
+                        "pioneer",
+                        "modern",
+                        "legacy",
+                        "vintage",
+                        "commander",
+                        "pauper",
+                    ]:
                         if fmt in legality_result.legalities:
                             status = legality_result.legalities[fmt]
                             icon = "✓" if status == "Legal" else "✗" if status == "Banned" else "~"
-                            style = "green" if status == "Legal" else "red" if status == "Banned" else "yellow"
+                            style = (
+                                "green"
+                                if status == "Legal"
+                                else "red"
+                                if status == "Banned"
+                                else "yellow"
+                            )
                             console.print(f"  {icon} [{style}]{fmt.capitalize():12}[/] {status}")
                     console.print()
 
@@ -691,7 +866,9 @@ def start_repl() -> None:
                     console.print("\n[bold]📊 Database Stats[/]")
                     console.print(f"  Cards:   [cyan]{stats_data.get('unique_cards', '?'):,}[/]")
                     console.print(f"  Sets:    [cyan]{stats_data.get('total_sets', '?'):,}[/]")
-                    console.print(f"  Version: [dim]{stats_data.get('data_version', 'unknown')}[/]\n")
+                    console.print(
+                        f"  Version: [dim]{stats_data.get('data_version', 'unknown')}[/]\n"
+                    )
 
                 else:
                     # Not a known command - treat as card name
@@ -702,7 +879,9 @@ def start_repl() -> None:
                         filters = SearchCardsInput(name=card_name, page_size=5)
                         search_result = await cards.search_cards(db, scryfall, filters)
                         if search_result.count == 0:
-                            console.print(f"[dim]No cards found matching '[/][yellow]{card_name}[/][dim]'[/]")
+                            console.print(
+                                f"[dim]No cards found matching '[/][yellow]{card_name}[/][dim]'[/]"
+                            )
                         elif search_result.count == 1:
                             await show_card(db, scryfall, search_result.cards[0].name)
                         else:

@@ -58,10 +58,17 @@ class DatabaseManager:
         # Scryfall database (optional)
         scryfall_path = self._settings.scryfall_db_path
         if scryfall_path.exists():
-            self._scryfall_conn = await aiosqlite.connect(scryfall_path)
-            self._scryfall_conn.row_factory = aiosqlite.Row
-            self._scryfall = ScryfallDatabase(self._scryfall_conn)
-            logger.info("Scryfall database loaded from %s", scryfall_path)
+            try:
+                self._scryfall_conn = await aiosqlite.connect(scryfall_path)
+                self._scryfall_conn.row_factory = aiosqlite.Row
+                self._scryfall = ScryfallDatabase(self._scryfall_conn)
+                logger.info("Scryfall database loaded from %s", scryfall_path)
+            except Exception:
+                logger.exception("Failed to open Scryfall database at %s", scryfall_path)
+                # Clean up partial connection if needed
+                if self._scryfall_conn:
+                    await self._scryfall_conn.close()
+                    self._scryfall_conn = None
         else:
             logger.warning("Scryfall database not found at %s", scryfall_path)
 

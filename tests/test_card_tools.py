@@ -12,9 +12,7 @@ from mtg_mcp.tools import cards
 class TestSearchCards:
     """Tests for search_cards tool."""
 
-    async def test_search_by_name(
-        self, db: MTGDatabase, scryfall: ScryfallDatabase | None
-    ) -> None:
+    async def test_search_by_name(self, db: MTGDatabase, scryfall: ScryfallDatabase | None) -> None:
         """Test searching for cards by name."""
         filters = SearchCardsInput(name="Lightning Bolt")
         result = await cards.search_cards(db, scryfall, filters)
@@ -34,9 +32,7 @@ class TestSearchCards:
         for card in result.cards:
             assert "R" in card.colors
 
-    async def test_search_by_type(
-        self, db: MTGDatabase, scryfall: ScryfallDatabase | None
-    ) -> None:
+    async def test_search_by_type(self, db: MTGDatabase, scryfall: ScryfallDatabase | None) -> None:
         """Test searching for cards by type."""
         filters = SearchCardsInput(type="Creature", subtype="Goblin", page_size=10)
         result = await cards.search_cards(db, scryfall, filters)
@@ -45,9 +41,7 @@ class TestSearchCards:
         for card in result.cards:
             assert "Creature" in (card.type or "")
 
-    async def test_search_by_cmc(
-        self, db: MTGDatabase, scryfall: ScryfallDatabase | None
-    ) -> None:
+    async def test_search_by_cmc(self, db: MTGDatabase, scryfall: ScryfallDatabase | None) -> None:
         """Test searching for cards by mana value."""
         filters = SearchCardsInput(cmc=1, type="Instant", colors=["R"], page_size=10)
         result = await cards.search_cards(db, scryfall, filters)
@@ -60,9 +54,7 @@ class TestSearchCards:
         self, db: MTGDatabase, scryfall: ScryfallDatabase | None
     ) -> None:
         """Test searching for cards legal in a format."""
-        filters = SearchCardsInput(
-            name="Lightning Bolt", format_legal="modern", page_size=5
-        )
+        filters = SearchCardsInput(name="Lightning Bolt", format_legal="modern", page_size=5)
         result = await cards.search_cards(db, scryfall, filters)
 
         assert result.count >= 1

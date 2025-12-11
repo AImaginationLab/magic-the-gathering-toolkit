@@ -34,7 +34,7 @@ The REPL provides a themed, Magic-style interface for quick lookups:
 uv run mtg repl
 ```
 
-```
+```text
     ╔╦╗╔═╗╔═╗╦╔═╗  ┌┬┐┬ ┬┌─┐
     ║║║╠═╣║ ╦║║     │ ├─┤├┤
     ╩ ╩╩ ╩╚═╝╩╚═╝   ┴ ┴ ┴└─┘
@@ -71,7 +71,7 @@ Type a card name to look it up, or ? for help
 
 The `search` command supports powerful filtering with a `filter:value` syntax:
 
-```
+```text
 ⚡ search dragon t:creature c:R
 ⚡ search t:instant f:modern cmc<:3
 ⚡ search text:"draw a card" c:U
@@ -96,12 +96,34 @@ The `search` command supports powerful filtering with a `filter:value` syntax:
 | `kw:` | `keyword:`, `keywords:` | Keyword ability | `kw:flying`, `kw:trample` |
 | `pow:` | `power:` | Power | `pow:4` |
 | `tou:` | `toughness:` | Toughness | `tou:5` |
+| `sort:` | `sort_by:` | Sort field | `sort:cmc`, `sort:rarity` |
+| `order:` | `sort_order:` | Sort order | `order:asc`, `order:desc` |
+
+**Sorting:**
+
+Results can be sorted by any of these fields:
+- `name` - Alphabetical (default)
+- `cmc` - Mana value
+- `color` - Color (WUBRG order)
+- `rarity` - Rarity (common → mythic)
+- `type` - Card type
+
+Examples:
+```text
+⚡ search t:creature c:R sort:cmc order:desc
+⚡ search dragon sort:rarity
+```
 
 **Notes:**
 - Filters can be combined: `search dragon t:creature c:R cmc>:4`
 - Use quotes for multi-word values: `text:"destroy target"`
 - Colors can be specified as `c:RG` or `c:R,G`
 - Everything not in a filter is treated as a name search
+- Results are paginated (20 per page) with interactive navigation:
+  - `Enter` - next page
+  - `b` - previous page
+  - `#` - view card details (e.g., type `5` to view card #5)
+  - `q` - exit search results
 
 ### Card Display
 
@@ -129,7 +151,7 @@ Mana costs use emoji symbols:
 
 The `art` command lets you browse all unique artworks for a card:
 
-```
+```text
 ⚡ art Lightning Bolt
 
 🎨 12 unique artworks for Lightning Bolt:
@@ -154,7 +176,7 @@ Images display directly in supported terminals:
 
 Browse sets with pagination and filtering:
 
-```
+```text
 ⚡ sets
 
 📚 839 sets:
@@ -485,7 +507,7 @@ export SCRYFALL_DB_PATH=/path/to/scryfall.sqlite
 
 Or create a `.env` file:
 
-```
+```text
 MTG_DB_PATH=resources/AllPrintings.sqlite
 SCRYFALL_DB_PATH=resources/scryfall.sqlite
 LOG_LEVEL=INFO

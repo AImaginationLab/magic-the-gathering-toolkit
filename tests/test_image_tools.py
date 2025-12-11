@@ -21,15 +21,15 @@ class TestGetCardImage:
         assert result.card_name == "Lightning Bolt"
         assert result.images is not None
         # Should have at least one image URL
-        assert any([
-            result.images.small,
-            result.images.normal,
-            result.images.large,
-        ])
+        assert any(
+            [
+                result.images.small,
+                result.images.normal,
+                result.images.large,
+            ]
+        )
 
-    async def test_get_card_image_with_set(
-        self, scryfall: ScryfallDatabase | None
-    ) -> None:
+    async def test_get_card_image_with_set(self, scryfall: ScryfallDatabase | None) -> None:
         """Test getting card image from a specific set."""
         if scryfall is None:
             pytest.skip("Scryfall database not available")
@@ -39,9 +39,7 @@ class TestGetCardImage:
         assert result.card_name == "Lightning Bolt"
         assert result.set_code is not None
 
-    async def test_get_card_image_not_found(
-        self, scryfall: ScryfallDatabase | None
-    ) -> None:
+    async def test_get_card_image_not_found(self, scryfall: ScryfallDatabase | None) -> None:
         """Test getting image for nonexistent card."""
         if scryfall is None:
             pytest.skip("Scryfall database not available")
@@ -66,9 +64,7 @@ class TestGetCardPrintings:
         assert result.count > 1  # Lightning Bolt has many printings
         assert len(result.printings) > 1
 
-    async def test_printings_have_set_codes(
-        self, scryfall: ScryfallDatabase | None
-    ) -> None:
+    async def test_printings_have_set_codes(self, scryfall: ScryfallDatabase | None) -> None:
         """Test that printings include set codes."""
         if scryfall is None:
             pytest.skip("Scryfall database not available")
@@ -108,9 +104,7 @@ class TestGetCardPrice:
 class TestSearchByPrice:
     """Tests for search_by_price tool."""
 
-    async def test_search_by_min_price(
-        self, scryfall: ScryfallDatabase | None
-    ) -> None:
+    async def test_search_by_min_price(self, scryfall: ScryfallDatabase | None) -> None:
         """Test searching for cards above a minimum price."""
         if scryfall is None:
             pytest.skip("Scryfall database not available")
@@ -122,9 +116,7 @@ class TestSearchByPrice:
             if card.price_usd is not None:
                 assert card.price_usd >= 50.0
 
-    async def test_search_by_max_price(
-        self, scryfall: ScryfallDatabase | None
-    ) -> None:
+    async def test_search_by_max_price(self, scryfall: ScryfallDatabase | None) -> None:
         """Test searching for cards below a maximum price."""
         if scryfall is None:
             pytest.skip("Scryfall database not available")
@@ -136,25 +128,19 @@ class TestSearchByPrice:
             if card.price_usd is not None:
                 assert card.price_usd <= 1.0
 
-    async def test_search_by_price_range(
-        self, scryfall: ScryfallDatabase | None
-    ) -> None:
+    async def test_search_by_price_range(self, scryfall: ScryfallDatabase | None) -> None:
         """Test searching for cards in a price range."""
         if scryfall is None:
             pytest.skip("Scryfall database not available")
 
-        result = await images.search_by_price(
-            scryfall, min_price=5.0, max_price=10.0, page_size=10
-        )
+        result = await images.search_by_price(scryfall, min_price=5.0, max_price=10.0, page_size=10)
 
         assert result.count > 0
         for card in result.cards:
             if card.price_usd is not None:
                 assert 5.0 <= card.price_usd <= 10.0
 
-    async def test_search_by_price_pagination(
-        self, scryfall: ScryfallDatabase | None
-    ) -> None:
+    async def test_search_by_price_pagination(self, scryfall: ScryfallDatabase | None) -> None:
         """Test price search pagination."""
         if scryfall is None:
             pytest.skip("Scryfall database not available")

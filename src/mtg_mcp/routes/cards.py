@@ -16,6 +16,8 @@ from mtg_mcp.data.models import (
     RulingsResponse,
     SearchCardsInput,
     SearchResult,
+    SortField,
+    SortOrder,
 )
 from mtg_mcp.tools import cards
 
@@ -42,10 +44,10 @@ def register(mcp: FastMCP) -> None:
         power: Annotated[str | None, "Creature power"] = None,
         toughness: Annotated[str | None, "Creature toughness"] = None,
         text: Annotated[str | None, "Search in card text"] = None,
-        keywords: Annotated[
-            list[str] | None, "Filter by keywords (Flying, Trample)"
-        ] = None,
+        keywords: Annotated[list[str] | None, "Filter by keywords (Flying, Trample)"] = None,
         format_legal: Annotated[Format | None, "Filter by format legality"] = None,
+        sort_by: Annotated[SortField | None, "Sort by field (name, cmc, color, rarity, type)"] = None,
+        sort_order: Annotated[SortOrder, "Sort order (asc, desc)"] = "asc",
         page: Annotated[int, "Page number"] = 1,
         page_size: Annotated[int, "Results per page (max 100)"] = 25,
     ) -> SearchResult:
@@ -68,6 +70,8 @@ def register(mcp: FastMCP) -> None:
             text=text,
             keywords=keywords,
             format_legal=format_legal,
+            sort_by=sort_by,
+            sort_order=sort_order,
             page=page,
             page_size=min(page_size, 100),
         )

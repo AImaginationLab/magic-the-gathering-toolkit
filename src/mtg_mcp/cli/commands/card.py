@@ -39,49 +39,50 @@ def search_cards_cmd(
     ctx = DatabaseContext()
 
     async def _run() -> None:
-        db = await ctx.get_db()
-        scryfall = await ctx.get_scryfall()
+        try:
+            db = await ctx.get_db()
+            scryfall = await ctx.get_scryfall()
 
-        color_list = [c.strip().upper() for c in colors.split(",")] if colors else None
+            color_list = [c.strip().upper() for c in colors.split(",")] if colors else None
 
-        filters = SearchCardsInput(
-            name=name,
-            type=card_type,
-            subtype=subtype,
-            colors=color_list,  # type: ignore[arg-type]
-            cmc=cmc,
-            cmc_min=cmc_min,
-            cmc_max=cmc_max,
-            format_legal=format_legal,  # type: ignore[arg-type]
-            text=text,
-            rarity=rarity,  # type: ignore[arg-type]
-            set_code=set_code,
-            page=page,
-            page_size=page_size,
-        )
+            filters = SearchCardsInput(
+                name=name,
+                type=card_type,
+                subtype=subtype,
+                colors=color_list,  # type: ignore[arg-type]
+                cmc=cmc,
+                cmc_min=cmc_min,
+                cmc_max=cmc_max,
+                format_legal=format_legal,  # type: ignore[arg-type]
+                text=text,
+                rarity=rarity,  # type: ignore[arg-type]
+                set_code=set_code,
+                page=page,
+                page_size=page_size,
+            )
 
-        result = await cards.search_cards(db, scryfall, filters)
+            result = await cards.search_cards(db, scryfall, filters)
 
-        if as_json:
-            output_json(result)
-        else:
-            table = Table(title=f"Found {result.count} cards (page {result.page})")
-            table.add_column("Name", style="cyan")
-            table.add_column("Mana", style="yellow")
-            table.add_column("Type", style="green")
+            if as_json:
+                output_json(result)
+            else:
+                table = Table(title=f"Found {result.count} cards (page {result.page})")
+                table.add_column("Name", style="cyan")
+                table.add_column("Mana", style="yellow")
+                table.add_column("Type", style="green")
 
-            for card in result.cards:
-                table.add_row(
-                    card.name,
-                    card.mana_cost or "",
-                    (card.type or "")[:40],
-                )
+                for card in result.cards:
+                    table.add_row(
+                        card.name,
+                        card.mana_cost or "",
+                        (card.type or "")[:40],
+                    )
 
-            console.print(table)
-            if result.count > page * page_size:
-                console.print(f"[dim]... and {result.count - page * page_size} more[/dim]")
-
-        await ctx.close()
+                console.print(table)
+                if result.count > page * page_size:
+                    console.print(f"[dim]... and {result.count - page * page_size} more[/dim]")
+        finally:
+            await ctx.close()
 
     run_async(_run())
 
@@ -95,29 +96,30 @@ def get_card_cmd(
     ctx = DatabaseContext()
 
     async def _run() -> None:
-        db = await ctx.get_db()
-        scryfall = await ctx.get_scryfall()
+        try:
+            db = await ctx.get_db()
+            scryfall = await ctx.get_scryfall()
 
-        result = await cards.get_card(db, scryfall, name=name)
+            result = await cards.get_card(db, scryfall, name=name)
 
-        if as_json:
-            output_json(result)
-        else:
-            lines = []
-            if result.mana_cost:
-                lines.append(f"[yellow]{result.mana_cost}[/] (CMC {result.cmc})")
-            lines.append(f"[green]{result.type}[/]")
-            if result.text:
-                lines.append("")
-                lines.append(result.text)
-            if result.power is not None:
-                lines.append(f"\n[bold]{result.power}/{result.toughness}[/bold]")
-            if result.prices and result.prices.usd:
-                lines.append(f"\n[dim]${result.prices.usd:.2f}[/dim]")
+            if as_json:
+                output_json(result)
+            else:
+                lines = []
+                if result.mana_cost:
+                    lines.append(f"[yellow]{result.mana_cost}[/] (CMC {result.cmc})")
+                lines.append(f"[green]{result.type}[/]")
+                if result.text:
+                    lines.append("")
+                    lines.append(result.text)
+                if result.power is not None:
+                    lines.append(f"\n[bold]{result.power}/{result.toughness}[/bold]")
+                if result.prices and result.prices.usd:
+                    lines.append(f"\n[dim]${result.prices.usd:.2f}[/dim]")
 
-            console.print(Panel("\n".join(lines), title=f"[bold cyan]{result.name}[/]"))
-
-        await ctx.close()
+                console.print(Panel("\n".join(lines), title=f"[bold cyan]{result.name}[/]"))
+        finally:
+            await ctx.close()
 
     run_async(_run())
 
@@ -131,18 +133,19 @@ def get_rulings_cmd(
     ctx = DatabaseContext()
 
     async def _run() -> None:
-        db = await ctx.get_db()
-        result = await cards.get_card_rulings(db, name)
+        try:
+            db = await ctx.get_db()
+            result = await cards.get_card_rulings(db, name)
 
-        if as_json:
-            output_json(result)
-        else:
-            console.print(f"\n[bold]Rulings for {result.card_name}[/] ({result.count} rulings)\n")
-            for ruling in result.rulings:
-                console.print(f"[dim]{ruling.date}[/]")
-                console.print(f"  {ruling.text}\n")
-
-        await ctx.close()
+            if as_json:
+                output_json(result)
+            else:
+                console.print(f"\n[bold]Rulings for {result.card_name}[/] ({result.count} rulings)\n")
+                for ruling in result.rulings:
+                    console.print(f"[dim]{ruling.date}[/]")
+                    console.print(f"  {ruling.text}\n")
+        finally:
+            await ctx.close()
 
     run_async(_run())
 
@@ -156,23 +159,24 @@ def get_legality_cmd(
     ctx = DatabaseContext()
 
     async def _run() -> None:
-        db = await ctx.get_db()
-        result = await cards.get_card_legalities(db, name)
+        try:
+            db = await ctx.get_db()
+            result = await cards.get_card_legalities(db, name)
 
-        if as_json:
-            output_json(result)
-        else:
-            table = Table(title=f"Legalities for {result.card_name}")
-            table.add_column("Format", style="cyan")
-            table.add_column("Status")
+            if as_json:
+                output_json(result)
+            else:
+                table = Table(title=f"Legalities for {result.card_name}")
+                table.add_column("Format", style="cyan")
+                table.add_column("Status")
 
-            for fmt, status in sorted(result.legalities.items()):
-                style = "green" if status == "Legal" else "red" if status == "Banned" else "yellow"
-                table.add_row(fmt, f"[{style}]{status}[/]")
+                for fmt, status in sorted(result.legalities.items()):
+                    style = "green" if status == "Legal" else "red" if status == "Banned" else "yellow"
+                    table.add_row(fmt, f"[{style}]{status}[/]")
 
-            console.print(table)
-
-        await ctx.close()
+                console.print(table)
+        finally:
+            await ctx.close()
 
     run_async(_run())
 
@@ -187,34 +191,34 @@ def get_price_cmd(
     ctx = DatabaseContext()
 
     async def _run() -> None:
-        scryfall = await ctx.get_scryfall()
-        if scryfall is None:
-            console.print("[red]Error: Scryfall database not available[/]")
+        try:
+            scryfall = await ctx.get_scryfall()
+            if scryfall is None:
+                console.print("[red]Error: Scryfall database not available[/]")
+                return
+
+            result = await images.get_card_price(scryfall, name, set_code)
+
+            if as_json:
+                output_json(result)
+            else:
+                table = Table(title=f"Prices for {result.card_name}")
+                table.add_column("Currency")
+                table.add_column("Regular", justify="right")
+                table.add_column("Foil", justify="right")
+
+                if result.prices:
+                    usd = f"${result.prices.usd:.2f}" if result.prices.usd else "-"
+                    usd_foil = f"${result.prices.usd_foil:.2f}" if result.prices.usd_foil else "-"
+                    eur = f"€{result.prices.eur:.2f}" if result.prices.eur else "-"
+                    eur_foil = f"€{result.prices.eur_foil:.2f}" if result.prices.eur_foil else "-"
+
+                    table.add_row("USD", usd, usd_foil)
+                    table.add_row("EUR", eur, eur_foil)
+
+                console.print(table)
+        finally:
             await ctx.close()
-            return
-
-        result = await images.get_card_price(scryfall, name, set_code)
-
-        if as_json:
-            output_json(result)
-        else:
-            table = Table(title=f"Prices for {result.card_name}")
-            table.add_column("Currency")
-            table.add_column("Regular", justify="right")
-            table.add_column("Foil", justify="right")
-
-            if result.prices:
-                usd = f"${result.prices.usd:.2f}" if result.prices.usd else "-"
-                usd_foil = f"${result.prices.usd_foil:.2f}" if result.prices.usd_foil else "-"
-                eur = f"€{result.prices.eur:.2f}" if result.prices.eur else "-"
-                eur_foil = f"€{result.prices.eur_foil:.2f}" if result.prices.eur_foil else "-"
-
-                table.add_row("USD", usd, usd_foil)
-                table.add_row("EUR", eur, eur_foil)
-
-            console.print(table)
-
-        await ctx.close()
 
     run_async(_run())
 
@@ -227,23 +231,24 @@ def random_card_cmd(
     ctx = DatabaseContext()
 
     async def _run() -> None:
-        db = await ctx.get_db()
-        scryfall = await ctx.get_scryfall()
+        try:
+            db = await ctx.get_db()
+            scryfall = await ctx.get_scryfall()
 
-        result = await cards.get_random_card(db, scryfall)
+            result = await cards.get_random_card(db, scryfall)
 
-        if as_json:
-            output_json(result)
-        else:
-            lines = []
-            if result.mana_cost:
-                lines.append(f"[yellow]{result.mana_cost}[/]")
-            lines.append(f"[green]{result.type}[/]")
-            if result.text:
-                lines.append(f"\n{result.text}")
+            if as_json:
+                output_json(result)
+            else:
+                lines = []
+                if result.mana_cost:
+                    lines.append(f"[yellow]{result.mana_cost}[/]")
+                lines.append(f"[green]{result.type}[/]")
+                if result.text:
+                    lines.append(f"\n{result.text}")
 
-            console.print(Panel("\n".join(lines), title=f"[bold cyan]{result.name}[/]"))
-
-        await ctx.close()
+                console.print(Panel("\n".join(lines), title=f"[bold cyan]{result.name}[/]"))
+        finally:
+            await ctx.close()
 
     run_async(_run())

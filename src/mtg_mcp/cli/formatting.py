@@ -18,34 +18,34 @@ MANA_SYMBOLS = {
 # Each symbol includes a trailing space for better readability
 MANA_DISPLAY = {
     # Basic mana - using colored circle emoji for visibility
-    "{W}": "🌞 ",  # White - sun (white mana symbol is a sun)
+    "{W}": "⚪ ",  # White - white circle (cleaner than sun)
     "{U}": "💧 ",  # Blue - water droplet (blue mana symbol)
     "{B}": "💀 ",  # Black - skull (black mana symbol)
     "{R}": "🔥 ",  # Red - fire (red mana symbol is a fireball)
-    "{G}": "🌳 ",  # Green - tree (green mana symbol is a tree)
-    "{C}": "💠 ",  # Colorless - diamond with dot (larger)
+    "{G}": "🌲 ",  # Green - evergreen tree (closer to MTG tree)
+    "{C}": "◇ ",  # Colorless - diamond (cleaner)
     # Tap/Untap - using larger emoji
     "{T}": "🔄 ",  # Tap - counterclockwise arrows (larger)
     "{Q}": "🔃 ",  # Untap - clockwise arrows
     # Special
-    "{X}": "ⓍX ",  # X mana
+    "{X}": "Ⓧ ",  # X mana
     "{S}": "❄️ ",  # Snow mana - snowflake
     "{E}": "⚡ ",  # Energy
 }
 
-# Generic mana numbers - keycap style for consistency with emoji mana
+# Generic mana numbers - using circled numbers for better spacing
 GENERIC_MANA = {
-    0: "0️⃣ ",
-    1: "1️⃣ ",
-    2: "2️⃣ ",
-    3: "3️⃣ ",
-    4: "4️⃣ ",
-    5: "5️⃣ ",
-    6: "6️⃣ ",
-    7: "7️⃣ ",
-    8: "8️⃣ ",
-    9: "9️⃣ ",
-    10: "🔟 ",
+    0: "⓪ ",
+    1: "① ",
+    2: "② ",
+    3: "③ ",
+    4: "④ ",
+    5: "⑤ ",
+    6: "⑥ ",
+    7: "⑦ ",
+    8: "⑧ ",
+    9: "⑨ ",
+    10: "⑩ ",
 }
 
 # Flavor quotes for REPL
@@ -70,22 +70,7 @@ def prettify_mana(text: str) -> str:
     """Convert mana symbols to pretty Unicode representations."""
     result = text
 
-    # Replace specific symbols
-    for symbol, pretty in MANA_DISPLAY.items():
-        result = result.replace(symbol, pretty)
-
-    # Replace generic mana {1}, {2}, etc with emoji number circles (keycap style)
-    def replace_generic(match: re.Match[str]) -> str:
-        num = int(match.group(1))
-        if num in GENERIC_MANA:
-            return GENERIC_MANA[num]
-        elif num <= 20:
-            # Fall back to circled numbers for 11-20
-            return chr(0x2460 + num - 1)
-        else:
-            return f"({num})"
-
-    result = re.sub(r"\{(\d+)\}", replace_generic, result)
+    # IMPORTANT: Process complex symbols BEFORE simple ones to avoid partial replacements
 
     # Replace hybrid mana like {W/U} with both symbols
     result = re.sub(
@@ -100,6 +85,23 @@ def prettify_mana(text: str) -> str:
         lambda m: f"{MANA_DISPLAY.get('{' + m.group(1) + '}', m.group(1))}ᵖ",
         result,
     )
+
+    # Replace generic mana {1}, {2}, etc with emoji number circles (keycap style)
+    def replace_generic(match: re.Match[str]) -> str:
+        num = int(match.group(1))
+        if num in GENERIC_MANA:
+            return GENERIC_MANA[num]
+        elif num <= 20:
+            # Fall back to circled numbers for 11-20
+            return chr(0x2460 + num - 1)
+        else:
+            return f"({num})"
+
+    result = re.sub(r"\{(\d+)\}", replace_generic, result)
+
+    # Replace specific symbols last (after complex patterns are handled)
+    for symbol, pretty in MANA_DISPLAY.items():
+        result = result.replace(symbol, pretty)
 
     return result
 

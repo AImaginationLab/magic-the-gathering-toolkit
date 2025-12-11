@@ -52,9 +52,7 @@ Please provide:
 
     @mcp.prompt()
     def find_cards_for_strategy(
-        strategy: Annotated[
-            str, "Strategy or theme (e.g., 'graveyard recursion', 'token swarm')"
-        ],
+        strategy: Annotated[str, "Strategy or theme (e.g., 'graveyard recursion', 'token swarm')"],
         colors: Annotated[str | None, "Color restriction (e.g., 'Golgari', 'WUB')"] = None,
         format_name: Annotated[str | None, "Format (commander, modern, standard)"] = None,
     ) -> str:

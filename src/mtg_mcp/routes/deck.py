@@ -45,16 +45,12 @@ def register(mcp: FastMCP) -> None:
         ctx: ToolContext,
         cards: Annotated[list[dict[str, Any]], "Deck cards [{name, quantity, sideboard?}]"],
         format: Annotated[Format, "Format to validate against"],
-        commander: Annotated[
-            str | None, "Commander card name (for Commander format)"
-        ] = None,
+        commander: Annotated[str | None, "Commander card name (for Commander format)"] = None,
         check_legality: Annotated[bool, "Check card legality in format"] = True,
         check_deck_size: Annotated[bool, "Check minimum deck size"] = True,
         check_copy_limit: Annotated[bool, "Check 4-copy limit (or singleton)"] = True,
         check_singleton: Annotated[bool, "Check singleton rule (Commander)"] = True,
-        check_color_identity: Annotated[
-            bool, "Check color identity (Commander)"
-        ] = True,
+        check_color_identity: Annotated[bool, "Check color identity (Commander)"] = True,
     ) -> DeckValidationResult:
         """Validate a deck against format rules."""
         app = get_app(ctx)

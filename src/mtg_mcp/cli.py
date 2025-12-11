@@ -398,7 +398,9 @@ def get_set_cmd(
                 f"[bold]Released:[/] {result.release_date or 'Unknown'}",
                 f"[bold]Cards:[/] {result.total_set_size or 'Unknown'}",
             ]
-            console.print(Panel("\n".join(lines), title=f"[bold cyan]{result.name}[/] [{result.code}]"))
+            console.print(
+                Panel("\n".join(lines), title=f"[bold cyan]{result.name}[/] [{result.code}]")
+            )
 
         await ctx.close()
 
@@ -453,9 +455,7 @@ def validate_deck_cmd(
     deck_file: Annotated[Path, typer.Argument(help="Deck file path")],
     format_name: Annotated[
         str,
-        typer.Option(
-            "-f", "--format", help="Format to validate against"
-        ),
+        typer.Option("-f", "--format", help="Format to validate against"),
     ],
     commander: Annotated[str | None, typer.Option(help="Commander name")] = None,
     as_json: Annotated[bool, typer.Option("--json", help="Output JSON")] = False,
@@ -481,7 +481,9 @@ def validate_deck_cmd(
             status = "[green]VALID[/]" if result.is_valid else "[red]INVALID[/]"
             console.print(f"\n[bold]Deck Validation:[/] {status}")
             console.print(f"Format: {result.format}")
-            console.print(f"Cards: {result.total_cards} mainboard, {result.sideboard_count} sideboard")
+            console.print(
+                f"Cards: {result.total_cards} mainboard, {result.sideboard_count} sideboard"
+            )
 
             if result.issues:
                 console.print("\n[red]Issues:[/]")
@@ -659,7 +661,9 @@ def analyze_price_cmd(
                 console.print(table)
 
             if result.missing_prices:
-                console.print(f"\n[yellow]Missing prices for:[/] {', '.join(result.missing_prices[:5])}")
+                console.print(
+                    f"\n[yellow]Missing prices for:[/] {', '.join(result.missing_prices[:5])}"
+                )
                 if len(result.missing_prices) > 5:
                     console.print(f"[dim]... and {len(result.missing_prices) - 5} more[/dim]")
 
@@ -733,11 +737,11 @@ MANA_DISPLAY = {
     "{B}": "⚫",  # Black
     "{R}": "🔴",  # Red
     "{G}": "🟢",  # Green
-    "{C}": "◇",   # Colorless
-    "{T}": "↩️",   # Tap
-    "{Q}": "↪️",   # Untap
-    "{X}": "Ⓧ",   # X
-    "{S}": "❄️",   # Snow
+    "{C}": "◇",  # Colorless
+    "{T}": "↩️",  # Tap
+    "{Q}": "↪️",  # Untap
+    "{X}": "Ⓧ",  # X
+    "{S}": "❄️",  # Snow
     "{E}": "⚡",  # Energy
 }
 
@@ -803,7 +807,7 @@ def display_image_kitty(image_data: bytes) -> bool:
         first_chunk = True
 
         for i in range(0, len(encoded), chunk_size):
-            chunk = encoded[i:i + chunk_size]
+            chunk = encoded[i : i + chunk_size]
             is_last = i + chunk_size >= len(encoded)
 
             if first_chunk:
@@ -932,12 +936,21 @@ def prettify_mana(text: str) -> str:
     result = re.sub(r"\{(\d+)\}", replace_generic, result)
 
     # Replace hybrid mana like {W/U} with both symbols
-    result = re.sub(r"\{([WUBRGC])/([WUBRGC])\}", lambda m: f"{MANA_DISPLAY.get('{'+m.group(1)+'}', m.group(1))}/{MANA_DISPLAY.get('{'+m.group(2)+'}', m.group(2))}", result)
+    result = re.sub(
+        r"\{([WUBRGC])/([WUBRGC])\}",
+        lambda m: f"{MANA_DISPLAY.get('{' + m.group(1) + '}', m.group(1))}/{MANA_DISPLAY.get('{' + m.group(2) + '}', m.group(2))}",
+        result,
+    )
 
     # Replace Phyrexian mana like {W/P}
-    result = re.sub(r"\{([WUBRG])/P\}", lambda m: f"{MANA_DISPLAY.get('{'+m.group(1)+'}', m.group(1))}ᵖ", result)
+    result = re.sub(
+        r"\{([WUBRG])/P\}",
+        lambda m: f"{MANA_DISPLAY.get('{' + m.group(1) + '}', m.group(1))}ᵖ",
+        result,
+    )
 
     return result
+
 
 FLAVOR_QUOTES = [
     '"The spark ignites. The journey begins."',
@@ -991,12 +1004,12 @@ def repl() -> None:
 
         mana_bar = "".join(MANA_SYMBOLS.values())
         console.print(f"\n{mana_bar}")
-        console.print(f"[bold green]Library loaded![/] {db_stats.get('unique_cards', '?'):,} cards across {db_stats.get('total_sets', '?')} sets")
+        console.print(
+            f"[bold green]Library loaded![/] {db_stats.get('unique_cards', '?'):,} cards across {db_stats.get('total_sets', '?')} sets"
+        )
         console.print("[dim]Type a card name to look it up, or [cyan]?[/] for help[/]\n")
 
-        async def _show_card(
-            db: MTGDatabase, scryfall: ScryfallDatabase | None, name: str
-        ) -> None:
+        async def _show_card(db: MTGDatabase, scryfall: ScryfallDatabase | None, name: str) -> None:
             """Display a card with MTG card-like formatting."""
             import textwrap
 
@@ -1007,11 +1020,11 @@ def repl() -> None:
             border_style = "grey70"  # Default gray for colorless/artifacts
             if card_result.colors:
                 color_map = {
-                    "W": "grey93",      # White - light gray (visible on dark bg)
+                    "W": "grey93",  # White - light gray (visible on dark bg)
                     "U": "dodger_blue1",  # Blue
                     "B": "medium_purple",  # Black - purple so it's visible
-                    "R": "red1",          # Red
-                    "G": "green3",        # Green
+                    "R": "red1",  # Red
+                    "G": "green3",  # Green
                 }
                 if len(card_result.colors) == 1:
                     border_style = color_map.get(card_result.colors[0], "grey70")
@@ -1073,9 +1086,20 @@ def repl() -> None:
             footer_parts = []
             if card_result.set_code:
                 rarity_icons = {"common": "○", "uncommon": "◐", "rare": "●", "mythic": "★"}
-                rarity_colors = {"common": "white", "uncommon": "cyan", "rare": "yellow", "mythic": "red"}
-                icon = rarity_icons.get(card_result.rarity.lower(), "○") if card_result.rarity else "○"
-                r_color = rarity_colors.get(card_result.rarity.lower(), "white") if card_result.rarity else "white"
+                rarity_colors = {
+                    "common": "white",
+                    "uncommon": "cyan",
+                    "rare": "yellow",
+                    "mythic": "red",
+                }
+                icon = (
+                    rarity_icons.get(card_result.rarity.lower(), "○") if card_result.rarity else "○"
+                )
+                r_color = (
+                    rarity_colors.get(card_result.rarity.lower(), "white")
+                    if card_result.rarity
+                    else "white"
+                )
                 footer_parts.append(f"[{r_color}]{icon} {card_result.set_code.upper()}[/]")
             if card_result.prices and card_result.prices.usd:
                 footer_parts.append(f"💰 [green]${card_result.prices.usd:.2f}[/]")
@@ -1084,18 +1108,21 @@ def repl() -> None:
                 lines.append(sep)
                 lines.append(" · ".join(footer_parts))
 
-            console.print(Panel(
-                "\n".join(lines),
-                border_style=border_style,
-                padding=(1, 2),
-                width=panel_width,
-            ))
+            console.print(
+                Panel(
+                    "\n".join(lines),
+                    border_style=border_style,
+                    padding=(1, 2),
+                    width=panel_width,
+                )
+            )
 
         while True:
             try:
                 line = console.input("[bold magenta]⚡[/] ").strip()
             except (EOFError, KeyboardInterrupt):
                 import random as r
+
                 console.print(f"\n[dim italic]{r.choice(GOODBYE_QUOTES)}[/]")
                 break
 
@@ -1112,6 +1139,7 @@ def repl() -> None:
             try:
                 if cmd in ("quit", "exit", "q"):
                     import random as r
+
                     console.print(f"\n[dim italic]{r.choice(GOODBYE_QUOTES)}[/]")
                     break
 
@@ -1120,12 +1148,16 @@ def repl() -> None:
                     console.print("  [bold cyan]Just type a card name[/] to look it up!")
                     console.print("")
                     console.print("  [cyan]search[/] <text>    Search cards by name")
-                    console.print("  [cyan]art[/] <name>       Browse & display card art (pick from variants)")
+                    console.print(
+                        "  [cyan]art[/] <name>       Browse & display card art (pick from variants)"
+                    )
                     console.print("  [cyan]rulings[/] <name>   Official card rulings")
                     console.print("  [cyan]legal[/] <name>     Format legalities")
                     console.print("  [cyan]price[/] <name>     Current prices")
                     console.print("  [cyan]random[/]           Discover a random card")
-                    console.print("  [cyan]sets[/]             Browse all sets (paginated, searchable)")
+                    console.print(
+                        "  [cyan]sets[/]             Browse all sets (paginated, searchable)"
+                    )
                     console.print("  [cyan]set[/] <name>       Set details (by code or name)")
                     console.print("  [cyan]stats[/]            Database info")
                     console.print("  [cyan]quit[/]             Exit")
@@ -1168,6 +1200,7 @@ def repl() -> None:
                         def describe_art(art: Any) -> str:
                             """Create a short description of an artwork variant."""
                             import json as json_mod
+
                             tags = []
                             if art.border_color == "borderless":
                                 tags.append("[magenta]borderless[/]")
@@ -1182,7 +1215,13 @@ def repl() -> None:
                                         tags.append("[blue]etched[/]")
                                 except Exception:
                                     pass
-                            frame_names = {"1993": "Alpha", "1997": "Classic", "2003": "Modern", "2015": "M15", "future": "Future"}
+                            frame_names = {
+                                "1993": "Alpha",
+                                "1997": "Classic",
+                                "2003": "Modern",
+                                "2015": "M15",
+                                "future": "Future",
+                            }
                             frame_desc = frame_names.get(art.frame, art.frame) if art.frame else ""
                             set_info = f"[dim]{art.set_code.upper()}[/]" if art.set_code else ""
                             tags_str = " ".join(tags)
@@ -1197,22 +1236,32 @@ def repl() -> None:
                                 if image_data:
                                     console.print(f"\n[bold]{art.name}[/] {describe_art(art)}\n")
                                     if not display_image_in_terminal(image_data):
-                                        console.print("[yellow]Could not display image in terminal[/]")
+                                        console.print(
+                                            "[yellow]Could not display image in terminal[/]"
+                                        )
                                         console.print(f"[dim]View online: {art.image_normal}[/]")
                                 else:
                                     console.print("[red]Failed to download image[/]")
                         else:
                             # Show artwork choices
-                            console.print(f"\n[bold]🎨 {len(artworks)} unique artworks for {artworks[0].name}:[/]\n")
+                            console.print(
+                                f"\n[bold]🎨 {len(artworks)} unique artworks for {artworks[0].name}:[/]\n"
+                            )
                             for i, art in enumerate(artworks[:15], 1):
                                 desc = describe_art(art)
-                                price_str = f"[green]${art.get_price_usd():.2f}[/]" if art.get_price_usd() else ""
+                                price_str = (
+                                    f"[green]${art.get_price_usd():.2f}[/]"
+                                    if art.get_price_usd()
+                                    else ""
+                                )
                                 console.print(f"  [cyan]{i:2}[/]) {desc} {price_str}")
 
                             if len(artworks) > 15:
                                 console.print(f"  [dim]... and {len(artworks) - 15} more[/]")
 
-                            console.print("\n[dim]Enter a number to view, or press Enter to skip:[/]")
+                            console.print(
+                                "\n[dim]Enter a number to view, or press Enter to skip:[/]"
+                            )
                             try:
                                 choice = console.input("[bold magenta]#[/] ").strip()
                                 if choice and choice.isdigit():
@@ -1223,10 +1272,16 @@ def repl() -> None:
                                             console.print("[dim]Fetching image...[/]")
                                             image_data = await fetch_card_image(art.image_normal)
                                             if image_data:
-                                                console.print(f"\n[bold]{art.name}[/] {describe_art(art)}\n")
+                                                console.print(
+                                                    f"\n[bold]{art.name}[/] {describe_art(art)}\n"
+                                                )
                                                 if not display_image_in_terminal(image_data):
-                                                    console.print("[yellow]Could not display image in terminal[/]")
-                                                    console.print(f"[dim]View online: {art.image_normal}[/]")
+                                                    console.print(
+                                                        "[yellow]Could not display image in terminal[/]"
+                                                    )
+                                                    console.print(
+                                                        f"[dim]View online: {art.image_normal}[/]"
+                                                    )
                                             else:
                                                 console.print("[red]Failed to download image[/]")
                                     else:
@@ -1243,7 +1298,9 @@ def repl() -> None:
                         console.print("[yellow]Usage: rulings <card name>[/]")
                         continue
                     rulings_result = await cards.get_card_rulings(db, args)
-                    console.print(f"\n[bold]📜 {rulings_result.count} rulings for {rulings_result.card_name}:[/]")
+                    console.print(
+                        f"\n[bold]📜 {rulings_result.count} rulings for {rulings_result.card_name}:[/]"
+                    )
                     for ruling in rulings_result.rulings[:5]:
                         console.print(f"  [dim]{ruling.date}[/] {ruling.text}")
                     if rulings_result.count > 5:
@@ -1256,11 +1313,25 @@ def repl() -> None:
                         continue
                     legality_result = await cards.get_card_legalities(db, args)
                     console.print(f"\n[bold]⚖️  {legality_result.card_name}[/]")
-                    for fmt in ["standard", "pioneer", "modern", "legacy", "vintage", "commander", "pauper"]:
+                    for fmt in [
+                        "standard",
+                        "pioneer",
+                        "modern",
+                        "legacy",
+                        "vintage",
+                        "commander",
+                        "pauper",
+                    ]:
                         if fmt in legality_result.legalities:
                             status = legality_result.legalities[fmt]
                             icon = "✓" if status == "Legal" else "✗" if status == "Banned" else "~"
-                            style = "green" if status == "Legal" else "red" if status == "Banned" else "yellow"
+                            style = (
+                                "green"
+                                if status == "Legal"
+                                else "red"
+                                if status == "Banned"
+                                else "yellow"
+                            )
                             console.print(f"  {icon} [{style}]{fmt.capitalize():12}[/] {status}")
                     console.print()
 
@@ -1297,7 +1368,9 @@ def repl() -> None:
                     while True:
                         # Filter sets if there's a filter
                         if filter_text:
-                            filtered = [s for s in all_sets if filter_text.lower() in s.name.lower()]
+                            filtered = [
+                                s for s in all_sets if filter_text.lower() in s.name.lower()
+                            ]
                         else:
                             filtered = all_sets
 
@@ -1313,7 +1386,9 @@ def repl() -> None:
                             console.print(f"\n[bold]📚 {total} sets:[/]")
 
                         for i, s in enumerate(page_sets, start + 1):
-                            console.print(f"  [dim]{i:3})[/] [cyan]{s.code.upper():6}[/] {s.name} [dim]({s.release_date or '?'})[/]")
+                            console.print(
+                                f"  [dim]{i:3})[/] [cyan]{s.code.upper():6}[/] {s.name} [dim]({s.release_date or '?'})[/]"
+                            )
 
                         # Show navigation hints
                         hints = []
@@ -1325,7 +1400,9 @@ def repl() -> None:
                         hints.append("[cyan]q[/]=done")
 
                         if end < total:
-                            console.print(f"\n[dim]Showing {start + 1}-{end} of {total}. {' | '.join(hints)}[/]")
+                            console.print(
+                                f"\n[dim]Showing {start + 1}-{end} of {total}. {' | '.join(hints)}[/]"
+                            )
                         else:
                             console.print(f"\n[dim]{' | '.join(hints)}[/]")
 
@@ -1349,12 +1426,14 @@ def repl() -> None:
                                     if 0 <= idx < total:
                                         selected = filtered[idx]
                                         full_set = await sets.get_set(db, selected.code)
-                                        console.print(Panel(
-                                            f"[bold]Type:[/] {full_set.type}\n"
-                                            f"[bold]Released:[/] {full_set.release_date or 'Unknown'}\n"
-                                            f"[bold]Cards:[/] {full_set.total_set_size or 'Unknown'}",
-                                            title=f"[cyan]{full_set.name}[/] [{full_set.code.upper()}]"
-                                        ))
+                                        console.print(
+                                            Panel(
+                                                f"[bold]Type:[/] {full_set.type}\n"
+                                                f"[bold]Released:[/] {full_set.release_date or 'Unknown'}\n"
+                                                f"[bold]Cards:[/] {full_set.total_set_size or 'Unknown'}",
+                                                title=f"[cyan]{full_set.name}[/] [{full_set.code.upper()}]",
+                                            )
+                                        )
                                 else:
                                     # Treat as new filter
                                     filter_text = nav
@@ -1370,12 +1449,14 @@ def repl() -> None:
 
                     # Helper to display a set (expects SetDetail with total_set_size)
                     def _display_set_detail(s: Any) -> None:
-                        console.print(Panel(
-                            f"[bold]Type:[/] {s.type}\n"
-                            f"[bold]Released:[/] {s.release_date or 'Unknown'}\n"
-                            f"[bold]Cards:[/] {s.total_set_size or 'Unknown'}",
-                            title=f"[cyan]{s.name}[/] [{s.code.upper()}]"
-                        ))
+                        console.print(
+                            Panel(
+                                f"[bold]Type:[/] {s.type}\n"
+                                f"[bold]Released:[/] {s.release_date or 'Unknown'}\n"
+                                f"[bold]Cards:[/] {s.total_set_size or 'Unknown'}",
+                                title=f"[cyan]{s.name}[/] [{s.code.upper()}]",
+                            )
+                        )
 
                     # First try exact code match
                     try:
@@ -1392,19 +1473,27 @@ def repl() -> None:
                             _display_set_detail(full_set)
                         else:
                             # Multiple matches - let user pick
-                            console.print(f"\n[bold]📚 {sets_result.count} sets matching '{args}':[/]\n")
+                            console.print(
+                                f"\n[bold]📚 {sets_result.count} sets matching '{args}':[/]\n"
+                            )
                             for i, s in enumerate(sets_result.sets[:15], 1):
-                                console.print(f"  [cyan]{i:2}[/]) [{s.code.upper():5}] {s.name} [dim]({s.release_date or '?'})[/]")
+                                console.print(
+                                    f"  [cyan]{i:2}[/]) [{s.code.upper():5}] {s.name} [dim]({s.release_date or '?'})[/]"
+                                )
                             if sets_result.count > 15:
                                 console.print(f"  [dim]... and {sets_result.count - 15} more[/]")
-                            console.print("\n[dim]Enter a number to view, or press Enter to skip:[/]")
+                            console.print(
+                                "\n[dim]Enter a number to view, or press Enter to skip:[/]"
+                            )
                             try:
                                 choice = console.input("[bold magenta]#[/] ").strip()
                                 if choice and choice.isdigit():
                                     idx = int(choice) - 1
                                     if 0 <= idx < len(sets_result.sets):
                                         # Fetch full details for selected set
-                                        full_set = await sets.get_set(db, sets_result.sets[idx].code)
+                                        full_set = await sets.get_set(
+                                            db, sets_result.sets[idx].code
+                                        )
                                         _display_set_detail(full_set)
                                     else:
                                         console.print("[yellow]Invalid selection[/]")
@@ -1416,7 +1505,9 @@ def repl() -> None:
                     console.print("\n[bold]📊 Database Stats[/]")
                     console.print(f"  Cards:   [cyan]{stats_data.get('unique_cards', '?'):,}[/]")
                     console.print(f"  Sets:    [cyan]{stats_data.get('total_sets', '?'):,}[/]")
-                    console.print(f"  Version: [dim]{stats_data.get('data_version', 'unknown')}[/]\n")
+                    console.print(
+                        f"  Version: [dim]{stats_data.get('data_version', 'unknown')}[/]\n"
+                    )
 
                 else:
                     # Not a known command - treat the whole line as a card name!
@@ -1428,7 +1519,9 @@ def repl() -> None:
                         filters = SearchCardsInput(name=card_name, page_size=5)
                         search_result = await cards.search_cards(db, scryfall, filters)
                         if search_result.count == 0:
-                            console.print(f"[dim]No cards found matching '[/][yellow]{card_name}[/][dim]'[/]")
+                            console.print(
+                                f"[dim]No cards found matching '[/][yellow]{card_name}[/][dim]'[/]"
+                            )
                         elif search_result.count == 1:
                             # Single match - show it
                             await _show_card(db, scryfall, search_result.cards[0].name)

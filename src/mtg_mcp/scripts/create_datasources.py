@@ -225,17 +225,12 @@ def create_scryfall_db(json_path: Path, db_path: Path, updated_at: str) -> None:
 
     # Insert metadata
     cursor.execute(
-        "INSERT INTO meta (key, value) VALUES (?, ?)",
-        ("created_at", datetime.now().isoformat())
+        "INSERT INTO meta (key, value) VALUES (?, ?)", ("created_at", datetime.now().isoformat())
     )
     cursor.execute(
-        "INSERT INTO meta (key, value) VALUES (?, ?)",
-        ("scryfall_updated_at", updated_at)
+        "INSERT INTO meta (key, value) VALUES (?, ?)", ("scryfall_updated_at", updated_at)
     )
-    cursor.execute(
-        "INSERT INTO meta (key, value) VALUES (?, ?)",
-        ("card_count", str(len(cards)))
-    )
+    cursor.execute("INSERT INTO meta (key, value) VALUES (?, ?)", ("card_count", str(len(cards))))
 
     conn.commit()
     conn.close()
@@ -264,7 +259,8 @@ def insert_card(cursor: sqlite3.Cursor, card: dict[str, Any]) -> None:
     # Get related URIs
     related = card.get("related_uris", {})
 
-    cursor.execute("""
+    cursor.execute(
+        """
         INSERT OR REPLACE INTO cards (
             scryfall_id, oracle_id, name, set_code, collector_number,
             image_small, image_normal, image_large, image_png,
@@ -275,36 +271,38 @@ def insert_card(cursor: sqlite3.Cursor, card: dict[str, Any]) -> None:
             illustration_id, image_status, highres_image, border_color,
             frame, full_art, games, finishes
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        card.get("id"),
-        card.get("oracle_id"),
-        card.get("name"),
-        card.get("set"),
-        card.get("collector_number"),
-        images.get("small"),
-        images.get("normal"),
-        images.get("large"),
-        images.get("png"),
-        images.get("art_crop"),
-        images.get("border_crop"),
-        price_to_cents(prices.get("usd")),
-        price_to_cents(prices.get("usd_foil")),
-        price_to_cents(prices.get("eur")),
-        price_to_cents(prices.get("eur_foil")),
-        purchase.get("tcgplayer"),
-        purchase.get("cardmarket"),
-        purchase.get("cardhoarder"),
-        related.get("edhrec"),
-        related.get("gatherer"),
-        card.get("illustration_id"),
-        card.get("image_status"),
-        1 if card.get("highres_image") else 0,
-        card.get("border_color"),
-        card.get("frame"),
-        1 if card.get("full_art") else 0,
-        json.dumps(card.get("games", [])),
-        json.dumps(card.get("finishes", [])),
-    ))
+    """,
+        (
+            card.get("id"),
+            card.get("oracle_id"),
+            card.get("name"),
+            card.get("set"),
+            card.get("collector_number"),
+            images.get("small"),
+            images.get("normal"),
+            images.get("large"),
+            images.get("png"),
+            images.get("art_crop"),
+            images.get("border_crop"),
+            price_to_cents(prices.get("usd")),
+            price_to_cents(prices.get("usd_foil")),
+            price_to_cents(prices.get("eur")),
+            price_to_cents(prices.get("eur_foil")),
+            purchase.get("tcgplayer"),
+            purchase.get("cardmarket"),
+            purchase.get("cardhoarder"),
+            related.get("edhrec"),
+            related.get("gatherer"),
+            card.get("illustration_id"),
+            card.get("image_status"),
+            1 if card.get("highres_image") else 0,
+            card.get("border_color"),
+            card.get("frame"),
+            1 if card.get("full_art") else 0,
+            json.dumps(card.get("games", [])),
+            json.dumps(card.get("finishes", [])),
+        ),
+    )
 
 
 app = typer.Typer(
@@ -319,7 +317,8 @@ def main(
     output_dir: Annotated[
         Path,
         typer.Option(
-            "--output-dir", "-o",
+            "--output-dir",
+            "-o",
             help="Directory to save database files",
         ),
     ] = Path("resources"),

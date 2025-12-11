@@ -30,7 +30,7 @@ async def search_cards(
     filters: SearchCardsInput,
 ) -> SearchResult:
     """Search for Magic: The Gathering cards."""
-    cards = await db.search_cards(filters)
+    cards, total_count = await db.search_cards(filters)
 
     results = []
     for card in cards:
@@ -50,6 +50,7 @@ async def search_cards(
         cards=results,
         page=filters.page,
         page_size=filters.page_size,
+        total_count=total_count,
     )
 
 

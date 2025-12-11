@@ -34,9 +34,14 @@ class QueryBuilder:
                 self.conditions.append(f"{column} = ?")
             self.params.append(value)
 
+    # Valid SQL comparison operators
+    VALID_OPERATORS: frozenset[str] = frozenset({"=", "!=", "<>", ">", "<", ">=", "<="})
+
     def add_comparison(self, column: str, op: str, value: float | None) -> None:
         """Add a comparison condition (=, >=, <=, etc)."""
         if value is not None:
+            if op not in self.VALID_OPERATORS:
+                raise ValueError(f"Invalid operator: {op}. Must be one of {self.VALID_OPERATORS}")
             self.conditions.append(f"{column} {op} ?")
             self.params.append(value)
 

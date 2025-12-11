@@ -41,16 +41,16 @@ class TestManaSymbols:
 
     def test_mana_display_uses_emojis(self) -> None:
         """MANA_DISPLAY should use emoji characters."""
-        # White uses sun emoji
-        assert "🌞" in MANA_DISPLAY["{W}"]
+        # White uses white circle
+        assert "⚪" in MANA_DISPLAY["{W}"]
         # Blue uses water droplet
         assert "💧" in MANA_DISPLAY["{U}"]
         # Black uses skull
         assert "💀" in MANA_DISPLAY["{B}"]
         # Red uses fire
         assert "🔥" in MANA_DISPLAY["{R}"]
-        # Green uses tree
-        assert "🌳" in MANA_DISPLAY["{G}"]
+        # Green uses evergreen tree
+        assert "🌲" in MANA_DISPLAY["{G}"]
 
     def test_generic_mana_has_numbers(self) -> None:
         """GENERIC_MANA should have 0-10."""
@@ -64,21 +64,21 @@ class TestPrettifyMana:
     def test_prettify_basic_mana(self) -> None:
         """Basic mana symbols should be converted."""
         result = prettify_mana("{W}")
-        assert "🌞" in result
+        assert "⚪" in result
 
         result = prettify_mana("{U}{U}")
         assert result.count("💧") == 2
 
     def test_prettify_generic_mana(self) -> None:
-        """Generic mana numbers should be converted to keycap emojis."""
+        """Generic mana numbers should be converted to circled numbers."""
         result = prettify_mana("{1}")
-        assert "1️⃣" in result
+        assert "①" in result
 
         result = prettify_mana("{3}")
-        assert "3️⃣" in result
+        assert "③" in result
 
         result = prettify_mana("{10}")
-        assert "🔟" in result
+        assert "⑩" in result
 
     def test_prettify_mixed_mana_cost(self) -> None:
         """Mixed mana costs should be converted properly."""
@@ -92,20 +92,20 @@ class TestPrettifyMana:
 
         # Wrath of God: {2}{W}{W}
         result = prettify_mana("{2}{W}{W}")
-        assert "2️⃣" in result
-        assert result.count("🌞") == 2
+        assert "②" in result
+        assert result.count("⚪") == 2
 
     def test_prettify_hybrid_mana(self) -> None:
         """Hybrid mana like {W/U} should show both symbols."""
         result = prettify_mana("{W/U}")
-        assert "🌞" in result
+        assert "⚪" in result
         assert "💧" in result
         assert "/" in result
 
     def test_prettify_phyrexian_mana(self) -> None:
         """Phyrexian mana like {W/P} should show symbol with P marker."""
         result = prettify_mana("{W/P}")
-        assert "🌞" in result
+        assert "⚪" in result
         assert "ᵖ" in result
 
     def test_prettify_tap_symbol(self) -> None:
@@ -118,7 +118,7 @@ class TestPrettifyMana:
         text = "{T}: Add {G}."
         result = prettify_mana(text)
         assert "🔄" in result
-        assert "🌳" in result
+        assert "🌲" in result
         assert ": Add" in result
 
     def test_prettify_x_spell(self) -> None:
@@ -130,7 +130,7 @@ class TestPrettifyMana:
     def test_prettify_colorless(self) -> None:
         """Colorless mana should use diamond."""
         result = prettify_mana("{C}")
-        assert "💠" in result
+        assert "◇" in result
 
     def test_prettify_snow_mana(self) -> None:
         """Snow mana should use snowflake."""

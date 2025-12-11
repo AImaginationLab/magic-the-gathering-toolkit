@@ -18,9 +18,7 @@ def register(mcp: FastMCP) -> None:
     async def get_sets(
         ctx: ToolContext,
         name: Annotated[str | None, "Filter by set name (partial match)"] = None,
-        set_type: Annotated[
-            str | None, "Filter by type (expansion, core, masters)"
-        ] = None,
+        set_type: Annotated[str | None, "Filter by type (expansion, core, masters)"] = None,
         include_online_only: Annotated[bool, "Include online-only sets"] = True,
     ) -> SetsResponse:
         """Get Magic: The Gathering sets."""

@@ -63,7 +63,7 @@ Integrate with Claude Desktop or any MCP-compatible client for AI-powered assist
 uv run mtg-mcp
 ```
 
-Add to Claude Desktop config (default OSX: `~/Library/Application Support/Claude/claude_desktop_config.json`):
+Add to Claude Desktop config (default macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {

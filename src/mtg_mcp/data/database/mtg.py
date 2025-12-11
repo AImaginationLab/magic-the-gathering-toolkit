@@ -32,46 +32,53 @@ class MTGDatabase:
 
     def _row_to_card(self, row: aiosqlite.Row) -> Card:
         """Convert a database row to a Card model."""
-        return Card.model_validate({
-            "uuid": row["uuid"],
-            "name": row["name"],
-            "manaCost": row["manaCost"],
-            "manaValue": row["manaValue"],
-            "colors": self._parse_list(row["colors"]),
-            "colorIdentity": self._parse_list(row["colorIdentity"]),
-            "type": row["type"],
-            "supertypes": self._parse_list(row["supertypes"]),
-            "types": self._parse_list(row["types"]),
-            "subtypes": self._parse_list(row["subtypes"]),
-            "text": row["text"],
-            "flavorText": row["flavorText"],
-            "power": row["power"],
-            "toughness": row["toughness"],
-            "loyalty": row["loyalty"],
-            "defense": row["defense"],
-            "setCode": row["setCode"],
-            "rarity": row["rarity"],
-            "number": row["number"],
-            "artist": row["artist"],
-            "layout": row["layout"],
-            "keywords": self._parse_list(row["keywords"]),
-            "edhrecRank": row["edhrecRank"],
-        })
+        return Card.model_validate(
+            {
+                "uuid": row["uuid"],
+                "name": row["name"],
+                "manaCost": row["manaCost"],
+                "manaValue": row["manaValue"],
+                "colors": self._parse_list(row["colors"]),
+                "colorIdentity": self._parse_list(row["colorIdentity"]),
+                "type": row["type"],
+                "supertypes": self._parse_list(row["supertypes"]),
+                "types": self._parse_list(row["types"]),
+                "subtypes": self._parse_list(row["subtypes"]),
+                "text": row["text"],
+                "flavorText": row["flavorText"],
+                "power": row["power"],
+                "toughness": row["toughness"],
+                "loyalty": row["loyalty"],
+                "defense": row["defense"],
+                "setCode": row["setCode"],
+                "rarity": row["rarity"],
+                "number": row["number"],
+                "artist": row["artist"],
+                "layout": row["layout"],
+                "keywords": self._parse_list(row["keywords"]),
+                "edhrecRank": row["edhrecRank"],
+            }
+        )
 
     def _row_to_set(self, row: aiosqlite.Row) -> Set:
         """Convert a database row to a Set model."""
-        return Set.model_validate({
-            "code": row["code"],
-            "name": row["name"],
-            "type": row["type"],
-            "releaseDate": row["releaseDate"],
-            "block": row["block"],
-            "baseSetSize": row["baseSetSize"],
-            "totalSetSize": row["totalSetSize"],
-            "isOnlineOnly": bool(row["isOnlineOnly"]),
-            "isFoilOnly": bool(row["isFoilOnly"]),
-            "keyruneCode": row["keyruneCode"],
-        })
+        # Preserve None values for boolean fields (don't convert None to False)
+        is_online_only = bool(row["isOnlineOnly"]) if row["isOnlineOnly"] is not None else None
+        is_foil_only = bool(row["isFoilOnly"]) if row["isFoilOnly"] is not None else None
+        return Set.model_validate(
+            {
+                "code": row["code"],
+                "name": row["name"],
+                "type": row["type"],
+                "releaseDate": row["releaseDate"],
+                "block": row["block"],
+                "baseSetSize": row["baseSetSize"],
+                "totalSetSize": row["totalSetSize"],
+                "isOnlineOnly": is_online_only,
+                "isFoilOnly": is_foil_only,
+                "keyruneCode": row["keyruneCode"],
+            }
+        )
 
     # -------------------------------------------------------------------------
     # Card Methods
@@ -125,28 +132,58 @@ class MTGDatabase:
                 return card
         raise CardNotFoundError(name)
 
-    async def search_cards(self, filters: SearchCardsInput) -> list[Card]:
-        """Search for cards matching the given filters."""
+    async def search_cards(self, filters: SearchCardsInput) -> tuple[list[Card], int]:
+        """Search for cards matching the given filters.
+
+        Returns:
+            Tuple of (cards on this page, total matching count)
+        """
         qb = QueryBuilder.from_filters(filters)
         where_clause = qb.build_where()
 
+        # First, get the total count (without LIMIT/OFFSET)
+        count_query = f"""
+            SELECT COUNT(DISTINCT c.name)
+            FROM cards c
+            JOIN sets s ON c.setCode = s.code
+            WHERE {where_clause} AND {EXCLUDE_EXTRAS}
+        """
+        async with self._db.execute(count_query, qb.params) as cursor:
+            row = await cursor.fetchone()
+            total_count = row[0] if row else 0
+
+        # Build ORDER BY clause based on sort_by and sort_order
+        order_direction = "DESC" if filters.sort_order == "desc" else "ASC"
+        sort_column_map = {
+            "name": "c.name",
+            "cmc": "c.manaValue",
+            "color": "c.colors",
+            "rarity": "CASE c.rarity WHEN 'common' THEN 1 WHEN 'uncommon' THEN 2 WHEN 'rare' THEN 3 WHEN 'mythic' THEN 4 ELSE 0 END",
+            "type": "c.type",
+        }
+        sort_column = sort_column_map.get(filters.sort_by or "name", "c.name")
+        order_clause = f"ORDER BY {sort_column} {order_direction}"
+
+        # Then get the paginated results
         query = f"""
             SELECT DISTINCT {CARD_COLUMNS}
             FROM cards c
             JOIN sets s ON c.setCode = s.code
             WHERE {where_clause} AND {EXCLUDE_EXTRAS}
             GROUP BY c.name
-            ORDER BY c.name
+            {order_clause}
             LIMIT ? OFFSET ?
         """
-        qb.params.extend([filters.page_size, (filters.page - 1) * filters.page_size])
+        # Create a copy of params for the paginated query
+        page_params = list(qb.params)
+        page_params.extend([filters.page_size, (filters.page - 1) * filters.page_size])
 
         cards = []
-        async with self._db.execute(query, qb.params) as cursor:
+        async with self._db.execute(query, page_params) as cursor:
             async for row in cursor:
                 cards.append(self._row_to_card(row))
 
-        return cards
+        return cards, total_count
 
     async def _get_legalities(self, uuid: str) -> list[CardLegality]:
         """Get format legalities for a card."""
@@ -312,5 +349,6 @@ class MTGDatabase:
             if row:
                 card = self._row_to_card(row)
                 card.legalities = await self._get_legalities(row["uuid"])
+                card.rulings = await self._get_rulings(row["uuid"])
                 return card
         raise CardNotFoundError("random")
