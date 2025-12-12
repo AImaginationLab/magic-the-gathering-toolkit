@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from mtg_mcp.data.database import MTGDatabase
-from mtg_mcp.tools import sets
+from mtg_core.data.database import MTGDatabase
+from mtg_core.tools import sets
 
 
 class TestGetSets:
@@ -65,7 +65,7 @@ class TestGetSet:
 
     async def test_get_set_not_found(self, db: MTGDatabase) -> None:
         """Test getting a nonexistent set."""
-        from mtg_mcp.exceptions import SetNotFoundError
+        from mtg_core.exceptions import SetNotFoundError
 
         with pytest.raises(SetNotFoundError):
             await sets.get_set(db, "XYZNOTASET")

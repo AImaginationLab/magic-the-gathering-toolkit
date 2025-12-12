@@ -1,125 +1,53 @@
 [project]
-name = "mtg-mcp"
+name = "magic-the-gathering-workspace"
 version = "0.1.0"
-description = "MCP server for Magic: The Gathering card lookup, deck building, and strategy advice"
+description = "Magic: The Gathering toolkit - MCP server, TUI, and core library"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
-authors = [{ name = "Vinnie Giarrusso", email = "vin.giarrusso@gmail.com" }]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Topic :: Games/Entertainment",
-    "Typing :: Typed",
-]
-
 dependencies = [
-    "mcp>=1.20,<2",
-    "aiosqlite>=0.19.0,<1",
-    "pydantic>=2.10,<3",
-    "pydantic-settings>=2.6,<3",
-    "typer>=0.15,<1",
-    "rich>=13.0,<15",
-    "httpx>=0.27,<1",
-    "pillow>=10.0,<13",
-    "textual>=6.8.0",
-    "textual-image>=0.8.4",
+    "mtg-core",
+    "mtg-spellbook",
+    "mtg-mcp",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
-    "pytest-asyncio>=0.24",
-    "ruff>=0.8",
-    "mypy>=1.13",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+    "mypy>=1.10",
 ]
 
-[project.scripts]
-mtg-mcp = "mtg_mcp.server:main"
-mtg = "mtg_mcp.cli:cli"
-create-datasources = "mtg_mcp.scripts.create_datasources:app"
+[tool.uv.workspace]
+members = ["packages/*"]
 
-[project.urls]
-Homepage = "https://github.com/aimaginationlab/magic-the-gathering-mcp"
-Repository = "https://github.com/aimaginationlab/magic-the-gathering-mcp"
-Issues = "https://github.com/aimaginationlab/magic-the-gathering-mcp/issues"
+[tool.uv.sources]
+mtg-core = { workspace = true }
+mtg-spellbook = { workspace = true }
+mtg-mcp = { workspace = true }
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["packages/*/src"]
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/mtg_mcp"]
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "ARG", "SIM", "RUF"]
+ignore = ["E501", "B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["mtg_core", "mtg_mcp_server", "mtg_spellbook"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
-
-[tool.ruff]
-target-version = "py311"
-line-length = 100
-src = ["src"]
-
-[tool.ruff.lint]
-select = [
-    "E",      # pycodestyle errors
-    "W",      # pycodestyle warnings
-    "F",      # Pyflakes
-    "I",      # isort
-    "B",      # flake8-bugbear
-    "C4",     # flake8-comprehensions
-    "UP",     # pyupgrade
-    "ARG",    # flake8-unused-arguments
-    "SIM",    # flake8-simplify
-    "TCH",    # flake8-type-checking
-    "PTH",    # flake8-use-pathlib
-    "RUF",    # Ruff-specific rules
+filterwarnings = [
+    "ignore::DeprecationWarning",
 ]
-ignore = [
-    "E501",   # line too long (handled by formatter)
-    "B008",   # function call in default argument (needed for FastMCP)
-    "TC001",  # move into type-checking block - breaks FastMCP runtime introspection
-    "TC002",  # move third-party import into type-checking block - breaks FastMCP
-    "TC003",  # move stdlib import into type-checking block - Sequence used at runtime
-    "RUF022", # __all__ not sorted - we prefer logical grouping
-]
-
-[tool.ruff.lint.isort]
-known-first-party = ["mtg_mcp"]
-combine-as-imports = true
-
-[tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
-docstring-code-format = true
-
-[tool.mypy]
-python_version = "3.11"
-strict = true
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true
-disallow_untyped_decorators = true
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-follow_imports = "silent"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = ["aiosqlite.*", "mcp.*"]
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = ["mtg_mcp.cli.textual_app.commands"]
-# Mixin pattern requires looser typing for methods that come from App base class
-disable_error_code = ["attr-defined"]

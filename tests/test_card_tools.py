@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from mtg_mcp.data.database import MTGDatabase, ScryfallDatabase
-from mtg_mcp.data.models.inputs import SearchCardsInput
-from mtg_mcp.tools import cards
+from mtg_core.data.database import MTGDatabase, ScryfallDatabase
+from mtg_core.data.models.inputs import SearchCardsInput
+from mtg_core.tools import cards
 
 
 class TestSearchCards:
@@ -116,7 +116,7 @@ class TestGetCard:
         self, db: MTGDatabase, scryfall: ScryfallDatabase | None
     ) -> None:
         """Test getting a nonexistent card raises error."""
-        from mtg_mcp.exceptions import CardNotFoundError
+        from mtg_core.exceptions import CardNotFoundError
 
         with pytest.raises(CardNotFoundError):
             await cards.get_card(db, scryfall, name="xyznonexistentcardxyz")
@@ -125,7 +125,7 @@ class TestGetCard:
         self, db: MTGDatabase, scryfall: ScryfallDatabase | None
     ) -> None:
         """Test that missing params raises validation error."""
-        from mtg_mcp.exceptions import ValidationError
+        from mtg_core.exceptions import ValidationError
 
         with pytest.raises(ValidationError):
             await cards.get_card(db, scryfall)
@@ -149,7 +149,7 @@ class TestGetCardRulings:
 
     async def test_get_rulings_card_not_found(self, db: MTGDatabase) -> None:
         """Test getting rulings for nonexistent card."""
-        from mtg_mcp.exceptions import CardNotFoundError
+        from mtg_core.exceptions import CardNotFoundError
 
         with pytest.raises(CardNotFoundError):
             await cards.get_card_rulings(db, "xyznonexistentcardxyz")

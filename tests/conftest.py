@@ -6,8 +6,8 @@ from collections.abc import AsyncGenerator
 
 import pytest
 
-from mtg_mcp.config import get_settings
-from mtg_mcp.data.database import DatabaseManager, MTGDatabase, ScryfallDatabase
+from mtg_core.config import get_settings
+from mtg_core.data.database import DatabaseManager, MTGDatabase, ScryfallDatabase
 
 
 @pytest.fixture

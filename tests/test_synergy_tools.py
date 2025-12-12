@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from mtg_mcp.data.database import MTGDatabase, ScryfallDatabase
-from mtg_mcp.tools import synergy
-from mtg_mcp.tools.synergy import (
+from mtg_core.data.database import MTGDatabase, ScryfallDatabase
+from mtg_core.tools import synergy
+from mtg_core.tools.synergy import (
     KNOWN_COMBOS,
     _combo_to_model,
     _detect_deck_colors,
@@ -99,7 +99,7 @@ class TestFindSynergies:
 
     async def test_find_synergies_card_not_found(self, db: MTGDatabase) -> None:
         """Test that CardNotFoundError is raised for invalid cards."""
-        from mtg_mcp.exceptions import CardNotFoundError
+        from mtg_core.exceptions import CardNotFoundError
 
         with pytest.raises(CardNotFoundError):
             await synergy.find_synergies(db, "Not A Real Card Name XYZ123")
