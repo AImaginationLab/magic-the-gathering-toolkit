@@ -1,59 +1,52 @@
-# Magic: The Gathering MCP Server
+# Magic: The Gathering Toolkit
 
-A fast, local MCP server and CLI for Magic: The Gathering. Search 33,000+ cards, browse artwork, check prices, validate decks, and get AI-powered deck-building assistance—all powered by offline SQLite databases.
+A fast, local toolkit for Magic: The Gathering. Search 33,000+ cards, browse artwork, check prices, validate decks, and get AI-powered deck-building assistance—all powered by offline SQLite databases.
+
+## Packages
+
+This is a UV workspace with three packages:
+
+| Package | Description |
+|---------|-------------|
+| [mtg-core](packages/mtg-core/) | Shared library: database access, card models, tools |
+| [mtg-mcp](packages/mtg-mcp/) | MCP server for Claude Desktop integration |
+| [mtg-spellbook](packages/mtg-spellbook/) | Interactive terminal UI (Textual) |
 
 ## Quick Start
 
 ```bash
-# Install
+# Clone and install
 git clone git@github.com:aimaginationlab/magic-the-gathering-mcp.git
 cd magic-the-gathering-mcp
 uv sync
+
+# Download databases (required)
 uv run create-datasources
 
-# Run the CLI
-uv run mtg repl
+# Launch the TUI
+uv run mtg-spellbook
+
+# Or start the MCP server
+uv run mtg-mcp
 ```
 
-## Two Ways to Use
+## MTG Spellbook (TUI)
 
-### 1. Interactive CLI
-
-A themed REPL for quick card lookups, artwork browsing, and deck analysis.
+A themed terminal interface for card lookups, artwork browsing, and deck analysis.
 
 ```bash
-uv run mtg repl
-```
-
-```text
-    ╔╦╗╔═╗╔═╗╦╔═╗  ┌┬┐┬ ┬┌─┐
-    ║║║╠═╣║ ╦║║     │ ├─┤├┤
-    ╩ ╩╩ ╩╚═╝╩╚═╝   ┴ ┴ ┴└─┘
-  ╔═╗╔═╗╔╦╗╦ ╦╔═╗╦═╗╦╔╗╔╔═╗
-  ║ ╦╠═╣ ║ ╠═╣║╣ ╠╦╝║║║║║ ╦
-  ╚═╝╩ ╩ ╩ ╩ ╩╚═╝╩╚═╩╝╚╝╚═╝
-
-"Every planeswalker was once a beginner."
-
-Tapping mana sources...
-
-Library loaded! 33,044 cards across 839 sets
-Type a card name to look it up, or ? for help
-
-⚡ Sol Ring
-⚡ art Lightning Bolt
-⚡ set final fantasy
-⚡ search dragon
+uv run mtg-spellbook
 ```
 
 **Features:**
-- Just type a card name to look it up
-- `art <card>` — Browse all unique artworks, pick one to display
-- `set <name>` — Find sets by name or code
-- `search`, `rulings`, `legal`, `price`, `random`
-- Card images display directly in iTerm2, Kitty, or any true-color terminal
+- Search cards with 15+ filters (name, colors, type, CMC, keywords, format, rarity, set)
+- Browse high-resolution card artwork
+- Check prices and printings
+- Analyze deck composition, mana curve, and color balance
+- Find card synergies and combos
+- Keyboard shortcuts for quick navigation
 
-### 2. MCP Server
+## MCP Server
 
 Integrate with Claude Desktop or any MCP-compatible client for AI-powered assistance.
 
@@ -61,7 +54,7 @@ Integrate with Claude Desktop or any MCP-compatible client for AI-powered assist
 uv run mtg-mcp
 ```
 
-Add to Claude Desktop config (default macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`):
+Add to Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
 
 ```json
 {
@@ -77,13 +70,12 @@ Add to Claude Desktop config (default macOS: `~/Library/Application Support/Clau
 Then ask Claude things like:
 - "Build me a budget Mono-Red Commander deck under $50"
 - "What are the best counterspells in Modern?"
-- "Compare Lightning Bolt vs Chain Lightning"
+- "Find cards that synergize with Rhystic Study"
 - "Is this deck legal in Pioneer?" (paste your decklist)
 
-## Tools
+## Available Tools
 
 ### Card Lookup
-
 | Tool | Description |
 |------|-------------|
 | `search_cards` | Filter by name, colors, type, CMC, keywords, format, rarity, set |
@@ -93,7 +85,6 @@ Then ask Claude things like:
 | `get_random_card` | Discover something new |
 
 ### Images & Prices
-
 | Tool | Description |
 |------|-------------|
 | `get_card_image` | Image URLs in multiple sizes |
@@ -102,7 +93,6 @@ Then ask Claude things like:
 | `search_by_price` | Find cards in a price range |
 
 ### Deck Analysis
-
 | Tool | Description |
 |------|-------------|
 | `validate_deck` | Check format legality, deck size, copy limits |
@@ -111,35 +101,19 @@ Then ask Claude things like:
 | `analyze_deck_composition` | Creature/spell/land breakdown |
 | `analyze_deck_price` | Total cost and expensive cards |
 
-### Sets
+### Synergy & Strategy
+| Tool | Description |
+|------|-------------|
+| `find_synergies` | Find cards that synergize with a given card |
+| `detect_combos` | Identify known combos in a deck or for a card |
+| `suggest_cards` | Recommend cards based on deck theme/strategy |
 
+### Sets
 | Tool | Description |
 |------|-------------|
 | `get_sets` | List and search all sets |
 | `get_set` | Set details (release date, card count, type) |
 | `get_database_stats` | Database version and statistics |
-
-## CLI Commands
-
-```bash
-# Card commands
-mtg card search -n "Lightning" -c R           # Search red cards with "Lightning"
-mtg card get "Sol Ring"                       # Card details
-mtg card rulings "Doubling Season"            # Rulings
-mtg card price "Black Lotus"                  # Prices
-
-# Set commands
-mtg set list --type expansion                 # List expansion sets
-mtg set get DOM                               # Dominaria details
-
-# Deck commands
-mtg deck validate deck.txt -f modern          # Validate Modern deck
-mtg deck curve deck.txt                       # Mana curve analysis
-mtg deck price deck.txt                       # Price breakdown
-
-# Database stats
-mtg stats
-```
 
 ## Data Sources
 
@@ -159,10 +133,28 @@ SCRYFALL_DB_PATH=resources/scryfall.sqlite
 
 ```bash
 uv sync --all-extras    # Install dev dependencies
-uv run pytest           # Run tests
-uv run ruff check src/  # Lint
-uv run mypy src/        # Type check
+uv run pytest           # Run tests (78 tests)
+uv run ruff check .     # Lint
+uv run mypy .           # Type check
 ```
 
-## Copyright 
+## Project Structure
+
+```
+magic-the-gathering-mcp/
+├── packages/
+│   ├── mtg-core/           # Shared library
+│   ├── mtg-mcp/            # MCP server
+│   └── mtg-spellbook/      # Terminal UI
+├── resources/              # SQLite databases
+├── tests/                  # Test suite
+└── pyproject.toml          # Workspace config
+```
+
+## License
+
+MIT
+
+## Copyright
+
 All rights to Magic: The Gathering belong to Wizards of the Coast, a subsidiary of Hasbro, Inc.
