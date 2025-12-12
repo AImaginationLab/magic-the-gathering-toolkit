@@ -4,16 +4,16 @@ A fast, local MCP server and CLI for Magic: The Gathering. Search 33,000+ cards,
 
 ## Quick Start
 
+Install and sync dependencies
 ```bash
 # Install
 git clone git@github.com:aimaginationlab/magic-the-gathering-mcp.git
 cd magic-the-gathering-mcp
 uv sync
-uv run create-datasources
-
-# Run the CLI
-uv run mtg repl
 ```
+
+Download and create Sqlite databases with `uv run create-datasources`
+<img src="https://files.catbox.moe/9yscap.gif" width="300" height="200">
 
 ## Two Ways to Use
 
