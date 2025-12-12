@@ -1,0 +1,3205 @@
+{
+  "keyword_synergies": [
+    {
+      "keyword": "Flying",
+      "patterns": [
+        "can.*block.*flying",
+        "creature.*with.*flying",
+        "gain.*flying",
+        "reach",
+        "flying.*creature",
+        "can't.*be.*blocked.*except.*by.*flying",
+        "flying.*counter",
+        "creature.*without.*flying.*can't.*block",
+        "defender.*with.*flying",
+        "loses.*flying"
+      ]
+    },
+    {
+      "keyword": "Trample",
+      "patterns": [
+        "trample",
+        "gain.*trample",
+        "creature.*with.*trample",
+        "assign.*combat.*damage",
+        "excess.*damage",
+        "damage.*equal.*to.*power",
+        "power.*matters",
+        "creature.*with.*power.*greater",
+        "double.*strike.*trample",
+        "menace.*trample"
+      ]
+    },
+    {
+      "keyword": "Deathtouch",
+      "patterns": [
+        "deathtouch",
+        "fight",
+        "deals.*damage.*creature",
+        "first strike",
+        "double strike",
+        "ping",
+        "tap.*deals.*1.*damage",
+        "whenever.*deals.*damage.*to.*creature",
+        "assign.*combat.*damage",
+        "trample.*deathtouch",
+        "damage.*divided",
+        "must.*be.*blocked"
+      ]
+    },
+    {
+      "keyword": "First Strike",
+      "patterns": [
+        "first strike",
+        "double strike",
+        "combat.*damage",
+        "before.*combat.*damage",
+        "deathtouch",
+        "loses.*first.*strike",
+        "creature.*with.*first.*strike",
+        "gain.*first.*strike",
+        "equipment.*first.*strike",
+        "power.*boost",
+        "prevent.*combat.*damage"
+      ]
+    },
+    {
+      "keyword": "Double Strike",
+      "patterns": [
+        "double strike",
+        "first strike",
+        "combat.*damage",
+        "equipped",
+        "power.*greater",
+        "gain.*double.*strike",
+        "creature.*with.*double.*strike",
+        "lifelink.*double.*strike",
+        "deathtouch.*double.*strike",
+        "damage.*trigger",
+        "voltron",
+        "pump.*spell"
+      ]
+    },
+    {
+      "keyword": "Menace",
+      "patterns": [
+        "menace",
+        "can.*be.*blocked",
+        "blocked.*by.*two",
+        "unblockable",
+        "gain.*menace",
+        "creature.*with.*menace",
+        "can't.*be.*blocked.*by.*more.*than",
+        "evasion",
+        "trample.*menace",
+        "combat.*damage.*to.*player",
+        "must.*be.*blocked.*by.*two"
+      ]
+    },
+    {
+      "keyword": "Vigilance",
+      "patterns": [
+        "vigilance",
+        "doesn't.*tap.*attack",
+        "untap.*creature",
+        "tap.*abilities",
+        "gain.*vigilance",
+        "creature.*with.*vigilance",
+        "attack.*and.*block",
+        "whenever.*taps",
+        "tap.*to.*activate",
+        "convoke",
+        "extra.*combat"
+      ]
+    },
+    {
+      "keyword": "Lifelink",
+      "patterns": [
+        "lifelink",
+        "gain.*life",
+        "life.*you.*gain",
+        "whenever.*gain.*life",
+        "combat.*damage",
+        "creature.*with.*lifelink",
+        "gain.*lifelink",
+        "double.*strike.*lifelink",
+        "damage.*each.*opponent",
+        "lifegain.*trigger",
+        "soul.*warden",
+        "ajanis.*pridemate"
+      ]
+    },
+    {
+      "keyword": "Hexproof",
+      "patterns": [
+        "hexproof",
+        "shroud",
+        "can't.*be.*target",
+        "protection",
+        "ward",
+        "gain.*hexproof",
+        "creature.*with.*hexproof",
+        "hexproof.*from",
+        "aura",
+        "equipment",
+        "voltron",
+        "enchanted.*creature",
+        "bogle"
+      ]
+    },
+    {
+      "keyword": "Indestructible",
+      "patterns": [
+        "indestructible",
+        "can't.*be.*destroyed",
+        "destroy",
+        "damage.*doesn't",
+        "exile",
+        "gain.*indestructible",
+        "creature.*with.*indestructible",
+        "board.*wipe",
+        "fight",
+        "deathtouch",
+        "prevent.*all.*damage",
+        "loses.*indestructible"
+      ]
+    },
+    {
+      "keyword": "Haste",
+      "patterns": [
+        "haste",
+        "can.*attack.*immediately",
+        "whenever.*attacks",
+        "until.*end.*of.*turn",
+        "gain.*haste",
+        "creature.*with.*haste",
+        "riot",
+        "dash",
+        "blitz",
+        "token.*creature.*haste",
+        "enters.*and.*attacks",
+        "temporary.*creature"
+      ]
+    },
+    {
+      "keyword": "Reach",
+      "patterns": [
+        "reach",
+        "block.*flying",
+        "flying",
+        "creature.*with.*flying",
+        "gain.*reach",
+        "creature.*with.*reach",
+        "can.*block.*creature.*with.*flying",
+        "spider",
+        "defender",
+        "high.*toughness",
+        "flying.*matters"
+      ]
+    },
+    {
+      "keyword": "+1/+1 counter",
+      "patterns": [
+        "proliferate",
+        "double.*counter",
+        "move.*counter",
+        "counter.*on",
+        "enters.*with.*counter",
+        "modular",
+        "evolve",
+        "adapt"
+      ]
+    },
+    {
+      "keyword": "-1/-1 counter",
+      "patterns": [
+        "proliferate",
+        "wither",
+        "infect",
+        "counter.*on",
+        "remove.*counter"
+      ]
+    },
+    {
+      "keyword": "Flashback",
+      "patterns": [
+        "flashback",
+        "graveyard",
+        "cast.*from.*graveyard",
+        "instant.*sorcery",
+        "spell.*you.*cast"
+      ]
+    },
+    {
+      "keyword": "Cycling",
+      "patterns": [
+        "cycling",
+        "cycle",
+        "discard",
+        "draw.*card",
+        "whenever.*you.*cycle"
+      ]
+    },
+    {
+      "keyword": "Madness",
+      "patterns": [
+        "madness",
+        "discard",
+        "you.*may.*cast",
+        "whenever.*discard"
+      ]
+    },
+    {
+      "keyword": "Undying",
+      "patterns": [
+        "undying",
+        "persist",
+        "dies",
+        "return.*battlefield",
+        "sacrifice"
+      ]
+    },
+    {
+      "keyword": "Persist",
+      "patterns": [
+        "persist",
+        "undying",
+        "dies",
+        "return.*battlefield",
+        "sacrifice",
+        "counter.*on"
+      ]
+    },
+    {
+      "keyword": "Infect",
+      "patterns": [
+        "infect",
+        "poison.*counter",
+        "proliferate",
+        "double.*strike",
+        "unblockable"
+      ]
+    },
+    {
+      "keyword": "Annihilator",
+      "patterns": [
+        "annihilator",
+        "sacrifice",
+        "permanent",
+        "attack"
+      ]
+    },
+    {
+      "keyword": "Cascade",
+      "patterns": [
+        "cascade",
+        "cast.*spell",
+        "mana.*value",
+        "library"
+      ]
+    },
+    {
+      "keyword": "Storm",
+      "patterns": [
+        "storm",
+        "instant.*sorcery",
+        "spell.*cast",
+        "copies"
+      ]
+    },
+    {
+      "keyword": "Convoke",
+      "patterns": [
+        "convoke",
+        "tap",
+        "creature",
+        "token"
+      ]
+    },
+    {
+      "keyword": "Delve",
+      "patterns": [
+        "delve",
+        "graveyard",
+        "exile.*from.*graveyard",
+        "self-mill"
+      ]
+    },
+    {
+      "keyword": "Evoke",
+      "patterns": [
+        "evoke",
+        "enters.*battlefield",
+        "leaves.*battlefield",
+        "sacrifice"
+      ]
+    },
+    {
+      "keyword": "Prowess",
+      "patterns": [
+        "prowess",
+        "instant.*sorcery",
+        "noncreature.*spell",
+        "spell.*cast"
+      ]
+    },
+    {
+      "keyword": "Scry",
+      "patterns": [
+        "scry",
+        "top.*library",
+        "bottom.*library",
+        "draw"
+      ]
+    },
+    {
+      "keyword": "Surveil",
+      "patterns": [
+        "surveil",
+        "graveyard",
+        "top.*library",
+        "mill"
+      ]
+    },
+    {
+      "keyword": "Mutate",
+      "patterns": [
+        "mutate",
+        "merge",
+        "non-human",
+        "creature.*you.*own"
+      ]
+    },
+    {
+      "keyword": "Companion",
+      "patterns": [
+        "companion",
+        "deck.*building",
+        "outside.*game"
+      ]
+    },
+    {
+      "keyword": "Foretell",
+      "patterns": [
+        "foretell",
+        "exile",
+        "face.*down",
+        "cast.*from.*exile"
+      ]
+    },
+    {
+      "keyword": "Ward",
+      "patterns": [
+        "ward",
+        "target",
+        "pay",
+        "sacrifice"
+      ]
+    },
+    {
+      "keyword": "Fabricate",
+      "patterns": [
+        "fabricate",
+        "counter",
+        "token",
+        "artifact.*creature"
+      ]
+    },
+    {
+      "keyword": "Buyback",
+      "patterns": [
+        "buyback",
+        "return.*to.*hand",
+        "cast.*from.*hand",
+        "spell.*you.*cast"
+      ]
+    },
+    {
+      "keyword": "Kicker",
+      "patterns": [
+        "kicker",
+        "kicked",
+        "additional.*cost",
+        "if.*was.*kicked"
+      ]
+    },
+    {
+      "keyword": "Multikicker",
+      "patterns": [
+        "multikicker",
+        "kicked",
+        "times.*kicked",
+        "kicker"
+      ]
+    },
+    {
+      "keyword": "Overload",
+      "patterns": [
+        "overload",
+        "instant.*sorcery",
+        "target",
+        "each"
+      ]
+    },
+    {
+      "keyword": "Entwine",
+      "patterns": [
+        "entwine",
+        "choose.*both",
+        "modal",
+        "modes"
+      ]
+    },
+    {
+      "keyword": "Replicate",
+      "patterns": [
+        "replicate",
+        "copy",
+        "spell.*you.*cast",
+        "storm"
+      ]
+    },
+    {
+      "keyword": "Cipher",
+      "patterns": [
+        "cipher",
+        "encode",
+        "deals.*combat.*damage",
+        "unblockable"
+      ]
+    },
+    {
+      "keyword": "Splice",
+      "patterns": [
+        "splice.*onto",
+        "arcane",
+        "instant.*sorcery",
+        "cast.*from.*hand"
+      ]
+    },
+    {
+      "keyword": "Ninjutsu",
+      "patterns": [
+        "ninjutsu",
+        "combat.*damage",
+        "unblockable",
+        "return.*to.*hand"
+      ]
+    },
+    {
+      "keyword": "Bushido",
+      "patterns": [
+        "bushido",
+        "blocked",
+        "combat",
+        "samurai"
+      ]
+    },
+    {
+      "keyword": "Soulshift",
+      "patterns": [
+        "soulshift",
+        "dies",
+        "spirit",
+        "graveyard.*hand"
+      ]
+    },
+    {
+      "keyword": "Dredge",
+      "patterns": [
+        "dredge",
+        "mill",
+        "graveyard",
+        "library.*graveyard",
+        "self-mill"
+      ]
+    },
+    {
+      "keyword": "Transmute",
+      "patterns": [
+        "transmute",
+        "search.*library",
+        "tutor",
+        "discard"
+      ]
+    },
+    {
+      "keyword": "Forecast",
+      "patterns": [
+        "forecast",
+        "reveal",
+        "upkeep",
+        "hand"
+      ]
+    },
+    {
+      "keyword": "Recover",
+      "patterns": [
+        "recover",
+        "graveyard.*hand",
+        "dies",
+        "creature"
+      ]
+    },
+    {
+      "keyword": "Suspend",
+      "patterns": [
+        "suspend",
+        "time.*counter",
+        "exile",
+        "cast.*without.*paying"
+      ]
+    },
+    {
+      "keyword": "Vanishing",
+      "patterns": [
+        "vanishing",
+        "time.*counter",
+        "remove.*counter",
+        "sacrifice"
+      ]
+    },
+    {
+      "keyword": "Gravestorm",
+      "patterns": [
+        "gravestorm",
+        "dies",
+        "permanent.*died",
+        "copy"
+      ]
+    },
+    {
+      "keyword": "Ripple",
+      "patterns": [
+        "ripple",
+        "reveal.*top",
+        "library",
+        "same.*name"
+      ]
+    },
+    {
+      "keyword": "Epic",
+      "patterns": [
+        "epic",
+        "copy",
+        "upkeep",
+        "can't.*cast"
+      ]
+    },
+    {
+      "keyword": "Absorb",
+      "patterns": [
+        "absorb",
+        "prevent",
+        "damage",
+        "counter.*on"
+      ]
+    },
+    {
+      "keyword": "Affinity",
+      "patterns": [
+        "affinity",
+        "artifact",
+        "cost.*less",
+        "metalcraft"
+      ]
+    },
+    {
+      "keyword": "Amplify",
+      "patterns": [
+        "amplify",
+        "reveal",
+        "counter.*on",
+        "creature.*type"
+      ]
+    },
+    {
+      "keyword": "Exalted",
+      "patterns": [
+        "exalted",
+        "attack.*alone",
+        "single.*attacker",
+        "bant"
+      ]
+    },
+    {
+      "keyword": "Extort",
+      "patterns": [
+        "extort",
+        "spell.*you.*cast",
+        "gain.*life",
+        "lose.*life"
+      ]
+    },
+    {
+      "keyword": "Fading",
+      "patterns": [
+        "fading",
+        "fade.*counter",
+        "remove.*counter",
+        "sacrifice"
+      ]
+    },
+    {
+      "keyword": "Flanking",
+      "patterns": [
+        "flanking",
+        "blocked",
+        "combat",
+        "creature.*without"
+      ]
+    },
+    {
+      "keyword": "Frenzy",
+      "patterns": [
+        "frenzy",
+        "attack",
+        "destroy",
+        "must.*attack"
+      ]
+    },
+    {
+      "keyword": "Graft",
+      "patterns": [
+        "graft",
+        "counter.*on",
+        "move.*counter",
+        "enters.*battlefield"
+      ]
+    },
+    {
+      "keyword": "Haunt",
+      "patterns": [
+        "haunt",
+        "exile",
+        "dies",
+        "creature"
+      ]
+    },
+    {
+      "keyword": "Hideaway",
+      "patterns": [
+        "hideaway",
+        "exile",
+        "face.*down",
+        "land"
+      ]
+    },
+    {
+      "keyword": "Horsemanship",
+      "patterns": [
+        "horsemanship",
+        "blocked",
+        "evasion",
+        "creature.*with"
+      ]
+    },
+    {
+      "keyword": "Offering",
+      "patterns": [
+        "offering",
+        "sacrifice",
+        "cost.*less",
+        "creature.*type"
+      ]
+    },
+    {
+      "keyword": "Phasing",
+      "patterns": [
+        "phasing",
+        "phase.*out",
+        "phase.*in",
+        "untap"
+      ]
+    },
+    {
+      "keyword": "Provoke",
+      "patterns": [
+        "provoke",
+        "attack",
+        "must.*block",
+        "combat"
+      ]
+    },
+    {
+      "keyword": "Rampage",
+      "patterns": [
+        "rampage",
+        "blocked",
+        "creature.*blocking",
+        "power"
+      ]
+    },
+    {
+      "keyword": "Shroud",
+      "patterns": [
+        "shroud",
+        "can't.*be.*target",
+        "hexproof",
+        "protection"
+      ]
+    },
+    {
+      "keyword": "Split Second",
+      "patterns": [
+        "split second",
+        "instant",
+        "counter",
+        "stack"
+      ]
+    },
+    {
+      "keyword": "Wither",
+      "patterns": [
+        "wither",
+        "counter.*on",
+        "damage.*creature",
+        "infect"
+      ]
+    },
+    {
+      "keyword": "Escape",
+      "patterns": [
+        "escape",
+        "graveyard",
+        "exile.*from.*graveyard",
+        "cast.*from.*graveyard"
+      ]
+    },
+    {
+      "keyword": "Adapt",
+      "patterns": [
+        "adapt",
+        "counter.*on",
+        "activate",
+        "simic"
+      ]
+    },
+    {
+      "keyword": "Evolve",
+      "patterns": [
+        "evolve",
+        "counter.*on",
+        "greater.*power",
+        "enters.*battlefield"
+      ]
+    },
+    {
+      "keyword": "Boast",
+      "patterns": [
+        "boast",
+        "attack",
+        "activate",
+        "kaldheim"
+      ]
+    },
+    {
+      "keyword": "Forage",
+      "patterns": [
+        "forage",
+        "exile.*from.*graveyard",
+        "food",
+        "card.*from.*graveyard"
+      ]
+    },
+    {
+      "keyword": "Daybound",
+      "patterns": [
+        "daybound",
+        "nightbound",
+        "transform",
+        "day.*night"
+      ]
+    },
+    {
+      "keyword": "Nightbound",
+      "patterns": [
+        "nightbound",
+        "daybound",
+        "transform",
+        "day.*night"
+      ]
+    },
+    {
+      "keyword": "Disturb",
+      "patterns": [
+        "disturb",
+        "graveyard",
+        "transform",
+        "cast.*from.*graveyard"
+      ]
+    },
+    {
+      "keyword": "Cleave",
+      "patterns": [
+        "cleave",
+        "alternative.*cost",
+        "instant.*sorcery",
+        "mana.*value"
+      ]
+    },
+    {
+      "keyword": "Training",
+      "patterns": [
+        "training",
+        "counter.*on",
+        "attack",
+        "greater.*power"
+      ]
+    },
+    {
+      "keyword": "Blitz",
+      "patterns": [
+        "blitz",
+        "haste",
+        "sacrifice",
+        "draw.*card"
+      ]
+    },
+    {
+      "keyword": "Casualty",
+      "patterns": [
+        "casualty",
+        "sacrifice",
+        "copy",
+        "creature"
+      ]
+    },
+    {
+      "keyword": "Connive",
+      "patterns": [
+        "connive",
+        "draw",
+        "discard",
+        "counter.*on"
+      ]
+    },
+    {
+      "keyword": "Myriad",
+      "patterns": [
+        "myriad",
+        "attack",
+        "token.*copy",
+        "each.*opponent"
+      ]
+    },
+    {
+      "keyword": "Undaunted",
+      "patterns": [
+        "undaunted",
+        "cost.*less",
+        "opponent",
+        "multiplayer"
+      ]
+    },
+    {
+      "keyword": "Partner",
+      "patterns": [
+        "partner",
+        "commander",
+        "command.*zone",
+        "legendary"
+      ]
+    },
+    {
+      "keyword": "Miracle",
+      "patterns": [
+        "miracle",
+        "draw",
+        "first.*card",
+        "alternative.*cost"
+      ]
+    },
+    {
+      "keyword": "Soulbond",
+      "patterns": [
+        "soulbond",
+        "paired",
+        "creature",
+        "enters.*battlefield"
+      ]
+    },
+    {
+      "keyword": "Embalm",
+      "patterns": [
+        "embalm",
+        "graveyard",
+        "token.*copy",
+        "exile"
+      ]
+    },
+    {
+      "keyword": "Eternalize",
+      "patterns": [
+        "eternalize",
+        "graveyard",
+        "token.*copy",
+        "exile"
+      ]
+    },
+    {
+      "keyword": "Aftermath",
+      "patterns": [
+        "aftermath",
+        "graveyard",
+        "cast.*from.*graveyard",
+        "split.*card"
+      ]
+    },
+    {
+      "keyword": "Explore",
+      "patterns": [
+        "explore",
+        "reveal",
+        "land",
+        "counter.*on"
+      ]
+    },
+    {
+      "keyword": "Crew",
+      "patterns": [
+        "crew",
+        "vehicle",
+        "tap",
+        "artifact.*creature"
+      ]
+    },
+    {
+      "keyword": "Improvise",
+      "patterns": [
+        "improvise",
+        "artifact",
+        "tap",
+        "cost.*less"
+      ]
+    },
+    {
+      "keyword": "Revolt",
+      "patterns": [
+        "revolt",
+        "permanent.*left.*battlefield",
+        "sacrifice",
+        "flicker"
+      ]
+    },
+    {
+      "keyword": "Riot",
+      "patterns": [
+        "riot",
+        "haste",
+        "counter.*on",
+        "choose"
+      ]
+    },
+    {
+      "keyword": "Spectacle",
+      "patterns": [
+        "spectacle",
+        "opponent.*lost.*life",
+        "damage",
+        "cost.*less"
+      ]
+    },
+    {
+      "keyword": "Addendum",
+      "patterns": [
+        "addendum",
+        "main.*phase",
+        "instant",
+        "sorcery"
+      ]
+    },
+    {
+      "keyword": "Amass",
+      "patterns": [
+        "amass",
+        "army",
+        "token",
+        "counter.*on"
+      ]
+    },
+    {
+      "keyword": "Afflict",
+      "patterns": [
+        "afflict",
+        "blocked",
+        "damage",
+        "lose.*life"
+      ]
+    },
+    {
+      "keyword": "Devoid",
+      "patterns": [
+        "devoid",
+        "colorless",
+        "eldrazi",
+        "matter.*color"
+      ]
+    },
+    {
+      "keyword": "Modular",
+      "patterns": [
+        "modular",
+        "counter.*on",
+        "dies",
+        "artifact.*creature"
+      ]
+    },
+    {
+      "keyword": "Sunburst",
+      "patterns": [
+        "sunburst",
+        "counter.*on",
+        "color.*mana",
+        "enters.*battlefield"
+      ]
+    },
+    {
+      "keyword": "Living Weapon",
+      "patterns": [
+        "living weapon",
+        "equipment",
+        "token",
+        "germ"
+      ]
+    },
+    {
+      "keyword": "Tribute",
+      "patterns": [
+        "tribute",
+        "counter.*on",
+        "opponent.*choose",
+        "enters.*battlefield"
+      ]
+    },
+    {
+      "keyword": "Dash",
+      "patterns": [
+        "dash",
+        "haste",
+        "return.*to.*hand",
+        "end.*of.*turn"
+      ]
+    },
+    {
+      "keyword": "Megamorph",
+      "patterns": [
+        "megamorph",
+        "morph",
+        "counter.*on",
+        "face.*down"
+      ]
+    },
+    {
+      "keyword": "Morph",
+      "patterns": [
+        "morph",
+        "face.*down",
+        "turn.*face.*up",
+        "creature"
+      ]
+    },
+    {
+      "keyword": "Bolster",
+      "patterns": [
+        "bolster",
+        "counter.*on",
+        "least.*toughness",
+        "creature"
+      ]
+    },
+    {
+      "keyword": "Renown",
+      "patterns": [
+        "renown",
+        "counter.*on",
+        "deals.*combat.*damage",
+        "renowned"
+      ]
+    },
+    {
+      "keyword": "Awaken",
+      "patterns": [
+        "awaken",
+        "land",
+        "counter.*on",
+        "creature"
+      ]
+    },
+    {
+      "keyword": "Ingest",
+      "patterns": [
+        "ingest",
+        "exile",
+        "library",
+        "processor"
+      ]
+    },
+    {
+      "keyword": "Rally",
+      "patterns": [
+        "rally",
+        "ally",
+        "enters.*battlefield",
+        "creature"
+      ]
+    },
+    {
+      "keyword": "Converge",
+      "patterns": [
+        "converge",
+        "color.*mana",
+        "multicolor",
+        "spent.*to.*cast"
+      ]
+    },
+    {
+      "keyword": "Devour",
+      "patterns": [
+        "devour",
+        "sacrifice",
+        "counter.*on",
+        "enters.*battlefield"
+      ]
+    },
+    {
+      "keyword": "Battle Cry",
+      "patterns": [
+        "battle cry",
+        "attack",
+        "creature",
+        "power"
+      ]
+    },
+    {
+      "keyword": "Bloodthirst",
+      "patterns": [
+        "bloodthirst",
+        "counter.*on",
+        "opponent.*dealt.*damage",
+        "enters.*battlefield"
+      ]
+    },
+    {
+      "keyword": "Unleash",
+      "patterns": [
+        "unleash",
+        "counter.*on",
+        "can't.*block",
+        "enters.*battlefield"
+      ]
+    },
+    {
+      "keyword": "Cipher",
+      "patterns": [
+        "cipher",
+        "encode",
+        "deals.*combat.*damage",
+        "copy"
+      ]
+    },
+    {
+      "keyword": "Exploit",
+      "patterns": [
+        "exploit",
+        "sacrifice",
+        "enters.*battlefield",
+        "creature"
+      ]
+    },
+    {
+      "keyword": "Mentor",
+      "patterns": [
+        "mentor",
+        "attack",
+        "counter.*on",
+        "lesser.*power"
+      ]
+    },
+    {
+      "keyword": "Adamant",
+      "patterns": [
+        "adamant",
+        "mana.*of.*same.*color",
+        "devotion",
+        "color.*mana"
+      ]
+    }
+  ],
+  "ability_synergies": [
+    {
+      "trigger": "enters the battlefield",
+      "patterns": [
+        "flicker",
+        "blink",
+        "exile.*return.*battlefield",
+        "panharmonicon",
+        "yarok",
+        "ephemerate",
+        "cloudshift",
+        "conjurer's closet",
+        "restoration angel",
+        "soulherder"
+      ]
+    },
+    {
+      "trigger": "whenever.*dies",
+      "patterns": [
+        "sacrifice.*outlet",
+        "ashnod's altar",
+        "phyrexian altar",
+        "viscera seer",
+        "blood artist",
+        "zulaport cutthroat",
+        "grave pact",
+        "dictate of erebos",
+        "pitiless plunderer",
+        "reassembling skeleton"
+      ]
+    },
+    {
+      "trigger": "whenever.*attacks",
+      "patterns": [
+        "extra.*combat",
+        "aggravated assault",
+        "sword of feast and famine",
+        "nature's will",
+        "bear umbra",
+        "hellkite charger",
+        "port razer",
+        "vigilance",
+        "reconnaissance",
+        "brave the sands"
+      ]
+    },
+    {
+      "trigger": "whenever.*you.*draw",
+      "patterns": [
+        "draw.*additional",
+        "wheels",
+        "rhystic study",
+        "consecrated sphinx",
+        "alhammarret's archive",
+        "teferi's ageless insight",
+        "psychosis crawler",
+        "niv-mizzet",
+        "thought reflection",
+        "abundance"
+      ]
+    },
+    {
+      "trigger": "whenever.*cast.*spell",
+      "patterns": [
+        "storm",
+        "cost.*reducer",
+        "goblin electromancer",
+        "baral",
+        "jace's sanctum",
+        "arcane melee",
+        "swarm intelligence",
+        "thousand-year storm",
+        "talrand",
+        "young pyromancer"
+      ]
+    },
+    {
+      "trigger": "when.*leaves.*battlefield",
+      "patterns": [
+        "flicker",
+        "exile.*return",
+        "sacrifice",
+        "dies"
+      ]
+    },
+    {
+      "trigger": "create.*token",
+      "patterns": [
+        "doubling season",
+        "parallel lives",
+        "anointed procession",
+        "primal vigor",
+        "adrix and nev",
+        "mondrak",
+        "second harvest",
+        "populate",
+        "intangible virtue",
+        "cathars' crusade"
+      ]
+    },
+    {
+      "trigger": "sacrifice",
+      "patterns": [
+        "dies.*trigger",
+        "death.*trigger",
+        "blood artist",
+        "zulaport cutthroat",
+        "grave pact",
+        "pitiless plunderer",
+        "open the graves",
+        "reassembling skeleton",
+        "nether traitor",
+        "gravecrawler"
+      ]
+    },
+    {
+      "trigger": "counter.*on",
+      "patterns": [
+        "proliferate",
+        "doubling season",
+        "hardened scales",
+        "winding constrictor",
+        "counter.*doubler"
+      ]
+    },
+    {
+      "trigger": "whenever.*gain.*life",
+      "patterns": [
+        "lifelink",
+        "soul.*warden",
+        "soul.*sister",
+        "ajanis.*pridemate",
+        "crested sunmare",
+        "dawn of hope",
+        "well of lost dreams",
+        "sanguine bond",
+        "exquisite blood",
+        "test of endurance"
+      ]
+    },
+    {
+      "trigger": "land.*enters",
+      "patterns": [
+        "landfall",
+        "ramp",
+        "extra.*land",
+        "azusa",
+        "exploration"
+      ]
+    },
+    {
+      "trigger": "instant.*sorcery",
+      "patterns": [
+        "prowess",
+        "magecraft",
+        "storm",
+        "flashback",
+        "graveyard.*battlefield"
+      ]
+    },
+    {
+      "trigger": "combat.*damage",
+      "patterns": [
+        "double strike",
+        "unblockable",
+        "evasion",
+        "damage.*doubler",
+        "infect"
+      ]
+    },
+    {
+      "trigger": "discard",
+      "patterns": [
+        "madness",
+        "cycling",
+        "wheels",
+        "tinybones",
+        "bone miser",
+        "faith of the devoted",
+        "archfiend of ifnir",
+        "drake haven",
+        "hollow one",
+        "library of leng"
+      ]
+    },
+    {
+      "trigger": "tap.*untap",
+      "patterns": [
+        "untap",
+        "vigilance",
+        "inspired",
+        "vehicle",
+        "crew"
+      ]
+    },
+    {
+      "trigger": "becomes.*target",
+      "patterns": [
+        "heroic",
+        "aura",
+        "enchant.*creature",
+        "equip",
+        "bogle"
+      ]
+    },
+    {
+      "trigger": "graveyard.*battlefield",
+      "patterns": [
+        "reanimate",
+        "return.*creature",
+        "recursion",
+        "unburial rites",
+        "living death"
+      ]
+    },
+    {
+      "trigger": "equipped",
+      "patterns": [
+        "voltron",
+        "equipment",
+        "attach",
+        "aura",
+        "equip"
+      ]
+    },
+    {
+      "trigger": "enchanted.*creature",
+      "patterns": [
+        "aura",
+        "voltron",
+        "bogle",
+        "enchantress",
+        "totem armor"
+      ]
+    },
+    {
+      "trigger": "exile.*from.*graveyard",
+      "patterns": [
+        "delve",
+        "escape",
+        "flashback",
+        "threshold",
+        "delirium"
+      ]
+    },
+    {
+      "trigger": "library.*graveyard",
+      "patterns": [
+        "mill",
+        "self-mill",
+        "phenax",
+        "bruvac",
+        "consuming aberration",
+        "hedron crab",
+        "altar of dementia",
+        "grindstone",
+        "mesmeric orb",
+        "fleet swallower"
+      ]
+    },
+    {
+      "trigger": "damage.*player",
+      "patterns": [
+        "curiosity",
+        "ophidian",
+        "sword of",
+        "ninjas",
+        "ninjutsu"
+      ]
+    },
+    {
+      "trigger": "whenever.*blocks",
+      "patterns": [
+        "vigilance",
+        "untap",
+        "provoke",
+        "lure"
+      ]
+    },
+    {
+      "trigger": "blocked",
+      "patterns": [
+        "trample",
+        "menace",
+        "removal",
+        "fight"
+      ]
+    },
+    {
+      "trigger": "unblocked",
+      "patterns": [
+        "ninjutsu",
+        "damage.*player",
+        "cipher",
+        "exalted"
+      ]
+    },
+    {
+      "trigger": "untap.*step",
+      "patterns": [
+        "untap",
+        "mana.*dork",
+        "winter.*orb",
+        "static.*orb"
+      ]
+    },
+    {
+      "trigger": "upkeep",
+      "patterns": [
+        "cumulative upkeep",
+        "suspend",
+        "vanishing",
+        "forecast"
+      ]
+    },
+    {
+      "trigger": "end.*step",
+      "patterns": [
+        "exile.*end.*turn",
+        "sacrifice.*end.*turn",
+        "until.*end.*turn",
+        "dash"
+      ]
+    },
+    {
+      "trigger": "life.*total",
+      "patterns": [
+        "serra.*ascendant",
+        "felidar.*sovereign",
+        "test.*of.*endurance",
+        "lifegain"
+      ]
+    },
+    {
+      "trigger": "devotion",
+      "patterns": [
+        "color.*mana.*symbol",
+        "theros",
+        "god",
+        "gray.*merchant"
+      ]
+    },
+    {
+      "trigger": "activated.*ability",
+      "patterns": [
+        "untap",
+        "training.*grounds",
+        "biomancer's.*familiar",
+        "illusionist's.*bracers"
+      ]
+    }
+  ],
+  "type_synergies": [
+    {
+      "card_type": "Artifact",
+      "patterns": [
+        "affinity",
+        "metalcraft",
+        "artifact.*enters",
+        "improvise",
+        "modular",
+        "fabricate"
+      ]
+    },
+    {
+      "card_type": "Enchantment",
+      "patterns": [
+        "constellation",
+        "enchantress",
+        "enchantment.*enters",
+        "aura",
+        "enchanted"
+      ]
+    },
+    {
+      "card_type": "Creature",
+      "patterns": [
+        "tribal",
+        "lord",
+        "creature.*type",
+        "share.*creature.*type",
+        "choose.*creature.*type"
+      ]
+    },
+    {
+      "card_type": "Instant",
+      "patterns": [
+        "prowess",
+        "magecraft",
+        "instant.*sorcery",
+        "spell.*cast",
+        "flashback"
+      ]
+    },
+    {
+      "card_type": "Sorcery",
+      "patterns": [
+        "prowess",
+        "magecraft",
+        "instant.*sorcery",
+        "spell.*cast",
+        "flashback",
+        "storm"
+      ]
+    },
+    {
+      "card_type": "Land",
+      "patterns": [
+        "landfall",
+        "land.*enters",
+        "play.*additional.*land",
+        "ramp",
+        "land.*graveyard"
+      ]
+    },
+    {
+      "card_type": "Planeswalker",
+      "patterns": [
+        "proliferate",
+        "loyalty",
+        "counter.*on",
+        "superfriends",
+        "planeswalker.*enters"
+      ]
+    },
+    {
+      "card_type": "Equipment",
+      "patterns": [
+        "equip",
+        "equipped",
+        "attach",
+        "voltron",
+        "artifact.*enters"
+      ]
+    },
+    {
+      "card_type": "Aura",
+      "patterns": [
+        "enchant",
+        "enchanted",
+        "attach",
+        "constellation",
+        "enchantress",
+        "totem armor"
+      ]
+    },
+    {
+      "card_type": "Token",
+      "patterns": [
+        "populate",
+        "doubling season",
+        "token.*doubler",
+        "create.*token",
+        "convoke"
+      ]
+    },
+    {
+      "card_type": "Vehicle",
+      "patterns": [
+        "crew",
+        "artifact.*creature",
+        "power.*equal",
+        "kaladesh"
+      ]
+    },
+    {
+      "card_type": "Saga",
+      "patterns": [
+        "lore.*counter",
+        "chapter",
+        "proliferate",
+        "enchantment"
+      ]
+    },
+    {
+      "card_type": "Adventure",
+      "patterns": [
+        "adventure",
+        "exile",
+        "cast.*from.*exile",
+        "eldraine"
+      ]
+    },
+    {
+      "card_type": "Battle",
+      "patterns": [
+        "battle",
+        "defense.*counter",
+        "attack.*battle",
+        "protect"
+      ]
+    },
+    {
+      "card_type": "Elf",
+      "patterns": [
+        "elf.*you.*control",
+        "whenever.*elf",
+        "each.*elf",
+        "\\+1/\\+1.*elf",
+        "other.*elf",
+        "target.*elf",
+        "elf.*get",
+        "elf.*creature"
+      ]
+    },
+    {
+      "card_type": "Goblin",
+      "patterns": [
+        "goblin.*you.*control",
+        "whenever.*goblin",
+        "each.*goblin",
+        "\\+1/\\+1.*goblin",
+        "other.*goblin",
+        "target.*goblin",
+        "goblin.*get",
+        "goblin.*creature"
+      ]
+    },
+    {
+      "card_type": "Zombie",
+      "patterns": [
+        "zombie.*you.*control",
+        "whenever.*zombie",
+        "each.*zombie",
+        "\\+1/\\+1.*zombie",
+        "other.*zombie",
+        "target.*zombie",
+        "zombie.*get",
+        "zombie.*creature"
+      ]
+    },
+    {
+      "card_type": "Vampire",
+      "patterns": [
+        "vampire.*you.*control",
+        "whenever.*vampire",
+        "each.*vampire",
+        "\\+1/\\+1.*vampire",
+        "other.*vampire",
+        "target.*vampire",
+        "vampire.*get",
+        "vampire.*creature"
+      ]
+    },
+    {
+      "card_type": "Dragon",
+      "patterns": [
+        "dragon.*you.*control",
+        "whenever.*dragon",
+        "each.*dragon",
+        "\\+1/\\+1.*dragon",
+        "other.*dragon",
+        "target.*dragon",
+        "dragon.*get",
+        "dragon.*creature"
+      ]
+    },
+    {
+      "card_type": "Angel",
+      "patterns": [
+        "angel.*you.*control",
+        "whenever.*angel",
+        "each.*angel",
+        "\\+1/\\+1.*angel",
+        "other.*angel",
+        "target.*angel",
+        "angel.*get",
+        "angel.*creature"
+      ]
+    },
+    {
+      "card_type": "Demon",
+      "patterns": [
+        "demon.*you.*control",
+        "whenever.*demon",
+        "each.*demon",
+        "\\+1/\\+1.*demon",
+        "other.*demon",
+        "target.*demon",
+        "demon.*get",
+        "demon.*creature"
+      ]
+    },
+    {
+      "card_type": "Wizard",
+      "patterns": [
+        "wizard.*you.*control",
+        "whenever.*wizard",
+        "each.*wizard",
+        "\\+1/\\+1.*wizard",
+        "other.*wizard",
+        "target.*wizard",
+        "wizard.*get",
+        "wizard.*creature"
+      ]
+    },
+    {
+      "card_type": "Warrior",
+      "patterns": [
+        "warrior.*you.*control",
+        "whenever.*warrior",
+        "each.*warrior",
+        "\\+1/\\+1.*warrior",
+        "other.*warrior",
+        "target.*warrior",
+        "warrior.*get",
+        "warrior.*creature"
+      ]
+    },
+    {
+      "card_type": "Soldier",
+      "patterns": [
+        "soldier.*you.*control",
+        "whenever.*soldier",
+        "each.*soldier",
+        "\\+1/\\+1.*soldier",
+        "other.*soldier",
+        "target.*soldier",
+        "soldier.*get",
+        "soldier.*creature"
+      ]
+    },
+    {
+      "card_type": "Knight",
+      "patterns": [
+        "knight.*you.*control",
+        "whenever.*knight",
+        "each.*knight",
+        "\\+1/\\+1.*knight",
+        "other.*knight",
+        "target.*knight",
+        "knight.*get",
+        "knight.*creature"
+      ]
+    },
+    {
+      "card_type": "Merfolk",
+      "patterns": [
+        "merfolk.*you.*control",
+        "whenever.*merfolk",
+        "each.*merfolk",
+        "\\+1/\\+1.*merfolk",
+        "other.*merfolk",
+        "target.*merfolk",
+        "merfolk.*get",
+        "merfolk.*creature"
+      ]
+    },
+    {
+      "card_type": "Sliver",
+      "patterns": [
+        "sliver.*you.*control",
+        "all.*sliver.*have",
+        "each.*sliver",
+        "\\+1/\\+1.*sliver",
+        "other.*sliver",
+        "target.*sliver",
+        "sliver.*get",
+        "sliver.*creature"
+      ]
+    },
+    {
+      "card_type": "Human",
+      "patterns": [
+        "human.*you.*control",
+        "whenever.*human",
+        "each.*human",
+        "\\+1/\\+1.*human",
+        "other.*human",
+        "target.*human",
+        "human.*get",
+        "human.*creature"
+      ]
+    },
+    {
+      "card_type": "Elemental",
+      "patterns": [
+        "elemental.*you.*control",
+        "whenever.*elemental",
+        "each.*elemental",
+        "\\+1/\\+1.*elemental",
+        "other.*elemental",
+        "target.*elemental",
+        "elemental.*get",
+        "elemental.*creature"
+      ]
+    }
+  ],
+  "archetype_synergies": [
+    {
+      "archetype": "Tokens",
+      "patterns": [
+        "create.*token",
+        "populate",
+        "doubling season",
+        "parallel lives",
+        "anointed procession",
+        "convoke"
+      ]
+    },
+    {
+      "archetype": "Aristocrats",
+      "patterns": [
+        "sacrifice",
+        "whenever.*dies",
+        "death.*trigger",
+        "blood artist",
+        "zulaport",
+        "grave pact"
+      ]
+    },
+    {
+      "archetype": "Reanimator",
+      "patterns": [
+        "graveyard.*battlefield",
+        "return.*creature.*graveyard",
+        "reanimate",
+        "unburial rites",
+        "living death"
+      ]
+    },
+    {
+      "archetype": "Spellslinger",
+      "patterns": [
+        "instant.*sorcery",
+        "magecraft",
+        "prowess",
+        "storm",
+        "copy.*spell"
+      ]
+    },
+    {
+      "archetype": "Voltron",
+      "patterns": [
+        "equipped",
+        "enchanted.*creature",
+        "aura",
+        "equipment",
+        "attach",
+        "hexproof"
+      ]
+    },
+    {
+      "archetype": "Landfall",
+      "patterns": [
+        "land.*enters",
+        "landfall",
+        "play.*additional.*land",
+        "ramp",
+        "fetch.*land"
+      ]
+    },
+    {
+      "archetype": "Blink",
+      "patterns": [
+        "exile.*return.*battlefield",
+        "flicker",
+        "enters.*battlefield",
+        "panharmonicon",
+        "etb"
+      ]
+    },
+    {
+      "archetype": "Mill",
+      "patterns": [
+        "library.*graveyard",
+        "mill",
+        "card.*from.*library",
+        "self-mill",
+        "threshold"
+      ]
+    },
+    {
+      "archetype": "Burn",
+      "patterns": [
+        "damage.*player",
+        "damage.*opponent",
+        "lose.*life",
+        "direct.*damage",
+        "lightning"
+      ]
+    },
+    {
+      "archetype": "Lifegain",
+      "patterns": [
+        "gain.*life",
+        "whenever.*gain.*life",
+        "lifelink",
+        "soul.*warden",
+        "ajanis.*pridemate"
+      ]
+    },
+    {
+      "archetype": "Control",
+      "patterns": [
+        "counter.*spell",
+        "destroy",
+        "exile",
+        "board.*wipe",
+        "removal"
+      ]
+    },
+    {
+      "archetype": "Aggro",
+      "patterns": [
+        "haste",
+        "low.*mana.*value",
+        "creature.*power",
+        "unblockable",
+        "combat.*damage"
+      ]
+    },
+    {
+      "archetype": "Superfriends",
+      "patterns": [
+        "planeswalker",
+        "proliferate",
+        "loyalty",
+        "planeswalker.*enters",
+        "counter.*on"
+      ]
+    },
+    {
+      "archetype": "Tribal",
+      "patterns": [
+        "creature.*type",
+        "share.*creature.*type",
+        "lord",
+        "tribal",
+        "choose.*creature.*type"
+      ]
+    },
+    {
+      "archetype": "Combo",
+      "patterns": [
+        "infinite",
+        "untap",
+        "copy",
+        "return.*battlefield",
+        "activated.*ability"
+      ]
+    },
+    {
+      "archetype": "Storm",
+      "patterns": [
+        "storm",
+        "instant.*sorcery",
+        "spell.*cast",
+        "copy.*spell",
+        "ritual"
+      ]
+    },
+    {
+      "archetype": "Graveyard",
+      "patterns": [
+        "graveyard",
+        "flashback",
+        "dredge",
+        "delve",
+        "threshold",
+        "escape"
+      ]
+    },
+    {
+      "archetype": "Counters",
+      "patterns": [
+        "counter.*on",
+        "proliferate",
+        "doubling season",
+        "evolve",
+        "adapt",
+        "modular"
+      ]
+    },
+    {
+      "archetype": "Enchantress",
+      "patterns": [
+        "enchantment",
+        "constellation",
+        "enchantress",
+        "aura",
+        "enchantment.*enters"
+      ]
+    },
+    {
+      "archetype": "Artifacts",
+      "patterns": [
+        "artifact",
+        "affinity",
+        "metalcraft",
+        "improvise",
+        "artifact.*enters"
+      ]
+    },
+    {
+      "archetype": "Azorius Control",
+      "patterns": [
+        "counter.*spell",
+        "board.*wipe",
+        "detain",
+        "flicker",
+        "control"
+      ]
+    },
+    {
+      "archetype": "Dimir Mill",
+      "patterns": [
+        "mill",
+        "surveil",
+        "library.*graveyard",
+        "unblockable",
+        "rogue"
+      ]
+    },
+    {
+      "archetype": "Rakdos Sacrifice",
+      "patterns": [
+        "sacrifice",
+        "dies",
+        "damage.*opponent",
+        "blood artist",
+        "haste"
+      ]
+    },
+    {
+      "archetype": "Gruul Aggro",
+      "patterns": [
+        "haste",
+        "riot",
+        "power.*matters",
+        "creature.*power",
+        "trample"
+      ]
+    },
+    {
+      "archetype": "Selesnya Tokens",
+      "patterns": [
+        "create.*token",
+        "populate",
+        "convoke",
+        "counter.*on",
+        "go.*wide"
+      ]
+    },
+    {
+      "archetype": "Orzhov Lifegain",
+      "patterns": [
+        "gain.*life",
+        "lifelink",
+        "extort",
+        "whenever.*gain.*life",
+        "drain"
+      ]
+    },
+    {
+      "archetype": "Izzet Spells",
+      "patterns": [
+        "instant.*sorcery",
+        "prowess",
+        "copy.*spell",
+        "magecraft",
+        "draw.*card"
+      ]
+    },
+    {
+      "archetype": "Golgari Graveyard",
+      "patterns": [
+        "graveyard",
+        "dredge",
+        "delve",
+        "sacrifice",
+        "recursion"
+      ]
+    },
+    {
+      "archetype": "Boros Aggro",
+      "patterns": [
+        "attack",
+        "battalion",
+        "mentor",
+        "double strike",
+        "haste"
+      ]
+    },
+    {
+      "archetype": "Simic Ramp",
+      "patterns": [
+        "ramp",
+        "counter.*on",
+        "evolve",
+        "adapt",
+        "draw.*card"
+      ]
+    }
+  ],
+  "tribal_synergies": [
+    {
+      "creature_type": "Elves",
+      "patterns": [
+        "elf",
+        "forest",
+        "mana.*dork",
+        "tap.*add.*mana",
+        "elvish"
+      ]
+    },
+    {
+      "creature_type": "Goblins",
+      "patterns": [
+        "goblin",
+        "sacrifice",
+        "token",
+        "haste",
+        "mountain"
+      ]
+    },
+    {
+      "creature_type": "Zombies",
+      "patterns": [
+        "zombie",
+        "graveyard",
+        "dies",
+        "return.*battlefield",
+        "decay"
+      ]
+    },
+    {
+      "creature_type": "Merfolk",
+      "patterns": [
+        "merfolk",
+        "island",
+        "islandwalk",
+        "counter.*on",
+        "unblockable"
+      ]
+    },
+    {
+      "creature_type": "Dragons",
+      "patterns": [
+        "dragon",
+        "flying",
+        "treasure",
+        "damage.*opponent",
+        "hoard"
+      ]
+    },
+    {
+      "creature_type": "Vampires",
+      "patterns": [
+        "vampire",
+        "lifelink",
+        "counter.*on",
+        "dies",
+        "blood"
+      ]
+    },
+    {
+      "creature_type": "Soldiers",
+      "patterns": [
+        "soldier",
+        "token",
+        "plains",
+        "vigilance",
+        "battalion"
+      ]
+    },
+    {
+      "creature_type": "Angels",
+      "patterns": [
+        "angel",
+        "flying",
+        "vigilance",
+        "lifelink",
+        "protection"
+      ]
+    },
+    {
+      "creature_type": "Demons",
+      "patterns": [
+        "demon",
+        "flying",
+        "sacrifice",
+        "lose.*life",
+        "swamp"
+      ]
+    },
+    {
+      "creature_type": "Wizards",
+      "patterns": [
+        "wizard",
+        "instant.*sorcery",
+        "spell.*cast",
+        "prowess",
+        "draw"
+      ]
+    },
+    {
+      "creature_type": "Humans",
+      "patterns": [
+        "human",
+        "token",
+        "counter.*on",
+        "enters.*battlefield",
+        "plains"
+      ]
+    },
+    {
+      "creature_type": "Slivers",
+      "patterns": [
+        "sliver",
+        "all.*sliver",
+        "share.*abilities",
+        "lord"
+      ]
+    },
+    {
+      "creature_type": "Rogues",
+      "patterns": [
+        "rogue",
+        "mill",
+        "unblockable",
+        "ninjutsu",
+        "surveil"
+      ]
+    },
+    {
+      "creature_type": "Spirits",
+      "patterns": [
+        "spirit",
+        "flying",
+        "flash",
+        "hexproof",
+        "disturb"
+      ]
+    },
+    {
+      "creature_type": "Faeries",
+      "patterns": [
+        "faerie",
+        "flying",
+        "flash",
+        "counter.*spell",
+        "island"
+      ]
+    },
+    {
+      "creature_type": "Dinosaurs",
+      "patterns": [
+        "dinosaur",
+        "enrage",
+        "damage",
+        "counter.*on",
+        "trample"
+      ]
+    },
+    {
+      "creature_type": "Cats",
+      "patterns": [
+        "cat",
+        "lifelink",
+        "counter.*on",
+        "equipment",
+        "plains"
+      ]
+    },
+    {
+      "creature_type": "Dogs",
+      "patterns": [
+        "dog",
+        "hound",
+        "token",
+        "vigilance",
+        "plains"
+      ]
+    },
+    {
+      "creature_type": "Rats",
+      "patterns": [
+        "rat",
+        "relentless rats",
+        "swamp",
+        "sacrifice",
+        "dies"
+      ]
+    },
+    {
+      "creature_type": "Snakes",
+      "patterns": [
+        "snake",
+        "deathtouch",
+        "counter.*on",
+        "forest",
+        "swamp"
+      ]
+    },
+    {
+      "creature_type": "Spiders",
+      "patterns": [
+        "spider",
+        "reach",
+        "deathtouch",
+        "counter.*on",
+        "forest"
+      ]
+    },
+    {
+      "creature_type": "Wurms",
+      "patterns": [
+        "wurm",
+        "trample",
+        "power.*equal",
+        "token",
+        "forest"
+      ]
+    },
+    {
+      "creature_type": "Hydras",
+      "patterns": [
+        "hydra",
+        "counter.*on",
+        "enters.*with.*counter",
+        "power.*equal",
+        "forest"
+      ]
+    },
+    {
+      "creature_type": "Phoenixes",
+      "patterns": [
+        "phoenix",
+        "flying",
+        "haste",
+        "return.*battlefield",
+        "graveyard"
+      ]
+    },
+    {
+      "creature_type": "Sphinxes",
+      "patterns": [
+        "sphinx",
+        "flying",
+        "draw",
+        "instant.*sorcery",
+        "island"
+      ]
+    },
+    {
+      "creature_type": "Devils",
+      "patterns": [
+        "devil",
+        "damage",
+        "dies",
+        "sacrifice",
+        "mountain"
+      ]
+    },
+    {
+      "creature_type": "Allies",
+      "patterns": [
+        "ally",
+        "rally",
+        "enters.*battlefield",
+        "zendikar",
+        "trigger"
+      ]
+    },
+    {
+      "creature_type": "Ninjas",
+      "patterns": [
+        "ninja",
+        "ninjutsu",
+        "unblockable",
+        "combat.*damage",
+        "card.*draw"
+      ]
+    },
+    {
+      "creature_type": "Samurai",
+      "patterns": [
+        "samurai",
+        "bushido",
+        "equipment",
+        "warrior",
+        "plains"
+      ]
+    },
+    {
+      "creature_type": "Monks",
+      "patterns": [
+        "monk",
+        "prowess",
+        "instant.*sorcery",
+        "noncreature.*spell",
+        "plains"
+      ]
+    },
+    {
+      "creature_type": "Clerics",
+      "patterns": [
+        "cleric",
+        "gain.*life",
+        "lifelink",
+        "plains",
+        "swamp"
+      ]
+    },
+    {
+      "creature_type": "Shamans",
+      "patterns": [
+        "shaman",
+        "enters.*battlefield",
+        "sacrifice",
+        "evoke",
+        "forest"
+      ]
+    },
+    {
+      "creature_type": "Druids",
+      "patterns": [
+        "druid",
+        "tap.*add.*mana",
+        "land",
+        "ramp",
+        "forest"
+      ]
+    },
+    {
+      "creature_type": "Berserkers",
+      "patterns": [
+        "berserker",
+        "attack",
+        "power",
+        "boast",
+        "mountain"
+      ]
+    },
+    {
+      "creature_type": "Knights",
+      "patterns": [
+        "knight",
+        "equipment",
+        "first strike",
+        "plains",
+        "swamp"
+      ]
+    },
+    {
+      "creature_type": "Warriors",
+      "patterns": [
+        "warrior",
+        "attack",
+        "equipment",
+        "counter.*on",
+        "mountain"
+      ]
+    },
+    {
+      "creature_type": "Elementals",
+      "patterns": [
+        "elemental",
+        "evoke",
+        "landfall",
+        "enters.*battlefield",
+        "leaves.*battlefield"
+      ]
+    },
+    {
+      "creature_type": "Beasts",
+      "patterns": [
+        "beast",
+        "trample",
+        "power.*matters",
+        "token",
+        "forest"
+      ]
+    },
+    {
+      "creature_type": "Wolves",
+      "patterns": [
+        "wolf",
+        "token",
+        "daybound",
+        "nightbound",
+        "forest"
+      ]
+    },
+    {
+      "creature_type": "Birds",
+      "patterns": [
+        "bird",
+        "flying",
+        "token",
+        "plains",
+        "island"
+      ]
+    },
+    {
+      "creature_type": "Eldrazi",
+      "patterns": [
+        "eldrazi",
+        "devoid",
+        "colorless",
+        "annihilator",
+        "sacrifice"
+      ]
+    },
+    {
+      "creature_type": "Squirrels",
+      "patterns": [
+        "squirrel",
+        "token",
+        "forest",
+        "sacrifice",
+        "counter.*on"
+      ]
+    },
+    {
+      "creature_type": "Bears",
+      "patterns": [
+        "bear",
+        "forest",
+        "token",
+        "power.*equal",
+        "kicker"
+      ]
+    }
+  ],
+  "mechanic_synergies": [
+    {
+      "mechanic": "Sacrifice Outlets",
+      "patterns": [
+        "sacrifice.*creature",
+        "sacrifice.*permanent",
+        "sacrifice.*artifact",
+        "sacrifice.*enchantment",
+        "as.*additional.*cost"
+      ]
+    },
+    {
+      "mechanic": "Card Draw",
+      "patterns": [
+        "draw.*card",
+        "draw.*additional",
+        "wheel",
+        "looting",
+        "surveil"
+      ]
+    },
+    {
+      "mechanic": "Ramp",
+      "patterns": [
+        "search.*library.*land",
+        "basic.*land",
+        "mana.*dork",
+        "tap.*add.*mana",
+        "land.*battlefield"
+      ]
+    },
+    {
+      "mechanic": "Removal",
+      "patterns": [
+        "destroy",
+        "exile",
+        "return.*to.*hand",
+        "damage.*creature",
+        "sacrifice.*target"
+      ]
+    },
+    {
+      "mechanic": "Board Wipes",
+      "patterns": [
+        "destroy.*all.*creature",
+        "exile.*all.*creature",
+        "damage.*to.*each.*creature",
+        "sacrifice.*all.*creature",
+        "wrath"
+      ]
+    },
+    {
+      "mechanic": "Tutors",
+      "patterns": [
+        "search.*library",
+        "tutor",
+        "transmute",
+        "wish",
+        "fetch"
+      ]
+    },
+    {
+      "mechanic": "Recursion",
+      "patterns": [
+        "return.*graveyard.*battlefield",
+        "return.*graveyard.*hand",
+        "reanimate",
+        "regrowth",
+        "eternal witness"
+      ]
+    },
+    {
+      "mechanic": "Copy Effects",
+      "patterns": [
+        "copy",
+        "clone",
+        "token.*that.*copy",
+        "duplicate",
+        "fork"
+      ]
+    },
+    {
+      "mechanic": "Extra Turns",
+      "patterns": [
+        "extra.*turn",
+        "additional.*turn",
+        "take.*another.*turn",
+        "time.*warp"
+      ]
+    },
+    {
+      "mechanic": "Extra Combats",
+      "patterns": [
+        "extra.*combat",
+        "additional.*combat",
+        "untap.*all.*creature",
+        "attack.*again"
+      ]
+    },
+    {
+      "mechanic": "Energy",
+      "patterns": [
+        "energy.*counter",
+        "get.*energy",
+        "pay.*energy",
+        "kaladesh"
+      ]
+    },
+    {
+      "mechanic": "Experience Counters",
+      "patterns": [
+        "experience.*counter",
+        "get.*experience",
+        "commander",
+        "mizzix"
+      ]
+    },
+    {
+      "mechanic": "Poison Counters",
+      "patterns": [
+        "poison.*counter",
+        "infect",
+        "proliferate",
+        "ten.*poison"
+      ]
+    },
+    {
+      "mechanic": "Protection",
+      "patterns": [
+        "protection.*from",
+        "hexproof",
+        "shroud",
+        "ward",
+        "indestructible"
+      ]
+    },
+    {
+      "mechanic": "Evasion",
+      "patterns": [
+        "flying",
+        "unblockable",
+        "menace",
+        "shadow",
+        "horsemanship"
+      ]
+    },
+    {
+      "mechanic": "Damage Doublers",
+      "patterns": [
+        "double.*damage",
+        "deals.*double",
+        "twice.*damage",
+        "double strike"
+      ]
+    },
+    {
+      "mechanic": "Mana Doublers",
+      "patterns": [
+        "double.*mana",
+        "twice.*mana",
+        "additional.*mana",
+        "mana.*reflection"
+      ]
+    },
+    {
+      "mechanic": "Token Doublers",
+      "patterns": [
+        "double.*token",
+        "twice.*token",
+        "doubling season",
+        "parallel lives"
+      ]
+    },
+    {
+      "mechanic": "Counter Doublers",
+      "patterns": [
+        "double.*counter",
+        "twice.*counter",
+        "doubling season",
+        "hardened scales"
+      ]
+    },
+    {
+      "mechanic": "Untap Effects",
+      "patterns": [
+        "untap",
+        "doesn't.*untap",
+        "untap.*step",
+        "vigilance"
+      ]
+    },
+    {
+      "mechanic": "Tap Effects",
+      "patterns": [
+        "tap.*target",
+        "doesn't.*untap",
+        "tapped.*and.*attacking",
+        "freeze"
+      ]
+    },
+    {
+      "mechanic": "Fight",
+      "patterns": [
+        "fight",
+        "deals.*damage.*equal.*power",
+        "deathtouch",
+        "indestructible"
+      ]
+    },
+    {
+      "mechanic": "Bounce",
+      "patterns": [
+        "return.*to.*hand",
+        "return.*owner.*hand",
+        "unsummon",
+        "man-o'-war"
+      ]
+    },
+    {
+      "mechanic": "Looting",
+      "patterns": [
+        "draw.*discard",
+        "loot",
+        "rummage",
+        "faithless looting"
+      ]
+    },
+    {
+      "mechanic": "Wheels",
+      "patterns": [
+        "discard.*hand.*draw",
+        "wheel of fortune",
+        "windfall",
+        "each.*player.*draw"
+      ]
+    },
+    {
+      "mechanic": "Symmetrical Draw",
+      "patterns": [
+        "each.*player.*draw",
+        "opponents.*draw",
+        "howling mine",
+        "wheel"
+      ]
+    },
+    {
+      "mechanic": "Drain Effects",
+      "patterns": [
+        "gain.*life.*lose.*life",
+        "drain",
+        "extort",
+        "blood artist"
+      ]
+    },
+    {
+      "mechanic": "Pingers",
+      "patterns": [
+        "tap.*deals.*damage",
+        "ping",
+        "deathtouch",
+        "untap"
+      ]
+    },
+    {
+      "mechanic": "Mana Rocks",
+      "patterns": [
+        "tap.*add.*mana",
+        "artifact",
+        "ramp",
+        "signets"
+      ]
+    },
+    {
+      "mechanic": "Fetch Lands",
+      "patterns": [
+        "search.*library.*land",
+        "sacrifice",
+        "landfall",
+        "shuffle"
+      ]
+    },
+    {
+      "mechanic": "Dual Lands",
+      "patterns": [
+        "tap.*add.*or",
+        "shock.*land",
+        "check.*land",
+        "land"
+      ]
+    }
+  ],
+  "token_synergies": [
+    {
+      "token_type": "Treasure",
+      "patterns": [
+        "treasure",
+        "sacrifice.*add.*mana",
+        "artifact",
+        "ramp"
+      ]
+    },
+    {
+      "token_type": "Food",
+      "patterns": [
+        "food",
+        "gain.*life",
+        "sacrifice",
+        "artifact"
+      ]
+    },
+    {
+      "token_type": "Clue",
+      "patterns": [
+        "clue",
+        "draw.*card",
+        "sacrifice",
+        "artifact"
+      ]
+    },
+    {
+      "token_type": "Blood",
+      "patterns": [
+        "blood",
+        "discard.*draw",
+        "madness",
+        "vampire"
+      ]
+    },
+    {
+      "token_type": "Gold",
+      "patterns": [
+        "gold",
+        "sacrifice.*add.*mana",
+        "artifact",
+        "treasure"
+      ]
+    },
+    {
+      "token_type": "Map",
+      "patterns": [
+        "map",
+        "discover",
+        "artifact",
+        "sacrifice"
+      ]
+    },
+    {
+      "token_type": "Powerstone",
+      "patterns": [
+        "powerstone",
+        "tap.*add.*mana",
+        "artifact",
+        "colorless"
+      ]
+    },
+    {
+      "token_type": "Servo",
+      "patterns": [
+        "servo",
+        "artifact.*creature",
+        "fabricate",
+        "kaladesh"
+      ]
+    },
+    {
+      "token_type": "Thopter",
+      "patterns": [
+        "thopter",
+        "flying",
+        "artifact.*creature",
+        "kaladesh"
+      ]
+    },
+    {
+      "token_type": "Saproling",
+      "patterns": [
+        "saproling",
+        "token",
+        "fungus",
+        "sacrifice"
+      ]
+    },
+    {
+      "token_type": "Soldier",
+      "patterns": [
+        "soldier.*token",
+        "white",
+        "go.*wide",
+        "convoke"
+      ]
+    },
+    {
+      "token_type": "Zombie",
+      "patterns": [
+        "zombie.*token",
+        "black",
+        "graveyard",
+        "sacrifice"
+      ]
+    },
+    {
+      "token_type": "Spirit",
+      "patterns": [
+        "spirit.*token",
+        "flying",
+        "white",
+        "disturb"
+      ]
+    },
+    {
+      "token_type": "Goblin",
+      "patterns": [
+        "goblin.*token",
+        "red",
+        "haste",
+        "sacrifice"
+      ]
+    },
+    {
+      "token_type": "Elf",
+      "patterns": [
+        "elf.*token",
+        "green",
+        "mana.*dork",
+        "tap.*add"
+      ]
+    }
+  ],
+  "zone_synergies": [
+    {
+      "zone": "Library Manipulation",
+      "patterns": [
+        "top.*library",
+        "scry",
+        "surveil",
+        "brainstorm",
+        "miracle"
+      ]
+    },
+    {
+      "zone": "Hand Size Matters",
+      "patterns": [
+        "number.*of.*cards.*in.*hand",
+        "hellbent",
+        "max.*hand.*size",
+        "reliquary tower"
+      ]
+    },
+    {
+      "zone": "Exile Matters",
+      "patterns": [
+        "exile",
+        "foretell",
+        "adventure",
+        "cast.*from.*exile",
+        "processor"
+      ]
+    },
+    {
+      "zone": "Command Zone",
+      "patterns": [
+        "commander",
+        "eminence",
+        "background",
+        "companion",
+        "partner"
+      ]
+    },
+    {
+      "zone": "Graveyard Size",
+      "patterns": [
+        "threshold",
+        "delirium",
+        "delve",
+        "cards.*in.*graveyard",
+        "escape"
+      ]
+    },
+    {
+      "zone": "Battlefield Count",
+      "patterns": [
+        "devotion",
+        "metalcraft",
+        "hellbent",
+        "count.*permanent",
+        "landfall"
+      ]
+    }
+  ],
+  "format_synergies": [
+    {
+      "format": "Pauper",
+      "patterns": [
+        "common",
+        "affinity",
+        "delver",
+        "faerie",
+        "tron"
+      ]
+    },
+    {
+      "format": "Commander",
+      "patterns": [
+        "legendary",
+        "command.*zone",
+        "commander",
+        "partner",
+        "political"
+      ]
+    },
+    {
+      "format": "Modern",
+      "patterns": [
+        "fetch.*land",
+        "shock.*land",
+        "lightning bolt",
+        "path.*to.*exile",
+        "sideboard"
+      ]
+    },
+    {
+      "format": "Legacy",
+      "patterns": [
+        "force.*of.*will",
+        "brainstorm",
+        "fetch.*land",
+        "dual.*land",
+        "cantrip"
+      ]
+    },
+    {
+      "format": "Vintage",
+      "patterns": [
+        "mox",
+        "black.*lotus",
+        "restricted",
+        "power.*nine",
+        "workshop"
+      ]
+    },
+    {
+      "format": "Standard Rotation",
+      "patterns": [
+        "recent.*set",
+        "rotation",
+        "arena",
+        "standard.*legal"
+      ]
+    }
+  ]
+}

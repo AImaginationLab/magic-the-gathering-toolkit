@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from mtg_mcp.data.database import MTGDatabase, ScryfallDatabase
-from mtg_mcp.data.models.inputs import AnalyzeDeckInput, DeckCardInput, ValidateDeckInput
-from mtg_mcp.tools import deck
+from mtg_core.data.database import MTGDatabase, ScryfallDatabase
+from mtg_core.data.models.inputs import AnalyzeDeckInput, DeckCardInput, ValidateDeckInput
+from mtg_core.tools import deck
 
 # =============================================================================
 # Test Data

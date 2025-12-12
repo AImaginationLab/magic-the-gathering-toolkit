@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from mtg_mcp.data.database import ScryfallDatabase
-from mtg_mcp.tools import images
+from mtg_core.data.database import ScryfallDatabase
+from mtg_core.tools import images
 
 
 class TestGetCardImage:
@@ -44,7 +44,7 @@ class TestGetCardImage:
         if scryfall is None:
             pytest.skip("Scryfall database not available")
 
-        from mtg_mcp.exceptions import CardNotFoundError
+        from mtg_core.exceptions import CardNotFoundError
 
         with pytest.raises(CardNotFoundError):
             await images.get_card_image(scryfall, "xyznonexistentcardxyz")

@@ -1,0 +1,3524 @@
+{
+  "combos": [
+    {
+      "id": "thoracle-consult",
+      "cards": [
+        {
+          "name": "Thassa's Oracle",
+          "role": "Win with empty library"
+        },
+        {
+          "name": "Demonic Consultation",
+          "role": "Exile entire library"
+        }
+      ],
+      "type": "win",
+      "description": "Win the game with empty library trigger",
+      "colors": [
+        "U",
+        "B"
+      ]
+    },
+    {
+      "id": "thoracle-tainted-pact",
+      "cards": [
+        {
+          "name": "Thassa's Oracle",
+          "role": "Win with empty library"
+        },
+        {
+          "name": "Tainted Pact",
+          "role": "Exile entire library"
+        }
+      ],
+      "type": "win",
+      "description": "Win the game with empty library trigger",
+      "colors": [
+        "U",
+        "B"
+      ]
+    },
+    {
+      "id": "dramatic-scepter",
+      "cards": [
+        {
+          "name": "Isochron Scepter",
+          "role": "Imprints Dramatic Reversal"
+        },
+        {
+          "name": "Dramatic Reversal",
+          "role": "Untaps mana rocks"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana with 3+ mana from rocks/dorks",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "food-chain-misthollow",
+      "cards": [
+        {
+          "name": "Food Chain",
+          "role": "Exiles creatures for mana"
+        },
+        {
+          "name": "Misthollow Griffin",
+          "role": "Casts from exile repeatedly"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite colored mana for creatures",
+      "colors": [
+        "G",
+        "U"
+      ]
+    },
+    {
+      "id": "food-chain-scourge",
+      "cards": [
+        {
+          "name": "Food Chain",
+          "role": "Exiles creatures for mana"
+        },
+        {
+          "name": "Eternal Scourge",
+          "role": "Casts from exile repeatedly"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite colored mana for creatures",
+      "colors": [
+        "G"
+      ]
+    },
+    {
+      "id": "food-chain-squee",
+      "cards": [
+        {
+          "name": "Food Chain",
+          "role": "Exiles creatures for mana"
+        },
+        {
+          "name": "Squee, the Immortal",
+          "role": "Casts from exile repeatedly"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite colored mana for creatures",
+      "colors": [
+        "G",
+        "R"
+      ]
+    },
+    {
+      "id": "underworld-breach-lions-eye",
+      "cards": [
+        {
+          "name": "Underworld Breach",
+          "role": "Casts from graveyard"
+        },
+        {
+          "name": "Brain Freeze",
+          "role": "Mills library with storm"
+        },
+        {
+          "name": "Lion's Eye Diamond",
+          "role": "Generates mana from graveyard"
+        }
+      ],
+      "type": "win",
+      "description": "Storm off from graveyard for lethal",
+      "colors": [
+        "U",
+        "R"
+      ]
+    },
+    {
+      "id": "dockside-sabertooth",
+      "cards": [
+        {
+          "name": "Dockside Extortionist",
+          "role": "Creates treasure tokens"
+        },
+        {
+          "name": "Temur Sabertooth",
+          "role": "Bounces Dockside repeatedly"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana and treasures with artifacts/enchantments",
+      "colors": [
+        "R",
+        "G"
+      ]
+    },
+    {
+      "id": "dockside-cloudstone",
+      "cards": [
+        {
+          "name": "Dockside Extortionist",
+          "role": "Creates treasure tokens"
+        },
+        {
+          "name": "Cloudstone Curio",
+          "role": "Bounces Dockside"
+        },
+        {
+          "name": "Burning-Tree Emissary",
+          "role": "Another creature for bounce"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana with artifacts/enchantments",
+      "colors": [
+        "R",
+        "G"
+      ]
+    },
+    {
+      "id": "dockside-barrin",
+      "cards": [
+        {
+          "name": "Dockside Extortionist",
+          "role": "Creates treasure tokens"
+        },
+        {
+          "name": "Barrin, Tolarian Archmage",
+          "role": "Bounces Dockside"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana with artifacts/enchantments",
+      "colors": [
+        "R",
+        "U"
+      ]
+    },
+    {
+      "id": "heliod-ballista",
+      "cards": [
+        {
+          "name": "Heliod, Sun-Crowned",
+          "role": "Grants lifelink and counters"
+        },
+        {
+          "name": "Walking Ballista",
+          "role": "Deals damage repeatedly"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage with lifelink loop",
+      "colors": [
+        "W"
+      ]
+    },
+    {
+      "id": "heliod-triskelion",
+      "cards": [
+        {
+          "name": "Heliod, Sun-Crowned",
+          "role": "Grants lifelink and counters"
+        },
+        {
+          "name": "Triskelion",
+          "role": "Deals damage repeatedly"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage with lifelink loop",
+      "colors": [
+        "W"
+      ]
+    },
+    {
+      "id": "yawgmoth-undying",
+      "cards": [
+        {
+          "name": "Yawgmoth, Thran Physician",
+          "role": "Sacrifices creatures to draw"
+        },
+        {
+          "name": "Young Wolf",
+          "role": "Returns with undying"
+        },
+        {
+          "name": "Geralf's Messenger",
+          "role": "Damages and returns"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage, card draw, and -1/-1 counters",
+      "colors": [
+        "B",
+        "G"
+      ]
+    },
+    {
+      "id": "splinter-twin-exarch",
+      "cards": [
+        {
+          "name": "Splinter Twin",
+          "role": "Creates creature copies"
+        },
+        {
+          "name": "Deceiver Exarch",
+          "role": "Untaps enchanted creature"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite hasty creature tokens",
+      "colors": [
+        "U",
+        "R"
+      ]
+    },
+    {
+      "id": "splinter-twin-pestermite",
+      "cards": [
+        {
+          "name": "Splinter Twin",
+          "role": "Creates creature copies"
+        },
+        {
+          "name": "Pestermite",
+          "role": "Untaps enchanted creature"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite hasty creature tokens",
+      "colors": [
+        "U",
+        "R"
+      ]
+    },
+    {
+      "id": "splinter-twin-bounding-krasis",
+      "cards": [
+        {
+          "name": "Splinter Twin",
+          "role": "Creates creature copies"
+        },
+        {
+          "name": "Bounding Krasis",
+          "role": "Untaps enchanted creature"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite hasty creature tokens",
+      "colors": [
+        "U",
+        "R",
+        "G"
+      ]
+    },
+    {
+      "id": "kiki-jiki-conscripts",
+      "cards": [
+        {
+          "name": "Kiki-Jiki, Mirror Breaker",
+          "role": "Creates creature copies"
+        },
+        {
+          "name": "Zealous Conscripts",
+          "role": "Untaps Kiki-Jiki"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite hasty creature tokens",
+      "colors": [
+        "R"
+      ]
+    },
+    {
+      "id": "kiki-jiki-felidar",
+      "cards": [
+        {
+          "name": "Kiki-Jiki, Mirror Breaker",
+          "role": "Creates creature copies"
+        },
+        {
+          "name": "Felidar Guardian",
+          "role": "Blinks Kiki-Jiki"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite hasty creature tokens",
+      "colors": [
+        "R",
+        "W"
+      ]
+    },
+    {
+      "id": "kiki-jiki-restoration-angel",
+      "cards": [
+        {
+          "name": "Kiki-Jiki, Mirror Breaker",
+          "role": "Creates creature copies"
+        },
+        {
+          "name": "Restoration Angel",
+          "role": "Blinks Kiki-Jiki"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite hasty creature tokens",
+      "colors": [
+        "R",
+        "W"
+      ]
+    },
+    {
+      "id": "kiki-jiki-combat-celebrant",
+      "cards": [
+        {
+          "name": "Kiki-Jiki, Mirror Breaker",
+          "role": "Creates creature copies"
+        },
+        {
+          "name": "Combat Celebrant",
+          "role": "Grants extra combat"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite combat steps",
+      "colors": [
+        "R"
+      ]
+    },
+    {
+      "id": "saheeli-felidar",
+      "cards": [
+        {
+          "name": "Saheeli Rai",
+          "role": "Creates artifact copies"
+        },
+        {
+          "name": "Felidar Guardian",
+          "role": "Blinks planeswalker"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite hasty cat tokens",
+      "colors": [
+        "U",
+        "R",
+        "W"
+      ]
+    },
+    {
+      "id": "niv-mizzet-curiosity",
+      "cards": [
+        {
+          "name": "Niv-Mizzet, Parun",
+          "role": "Draws and damages"
+        },
+        {
+          "name": "Curiosity",
+          "role": "Draws on damage"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage and card draw",
+      "colors": [
+        "U",
+        "R"
+      ]
+    },
+    {
+      "id": "niv-mizzet-ophidian",
+      "cards": [
+        {
+          "name": "Niv-Mizzet, Parun",
+          "role": "Draws and damages"
+        },
+        {
+          "name": "Ophidian Eye",
+          "role": "Draws on damage"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage and card draw",
+      "colors": [
+        "U",
+        "R"
+      ]
+    },
+    {
+      "id": "niv-mizzet-firemind-curiosity",
+      "cards": [
+        {
+          "name": "Niv-Mizzet, the Firemind",
+          "role": "Draws and damages"
+        },
+        {
+          "name": "Curiosity",
+          "role": "Draws on damage"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage and card draw",
+      "colors": [
+        "U",
+        "R"
+      ]
+    },
+    {
+      "id": "niv-mizzet-tandem-lookout",
+      "cards": [
+        {
+          "name": "Niv-Mizzet, Parun",
+          "role": "Draws and damages"
+        },
+        {
+          "name": "Tandem Lookout",
+          "role": "Draws on damage"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage and card draw",
+      "colors": [
+        "U",
+        "R"
+      ]
+    },
+    {
+      "id": "locust-god-kindred",
+      "cards": [
+        {
+          "name": "The Locust God",
+          "role": "Creates tokens on draw"
+        },
+        {
+          "name": "Kindred Discovery",
+          "role": "Draws on creature entry"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite insect tokens and draw",
+      "colors": [
+        "U",
+        "R"
+      ]
+    },
+    {
+      "id": "sanguine-exquisite",
+      "cards": [
+        {
+          "name": "Sanguine Bond",
+          "role": "Damages on life gain"
+        },
+        {
+          "name": "Exquisite Blood",
+          "role": "Gains life on damage"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage with any trigger",
+      "colors": [
+        "B",
+        "W"
+      ]
+    },
+    {
+      "id": "vito-exquisite",
+      "cards": [
+        {
+          "name": "Vito, Thorn of the Dusk Rose",
+          "role": "Damages on life gain"
+        },
+        {
+          "name": "Exquisite Blood",
+          "role": "Gains life on damage"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage with life trigger",
+      "colors": [
+        "B"
+      ]
+    },
+    {
+      "id": "vizkopa-exquisite",
+      "cards": [
+        {
+          "name": "Vizkopa Guildmage",
+          "role": "Damages on life gain"
+        },
+        {
+          "name": "Exquisite Blood",
+          "role": "Gains life on damage"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage with activation",
+      "colors": [
+        "W",
+        "B"
+      ]
+    },
+    {
+      "id": "deadeye-peregrine",
+      "cards": [
+        {
+          "name": "Deadeye Navigator",
+          "role": "Blinks paired creature"
+        },
+        {
+          "name": "Peregrine Drake",
+          "role": "Untaps lands repeatedly"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana and blinks",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "deadeye-great-whale",
+      "cards": [
+        {
+          "name": "Deadeye Navigator",
+          "role": "Blinks paired creature"
+        },
+        {
+          "name": "Great Whale",
+          "role": "Untaps lands repeatedly"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana and blinks",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "deadeye-cloud-of-faeries",
+      "cards": [
+        {
+          "name": "Deadeye Navigator",
+          "role": "Blinks paired creature"
+        },
+        {
+          "name": "Cloud of Faeries",
+          "role": "Untaps lands repeatedly"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana and blinks",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "eldrazi-displacer-drake",
+      "cards": [
+        {
+          "name": "Eldrazi Displacer",
+          "role": "Blinks creature for mana"
+        },
+        {
+          "name": "Peregrine Drake",
+          "role": "Untaps lands repeatedly"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana and blinks",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "reveillark-karmic",
+      "cards": [
+        {
+          "name": "Reveillark",
+          "role": "Returns creatures on death"
+        },
+        {
+          "name": "Karmic Guide",
+          "role": "Returns Reveillark"
+        },
+        {
+          "name": "Viscera Seer",
+          "role": "Sacrifices for scry"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite death triggers and recursion",
+      "colors": [
+        "W",
+        "B"
+      ]
+    },
+    {
+      "id": "worldgorger-animate",
+      "cards": [
+        {
+          "name": "Worldgorger Dragon",
+          "role": "Exiles all permanents"
+        },
+        {
+          "name": "Animate Dead",
+          "role": "Returns Dragon repeatedly"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana and ETB triggers",
+      "colors": [
+        "R",
+        "B"
+      ]
+    },
+    {
+      "id": "worldgorger-dance",
+      "cards": [
+        {
+          "name": "Worldgorger Dragon",
+          "role": "Exiles all permanents"
+        },
+        {
+          "name": "Dance of the Dead",
+          "role": "Returns Dragon repeatedly"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana and ETB triggers",
+      "colors": [
+        "R",
+        "B"
+      ]
+    },
+    {
+      "id": "worldgorger-necromancy",
+      "cards": [
+        {
+          "name": "Worldgorger Dragon",
+          "role": "Exiles all permanents"
+        },
+        {
+          "name": "Necromancy",
+          "role": "Returns Dragon repeatedly"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana and ETB triggers",
+      "colors": [
+        "R",
+        "B"
+      ]
+    },
+    {
+      "id": "basalt-rings",
+      "cards": [
+        {
+          "name": "Basalt Monolith",
+          "role": "Taps for mana"
+        },
+        {
+          "name": "Rings of Brighthearth",
+          "role": "Copies untap ability"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite colorless mana",
+      "colors": []
+    },
+    {
+      "id": "basalt-power-artifact",
+      "cards": [
+        {
+          "name": "Basalt Monolith",
+          "role": "Taps for mana"
+        },
+        {
+          "name": "Power Artifact",
+          "role": "Reduces untap cost"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite colorless mana",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "devoted-vizier",
+      "cards": [
+        {
+          "name": "Devoted Druid",
+          "role": "Taps for mana"
+        },
+        {
+          "name": "Vizier of Remedies",
+          "role": "Prevents -1/-1 counters"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite green mana",
+      "colors": [
+        "G",
+        "W"
+      ]
+    },
+    {
+      "id": "devoted-swift-reconfiguration",
+      "cards": [
+        {
+          "name": "Devoted Druid",
+          "role": "Taps for mana"
+        },
+        {
+          "name": "Swift Reconfiguration",
+          "role": "Prevents -1/-1 counters"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite green mana",
+      "colors": [
+        "G",
+        "U"
+      ]
+    },
+    {
+      "id": "godo-helm",
+      "cards": [
+        {
+          "name": "Godo, Bandit Warlord",
+          "role": "Grants extra combat steps"
+        },
+        {
+          "name": "Helm of the Host",
+          "role": "Creates Godo copies"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite combat steps and attacks",
+      "colors": [
+        "R"
+      ]
+    },
+    {
+      "id": "palinchron-high-tide",
+      "cards": [
+        {
+          "name": "Palinchron",
+          "role": "Untaps lands on ETB"
+        },
+        {
+          "name": "High Tide",
+          "role": "Islands tap for more"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana with 7 islands",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "palinchron-caged-sun",
+      "cards": [
+        {
+          "name": "Palinchron",
+          "role": "Untaps lands on ETB"
+        },
+        {
+          "name": "Caged Sun",
+          "role": "Lands tap for more"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana with 7 lands",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "palinchron-miraris-wake",
+      "cards": [
+        {
+          "name": "Palinchron",
+          "role": "Untaps lands on ETB"
+        },
+        {
+          "name": "Mirari's Wake",
+          "role": "Lands tap for more"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana with 7 lands",
+      "colors": [
+        "U",
+        "G",
+        "W"
+      ]
+    },
+    {
+      "id": "mind-over-matter-temple-bell",
+      "cards": [
+        {
+          "name": "Mind Over Matter",
+          "role": "Discards to untap"
+        },
+        {
+          "name": "Temple Bell",
+          "role": "Draws cards repeatedly"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite card draw and mill",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "mikaeus-triskelion",
+      "cards": [
+        {
+          "name": "Mikaeus, the Unhallowed",
+          "role": "Grants undying"
+        },
+        {
+          "name": "Triskelion",
+          "role": "Deals damage repeatedly"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage with undying loop",
+      "colors": [
+        "B"
+      ]
+    },
+    {
+      "id": "mikaeus-ballista",
+      "cards": [
+        {
+          "name": "Mikaeus, the Unhallowed",
+          "role": "Grants undying"
+        },
+        {
+          "name": "Walking Ballista",
+          "role": "Deals damage repeatedly"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage with undying loop",
+      "colors": [
+        "B"
+      ]
+    },
+    {
+      "id": "krrik-aetherflux",
+      "cards": [
+        {
+          "name": "K'rrik, Son of Yawgmoth",
+          "role": "Pay life for mana"
+        },
+        {
+          "name": "Aetherflux Reservoir",
+          "role": "Gains life and kills"
+        },
+        {
+          "name": "Bolas's Citadel",
+          "role": "Casts from top repeatedly"
+        }
+      ],
+      "type": "win",
+      "description": "Storm off with life payment and win",
+      "colors": [
+        "B"
+      ]
+    },
+    {
+      "id": "dualcaster-twinflame",
+      "cards": [
+        {
+          "name": "Dualcaster Mage",
+          "role": "Copies spell on ETB"
+        },
+        {
+          "name": "Twinflame",
+          "role": "Creates Dualcaster copies"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite hasty Dualcaster tokens",
+      "colors": [
+        "R"
+      ]
+    },
+    {
+      "id": "dualcaster-heat-shimmer",
+      "cards": [
+        {
+          "name": "Dualcaster Mage",
+          "role": "Copies spell on ETB"
+        },
+        {
+          "name": "Heat Shimmer",
+          "role": "Creates Dualcaster copies"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite hasty Dualcaster tokens",
+      "colors": [
+        "R"
+      ]
+    },
+    {
+      "id": "staff-domination-mana",
+      "cards": [
+        {
+          "name": "Staff of Domination",
+          "role": "Untaps and draws"
+        },
+        {
+          "name": "Priest of Titania",
+          "role": "Taps for elf mana"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana, life, and card draw",
+      "colors": [
+        "G"
+      ]
+    },
+    {
+      "id": "staff-elvish-archdruid",
+      "cards": [
+        {
+          "name": "Staff of Domination",
+          "role": "Untaps and draws"
+        },
+        {
+          "name": "Elvish Archdruid",
+          "role": "Taps for elf mana"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana, life, and card draw",
+      "colors": [
+        "G"
+      ]
+    },
+    {
+      "id": "umbral-priest",
+      "cards": [
+        {
+          "name": "Umbral Mantle",
+          "role": "Untaps for +2/+2"
+        },
+        {
+          "name": "Priest of Titania",
+          "role": "Taps for elf mana"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana with 3+ elves",
+      "colors": [
+        "G"
+      ]
+    },
+    {
+      "id": "umbral-elvish-archdruid",
+      "cards": [
+        {
+          "name": "Umbral Mantle",
+          "role": "Untaps for +2/+2"
+        },
+        {
+          "name": "Elvish Archdruid",
+          "role": "Taps for elf mana"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana with 3+ elves",
+      "colors": [
+        "G"
+      ]
+    },
+    {
+      "id": "sword-of-paruns-priest",
+      "cards": [
+        {
+          "name": "Sword of the Paruns",
+          "role": "Untaps creature"
+        },
+        {
+          "name": "Priest of Titania",
+          "role": "Taps for elf mana"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana with 4+ elves",
+      "colors": [
+        "G"
+      ]
+    },
+    {
+      "id": "sword-of-paruns-archdruid",
+      "cards": [
+        {
+          "name": "Sword of the Paruns",
+          "role": "Untaps creature"
+        },
+        {
+          "name": "Elvish Archdruid",
+          "role": "Taps for elf mana"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana with 4+ elves",
+      "colors": [
+        "G"
+      ]
+    },
+    {
+      "id": "gravecrawler-altar",
+      "cards": [
+        {
+          "name": "Gravecrawler",
+          "role": "Casts from graveyard"
+        },
+        {
+          "name": "Phyrexian Altar",
+          "role": "Sacrifices for mana"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite death triggers with zombie",
+      "colors": [
+        "B"
+      ]
+    },
+    {
+      "id": "gravecrawler-rooftop-storm",
+      "cards": [
+        {
+          "name": "Gravecrawler",
+          "role": "Casts from graveyard"
+        },
+        {
+          "name": "Rooftop Storm",
+          "role": "Free zombie spells"
+        },
+        {
+          "name": "Grimgrin, Corpse-Born",
+          "role": "Sacrifices for payoff"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite death triggers",
+      "colors": [
+        "U",
+        "B"
+      ]
+    },
+    {
+      "id": "aggravated-savage-ventmaw",
+      "cards": [
+        {
+          "name": "Aggravated Assault",
+          "role": "Creates combat steps"
+        },
+        {
+          "name": "Savage Ventmaw",
+          "role": "Generates mana on attack"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite combat steps",
+      "colors": [
+        "R",
+        "G"
+      ]
+    },
+    {
+      "id": "aggravated-grand-warlord-radha",
+      "cards": [
+        {
+          "name": "Aggravated Assault",
+          "role": "Creates combat steps"
+        },
+        {
+          "name": "Grand Warlord Radha",
+          "role": "Generates mana on attack"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite combat steps",
+      "colors": [
+        "R",
+        "G"
+      ]
+    },
+    {
+      "id": "aggravated-bear-umbra",
+      "cards": [
+        {
+          "name": "Aggravated Assault",
+          "role": "Creates combat steps"
+        },
+        {
+          "name": "Bear Umbra",
+          "role": "Untaps lands on attack"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite combat steps with 7 lands",
+      "colors": [
+        "R",
+        "G"
+      ]
+    },
+    {
+      "id": "aggravated-sword-feast-famine",
+      "cards": [
+        {
+          "name": "Aggravated Assault",
+          "role": "Creates combat steps"
+        },
+        {
+          "name": "Sword of Feast and Famine",
+          "role": "Untaps lands on damage"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite combat steps with 7 lands",
+      "colors": [
+        "R"
+      ]
+    },
+    {
+      "id": "hellkite-bear-umbra",
+      "cards": [
+        {
+          "name": "Hellkite Charger",
+          "role": "Creates combat steps"
+        },
+        {
+          "name": "Bear Umbra",
+          "role": "Untaps lands on attack"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite combat steps",
+      "colors": [
+        "R",
+        "G"
+      ]
+    },
+    {
+      "id": "hellkite-sword-feast-famine",
+      "cards": [
+        {
+          "name": "Hellkite Charger",
+          "role": "Creates combat steps"
+        },
+        {
+          "name": "Sword of Feast and Famine",
+          "role": "Untaps lands on damage"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite combat steps",
+      "colors": [
+        "R"
+      ]
+    },
+    {
+      "id": "krark-clan-kci",
+      "cards": [
+        {
+          "name": "Krark-Clan Ironworks",
+          "role": "Sacrifices artifacts for mana"
+        },
+        {
+          "name": "Scrap Trawler",
+          "role": "Returns artifacts"
+        },
+        {
+          "name": "Myr Retriever",
+          "role": "Returns on death"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana with artifacts",
+      "colors": []
+    },
+    {
+      "id": "metalworker-staff",
+      "cards": [
+        {
+          "name": "Metalworker",
+          "role": "Taps for artifact mana"
+        },
+        {
+          "name": "Staff of Domination",
+          "role": "Untaps and draws"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana and card draw",
+      "colors": []
+    },
+    {
+      "id": "pili-pala-grand-architect",
+      "cards": [
+        {
+          "name": "Pili-Pala",
+          "role": "Converts mana colors"
+        },
+        {
+          "name": "Grand Architect",
+          "role": "Taps for two blue"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite colored mana",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "intruder-alarm-mana-dorks",
+      "cards": [
+        {
+          "name": "Intruder Alarm",
+          "role": "Untaps all creatures"
+        },
+        {
+          "name": "Llanowar Elves",
+          "role": "Taps for mana"
+        },
+        {
+          "name": "Sprout Swarm",
+          "role": "Creates tokens"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana and tokens",
+      "colors": [
+        "U",
+        "G"
+      ]
+    },
+    {
+      "id": "ashaya-quirion-ranger",
+      "cards": [
+        {
+          "name": "Ashaya, Soul of the Wild",
+          "role": "Makes creatures lands"
+        },
+        {
+          "name": "Quirion Ranger",
+          "role": "Untaps land"
+        },
+        {
+          "name": "Arbor Elf",
+          "role": "Untaps forest"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana with dorks",
+      "colors": [
+        "G"
+      ]
+    },
+    {
+      "id": "cloud-of-faeries-aluren",
+      "cards": [
+        {
+          "name": "Cloud of Faeries",
+          "role": "Untaps lands on ETB"
+        },
+        {
+          "name": "Aluren",
+          "role": "Free creature spells"
+        },
+        {
+          "name": "Cavern Harpy",
+          "role": "Bounces creatures"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana and bounces",
+      "colors": [
+        "U",
+        "G",
+        "B"
+      ]
+    },
+    {
+      "id": "leonin-relic-warder-animate",
+      "cards": [
+        {
+          "name": "Leonin Relic-Warder",
+          "role": "Exiles artifact/enchantment"
+        },
+        {
+          "name": "Animate Dead",
+          "role": "Returns Leonin repeatedly"
+        },
+        {
+          "name": "Blood Artist",
+          "role": "Drains on death"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage and ETB triggers",
+      "colors": [
+        "W",
+        "B"
+      ]
+    },
+    {
+      "id": "midnight-guard-presence",
+      "cards": [
+        {
+          "name": "Midnight Guard",
+          "role": "Untaps on creature entry"
+        },
+        {
+          "name": "Presence of Gond",
+          "role": "Creates elf tokens"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite elf tokens",
+      "colors": [
+        "W",
+        "G"
+      ]
+    },
+    {
+      "id": "squirrel-nest-earthcraft",
+      "cards": [
+        {
+          "name": "Squirrel Nest",
+          "role": "Creates squirrel tokens"
+        },
+        {
+          "name": "Earthcraft",
+          "role": "Taps creatures for land"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite squirrel tokens",
+      "colors": [
+        "G"
+      ]
+    },
+    {
+      "id": "najeela-druids-repository",
+      "cards": [
+        {
+          "name": "Najeela, the Blade-Blossom",
+          "role": "Extra combats with WUBRG"
+        },
+        {
+          "name": "Druids' Repository",
+          "role": "Generates mana on attack"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite combat steps",
+      "colors": [
+        "W",
+        "U",
+        "B",
+        "R",
+        "G"
+      ]
+    },
+    {
+      "id": "najeela-nature-will",
+      "cards": [
+        {
+          "name": "Najeela, the Blade-Blossom",
+          "role": "Extra combats with WUBRG"
+        },
+        {
+          "name": "Nature's Will",
+          "role": "Untaps lands on combat damage"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite combat steps",
+      "colors": [
+        "W",
+        "U",
+        "B",
+        "R",
+        "G"
+      ]
+    },
+    {
+      "id": "breath-of-fury-tokens",
+      "cards": [
+        {
+          "name": "Breath of Fury",
+          "role": "Extra combats on damage"
+        },
+        {
+          "name": "Anger",
+          "role": "Grants haste from graveyard"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite combat steps with tokens",
+      "colors": [
+        "R"
+      ]
+    },
+    {
+      "id": "sliver-queen-basal",
+      "cards": [
+        {
+          "name": "Sliver Queen",
+          "role": "Creates sliver tokens"
+        },
+        {
+          "name": "Basal Sliver",
+          "role": "Sacrifices for mana"
+        },
+        {
+          "name": "Heart Sliver",
+          "role": "Grants haste"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite sliver tokens and mana",
+      "colors": [
+        "W",
+        "U",
+        "B",
+        "R",
+        "G"
+      ]
+    },
+    {
+      "id": "sliver-queen-mana-echoes",
+      "cards": [
+        {
+          "name": "Sliver Queen",
+          "role": "Creates sliver tokens"
+        },
+        {
+          "name": "Mana Echoes",
+          "role": "Mana on creature entry"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite sliver tokens and mana",
+      "colors": [
+        "W",
+        "U",
+        "B",
+        "R",
+        "G"
+      ]
+    },
+    {
+      "id": "krenko-thornbite",
+      "cards": [
+        {
+          "name": "Krenko, Mob Boss",
+          "role": "Doubles goblins"
+        },
+        {
+          "name": "Thornbite Staff",
+          "role": "Untaps on creature death"
+        },
+        {
+          "name": "Skirk Prospector",
+          "role": "Sacrifices for mana"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite goblin tokens and mana",
+      "colors": [
+        "R"
+      ]
+    },
+    {
+      "id": "conspicuous-snoop-combo",
+      "cards": [
+        {
+          "name": "Conspicuous Snoop",
+          "role": "Activates top goblin ability"
+        },
+        {
+          "name": "Kiki-Jiki, Mirror Breaker",
+          "role": "Creates copies from top"
+        },
+        {
+          "name": "Torch Courier",
+          "role": "Gives haste from top"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite goblin tokens",
+      "colors": [
+        "R"
+      ]
+    },
+    {
+      "id": "marrow-gnawer-thornbite",
+      "cards": [
+        {
+          "name": "Marrow-Gnawer",
+          "role": "Creates rat tokens"
+        },
+        {
+          "name": "Thornbite Staff",
+          "role": "Untaps on creature death"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite rat tokens",
+      "colors": [
+        "B"
+      ]
+    },
+    {
+      "id": "sun-titan-gift",
+      "cards": [
+        {
+          "name": "Sun Titan",
+          "role": "Returns permanents on attack"
+        },
+        {
+          "name": "Gift of Immortality",
+          "role": "Returns Sun Titan"
+        },
+        {
+          "name": "Ashnod's Altar",
+          "role": "Sacrifices for mana"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana and ETB triggers",
+      "colors": [
+        "W"
+      ]
+    },
+    {
+      "id": "mindcrank-duskmantle",
+      "cards": [
+        {
+          "name": "Mindcrank",
+          "role": "Mills on life loss"
+        },
+        {
+          "name": "Duskmantle Guildmage",
+          "role": "Damages on mill"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mill and damage",
+      "colors": [
+        "U",
+        "B"
+      ]
+    },
+    {
+      "id": "bloodchief-mindcrank",
+      "cards": [
+        {
+          "name": "Bloodchief Ascension",
+          "role": "Drains on mill/discard"
+        },
+        {
+          "name": "Mindcrank",
+          "role": "Mills on life loss"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mill and life drain",
+      "colors": [
+        "B",
+        "U"
+      ]
+    },
+    {
+      "id": "painter-grindstone",
+      "cards": [
+        {
+          "name": "Painter's Servant",
+          "role": "Makes all cards one color"
+        },
+        {
+          "name": "Grindstone",
+          "role": "Mills matching colors"
+        }
+      ],
+      "type": "win",
+      "description": "Mill entire library instantly",
+      "colors": []
+    },
+    {
+      "id": "helm-obedience-rip",
+      "cards": [
+        {
+          "name": "Helm of Obedience",
+          "role": "Mills until creature found"
+        },
+        {
+          "name": "Rest in Peace",
+          "role": "Exiles graveyard cards"
+        }
+      ],
+      "type": "win",
+      "description": "Exile opponent's entire library",
+      "colors": [
+        "W"
+      ]
+    },
+    {
+      "id": "helm-obedience-leyline",
+      "cards": [
+        {
+          "name": "Helm of Obedience",
+          "role": "Mills until creature found"
+        },
+        {
+          "name": "Leyline of the Void",
+          "role": "Exiles graveyard cards"
+        }
+      ],
+      "type": "win",
+      "description": "Exile opponent's entire library",
+      "colors": [
+        "B"
+      ]
+    },
+    {
+      "id": "teferi-time-raveler-pool",
+      "cards": [
+        {
+          "name": "Teferi, Time Raveler",
+          "role": "Sorcery speed for opponents"
+        },
+        {
+          "name": "Knowledge Pool",
+          "role": "Exiles spells"
+        }
+      ],
+      "type": "lock",
+      "description": "Opponents cannot cast spells",
+      "colors": [
+        "U",
+        "W"
+      ]
+    },
+    {
+      "id": "drannith-magistrate-pool",
+      "cards": [
+        {
+          "name": "Drannith Magistrate",
+          "role": "Can't cast from exile"
+        },
+        {
+          "name": "Knowledge Pool",
+          "role": "Exiles spells"
+        }
+      ],
+      "type": "lock",
+      "description": "Opponents cannot cast spells",
+      "colors": [
+        "W"
+      ]
+    },
+    {
+      "id": "lavinia-knowledge-pool",
+      "cards": [
+        {
+          "name": "Lavinia, Azorius Renegade",
+          "role": "Can't cast free from exile"
+        },
+        {
+          "name": "Knowledge Pool",
+          "role": "Exiles spells"
+        }
+      ],
+      "type": "lock",
+      "description": "Opponents cannot cast spells",
+      "colors": [
+        "W",
+        "U"
+      ]
+    },
+    {
+      "id": "lavinia-possibility-storm",
+      "cards": [
+        {
+          "name": "Lavinia, Azorius Renegade",
+          "role": "Can't cast free from exile"
+        },
+        {
+          "name": "Possibility Storm",
+          "role": "Exiles and casts spells"
+        }
+      ],
+      "type": "lock",
+      "description": "Opponents cannot cast spells",
+      "colors": [
+        "W",
+        "U",
+        "R"
+      ]
+    },
+    {
+      "id": "opposition-agent-maralen",
+      "cards": [
+        {
+          "name": "Opposition Agent",
+          "role": "Controls opponent searches"
+        },
+        {
+          "name": "Maralen of the Mornsong",
+          "role": "Forces searches"
+        }
+      ],
+      "type": "lock",
+      "description": "Control opponent draws and tutors",
+      "colors": [
+        "B"
+      ]
+    },
+    {
+      "id": "narset-windfall",
+      "cards": [
+        {
+          "name": "Narset, Parter of Veils",
+          "role": "Opponents can't draw extra"
+        },
+        {
+          "name": "Windfall",
+          "role": "Wheels hands"
+        }
+      ],
+      "type": "lock",
+      "description": "Opponents discard but can't draw",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "narset-wheel-fortune",
+      "cards": [
+        {
+          "name": "Narset, Parter of Veils",
+          "role": "Opponents can't draw extra"
+        },
+        {
+          "name": "Wheel of Fortune",
+          "role": "Wheels hands"
+        }
+      ],
+      "type": "lock",
+      "description": "Opponents discard but can't draw",
+      "colors": [
+        "U",
+        "R"
+      ]
+    },
+    {
+      "id": "notion-thief-windfall",
+      "cards": [
+        {
+          "name": "Notion Thief",
+          "role": "You draw instead"
+        },
+        {
+          "name": "Windfall",
+          "role": "Wheels hands"
+        }
+      ],
+      "type": "value",
+      "description": "Draw opponent's cards",
+      "colors": [
+        "U",
+        "B"
+      ]
+    },
+    {
+      "id": "notion-thief-wheel-fortune",
+      "cards": [
+        {
+          "name": "Notion Thief",
+          "role": "You draw instead"
+        },
+        {
+          "name": "Wheel of Fortune",
+          "role": "Wheels hands"
+        }
+      ],
+      "type": "value",
+      "description": "Draw opponent's cards",
+      "colors": [
+        "U",
+        "B",
+        "R"
+      ]
+    },
+    {
+      "id": "winter-orb-teferi",
+      "cards": [
+        {
+          "name": "Winter Orb",
+          "role": "Keeps lands tapped"
+        },
+        {
+          "name": "Teferi, Temporal Archmage",
+          "role": "Untaps permanents"
+        }
+      ],
+      "type": "lock",
+      "description": "Lock opponents while untapping yours",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "winter-orb-urza",
+      "cards": [
+        {
+          "name": "Winter Orb",
+          "role": "Keeps lands tapped"
+        },
+        {
+          "name": "Urza, Lord High Artificer",
+          "role": "Taps artifacts for mana"
+        }
+      ],
+      "type": "lock",
+      "description": "Lock opponents while using artifacts",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "static-orb-derevi",
+      "cards": [
+        {
+          "name": "Static Orb",
+          "role": "Limits untaps"
+        },
+        {
+          "name": "Derevi, Empyrial Tactician",
+          "role": "Untaps permanents"
+        }
+      ],
+      "type": "lock",
+      "description": "Lock opponents while untapping yours",
+      "colors": [
+        "W",
+        "U",
+        "G"
+      ]
+    },
+    {
+      "id": "stasis-kismet",
+      "cards": [
+        {
+          "name": "Stasis",
+          "role": "Skips untap steps"
+        },
+        {
+          "name": "Kismet",
+          "role": "Permanents enter tapped"
+        }
+      ],
+      "type": "lock",
+      "description": "Complete board lock",
+      "colors": [
+        "U",
+        "W"
+      ]
+    },
+    {
+      "id": "saffi-eriksdotter-combo",
+      "cards": [
+        {
+          "name": "Saffi Eriksdotter",
+          "role": "Returns creature on death"
+        },
+        {
+          "name": "Reveillark",
+          "role": "Returns Saffi"
+        },
+        {
+          "name": "Blasting Station",
+          "role": "Sacrifices for damage"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage and recursion",
+      "colors": [
+        "W",
+        "G"
+      ]
+    },
+    {
+      "id": "altar-of-dementia-persist",
+      "cards": [
+        {
+          "name": "Altar of Dementia",
+          "role": "Sacrifices to mill"
+        },
+        {
+          "name": "Murderous Redcap",
+          "role": "Returns with persist"
+        },
+        {
+          "name": "Vizier of Remedies",
+          "role": "Prevents -1/-1 counters"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mill and damage",
+      "colors": [
+        "B",
+        "R",
+        "W"
+      ]
+    },
+    {
+      "id": "nim-deathmantle-ashnods",
+      "cards": [
+        {
+          "name": "Nim Deathmantle",
+          "role": "Returns creature for 4"
+        },
+        {
+          "name": "Ashnod's Altar",
+          "role": "Sacrifices for 2 mana"
+        },
+        {
+          "name": "Cathodion",
+          "role": "Dies for 3 mana"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite colorless mana and death triggers",
+      "colors": []
+    },
+    {
+      "id": "emiel-dockside",
+      "cards": [
+        {
+          "name": "Emiel the Blessed",
+          "role": "Blinks for 3 mana"
+        },
+        {
+          "name": "Dockside Extortionist",
+          "role": "Creates treasure tokens"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana and treasures",
+      "colors": [
+        "W",
+        "R"
+      ]
+    },
+    {
+      "id": "necrotic-ooze-pile",
+      "cards": [
+        {
+          "name": "Necrotic Ooze",
+          "role": "Has graveyard abilities"
+        },
+        {
+          "name": "Phyrexian Devourer",
+          "role": "Exiles for +X/+X"
+        },
+        {
+          "name": "Triskelion",
+          "role": "Shoots for damage"
+        }
+      ],
+      "type": "win",
+      "description": "One-shot kill with graveyard setup",
+      "colors": [
+        "B"
+      ]
+    },
+    {
+      "id": "ad-nauseam-angels-grace",
+      "cards": [
+        {
+          "name": "Ad Nauseam",
+          "role": "Draw deck at life cost"
+        },
+        {
+          "name": "Angel's Grace",
+          "role": "Can't lose or go below 1"
+        },
+        {
+          "name": "Laboratory Maniac",
+          "role": "Win with empty library"
+        }
+      ],
+      "type": "win",
+      "description": "Draw entire deck and win",
+      "colors": [
+        "B",
+        "W",
+        "U"
+      ]
+    },
+    {
+      "id": "razaketh-lines",
+      "cards": [
+        {
+          "name": "Razaketh, the Foulblooded",
+          "role": "Tutors by sacrificing"
+        },
+        {
+          "name": "Bloodghast",
+          "role": "Returns from graveyard"
+        },
+        {
+          "name": "Lotus Petal",
+          "role": "Generates mana"
+        }
+      ],
+      "type": "win",
+      "description": "Tutor entire combo with creatures",
+      "colors": [
+        "B"
+      ]
+    },
+    {
+      "id": "doomsday-thoracle",
+      "cards": [
+        {
+          "name": "Doomsday",
+          "role": "Constructs five card pile"
+        },
+        {
+          "name": "Thassa's Oracle",
+          "role": "Win with empty library"
+        },
+        {
+          "name": "Street Wraith",
+          "role": "Cycles to draw pile"
+        }
+      ],
+      "type": "win",
+      "description": "Construct winning pile in cEDH",
+      "colors": [
+        "U",
+        "B"
+      ]
+    },
+    {
+      "id": "protean-hulk-flash",
+      "cards": [
+        {
+          "name": "Flash",
+          "role": "Puts creature into play"
+        },
+        {
+          "name": "Protean Hulk",
+          "role": "Tutors creatures on death"
+        },
+        {
+          "name": "Nomads en-Kor",
+          "role": "Combo piece"
+        },
+        {
+          "name": "Cephalid Illusionist",
+          "role": "Mills entire library"
+        }
+      ],
+      "type": "win",
+      "description": "Flash Hulk for instant win",
+      "colors": [
+        "U",
+        "G",
+        "W"
+      ]
+    },
+    {
+      "id": "hermit-druid-combo",
+      "cards": [
+        {
+          "name": "Hermit Druid",
+          "role": "Mills entire library"
+        },
+        {
+          "name": "Narcomoeba",
+          "role": "Enters from graveyard"
+        },
+        {
+          "name": "Dread Return",
+          "role": "Returns win condition"
+        }
+      ],
+      "type": "win",
+      "description": "Mill deck and reanimate for win",
+      "colors": [
+        "G",
+        "U",
+        "B"
+      ]
+    },
+    {
+      "id": "gitrog-dakmor",
+      "cards": [
+        {
+          "name": "The Gitrog Monster",
+          "role": "Draw on land death"
+        },
+        {
+          "name": "Dakmor Salvage",
+          "role": "Dredges on draw"
+        },
+        {
+          "name": "Putrid Imp",
+          "role": "Discards for outlet"
+        }
+      ],
+      "type": "infinite",
+      "description": "Draw entire deck and generate mana",
+      "colors": [
+        "B",
+        "G"
+      ]
+    },
+    {
+      "id": "time-vault-voltaic-key",
+      "cards": [
+        {
+          "name": "Time Vault",
+          "role": "Takes extra turns"
+        },
+        {
+          "name": "Voltaic Key",
+          "role": "Untaps Time Vault"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite turns in Vintage",
+      "colors": []
+    },
+    {
+      "id": "time-vault-manifold-key",
+      "cards": [
+        {
+          "name": "Time Vault",
+          "role": "Takes extra turns"
+        },
+        {
+          "name": "Manifold Key",
+          "role": "Untaps Time Vault"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite turns in Vintage",
+      "colors": []
+    },
+    {
+      "id": "show-tell-omniscience",
+      "cards": [
+        {
+          "name": "Show and Tell",
+          "role": "Puts Omniscience into play"
+        },
+        {
+          "name": "Omniscience",
+          "role": "Cast spells for free"
+        },
+        {
+          "name": "Emrakul, the Aeons Torn",
+          "role": "Win condition"
+        }
+      ],
+      "type": "win",
+      "description": "Free cast game-winning spells",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "dark-depths-thespian",
+      "cards": [
+        {
+          "name": "Dark Depths",
+          "role": "Creates Marit Lage"
+        },
+        {
+          "name": "Thespian's Stage",
+          "role": "Copies Dark Depths"
+        }
+      ],
+      "type": "win",
+      "description": "20/20 indestructible token quickly",
+      "colors": []
+    },
+    {
+      "id": "dark-depths-hexmage",
+      "cards": [
+        {
+          "name": "Dark Depths",
+          "role": "Creates Marit Lage"
+        },
+        {
+          "name": "Vampire Hexmage",
+          "role": "Removes counters"
+        }
+      ],
+      "type": "win",
+      "description": "Fast 20/20 token creation",
+      "colors": [
+        "B"
+      ]
+    },
+    {
+      "id": "aluren-parasitic-strix",
+      "cards": [
+        {
+          "name": "Aluren",
+          "role": "Free creature spells"
+        },
+        {
+          "name": "Parasitic Strix",
+          "role": "Drains and bounces"
+        },
+        {
+          "name": "Cavern Harpy",
+          "role": "Bounces itself"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite life drain with bounce",
+      "colors": [
+        "G",
+        "U",
+        "B"
+      ]
+    },
+    {
+      "id": "lotus-field-combo",
+      "cards": [
+        {
+          "name": "Lotus Field",
+          "role": "Generates three mana"
+        },
+        {
+          "name": "Thespian's Stage",
+          "role": "Copies Lotus Field"
+        },
+        {
+          "name": "Deserted Temple",
+          "role": "Untaps Lotus Field"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana in Pioneer",
+      "colors": []
+    },
+    {
+      "id": "greasefang-parhelion",
+      "cards": [
+        {
+          "name": "Greasefang, Okiba Boss",
+          "role": "Returns vehicle from graveyard"
+        },
+        {
+          "name": "Parhelion II",
+          "role": "Powerful vehicle"
+        },
+        {
+          "name": "Can't Stay Away",
+          "role": "Returns Greasefang"
+        }
+      ],
+      "type": "value",
+      "description": "Repeated vehicle reanimation attacks",
+      "colors": [
+        "W",
+        "B"
+      ]
+    },
+    {
+      "id": "heliod-spike-feeder",
+      "cards": [
+        {
+          "name": "Heliod, Sun-Crowned",
+          "role": "Grants lifelink and counters"
+        },
+        {
+          "name": "Spike Feeder",
+          "role": "Gains life repeatedly"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite life and counters",
+      "colors": [
+        "W",
+        "G"
+      ]
+    },
+    {
+      "id": "grinding-station-combo",
+      "cards": [
+        {
+          "name": "Grinding Station",
+          "role": "Mills on artifact entry"
+        },
+        {
+          "name": "Underworld Breach",
+          "role": "Casts from graveyard"
+        },
+        {
+          "name": "Mox Amber",
+          "role": "Zero cost artifact"
+        }
+      ],
+      "type": "win",
+      "description": "Mill opponent's library completely",
+      "colors": [
+        "R"
+      ]
+    },
+    {
+      "id": "grim-monolith-power-artifact",
+      "cards": [
+        {
+          "name": "Grim Monolith",
+          "role": "Generates three mana"
+        },
+        {
+          "name": "Power Artifact",
+          "role": "Reduces untap cost"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite colorless mana",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "bomberman-combo",
+      "cards": [
+        {
+          "name": "Auriok Salvagers",
+          "role": "Returns artifacts"
+        },
+        {
+          "name": "Lion's Eye Diamond",
+          "role": "Sacrifices for mana"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana of any color",
+      "colors": [
+        "W"
+      ]
+    },
+    {
+      "id": "chain-veil-teferi",
+      "cards": [
+        {
+          "name": "The Chain Veil",
+          "role": "Extra planeswalker activations"
+        },
+        {
+          "name": "Teferi, Temporal Archmage",
+          "role": "Untaps permanents"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite planeswalker activations and mana",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "zirda-basalt-monolith",
+      "cards": [
+        {
+          "name": "Zirda, the Dawnwaker",
+          "role": "Reduces ability costs"
+        },
+        {
+          "name": "Basalt Monolith",
+          "role": "Untaps for reduced cost"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite colorless mana",
+      "colors": [
+        "R",
+        "W"
+      ]
+    },
+    {
+      "id": "zirda-grim-monolith",
+      "cards": [
+        {
+          "name": "Zirda, the Dawnwaker",
+          "role": "Reduces ability costs"
+        },
+        {
+          "name": "Grim Monolith",
+          "role": "Untaps for reduced cost"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite colorless mana",
+      "colors": [
+        "R",
+        "W"
+      ]
+    },
+    {
+      "id": "kinnan-basalt",
+      "cards": [
+        {
+          "name": "Kinnan, Bonder Prodigy",
+          "role": "Doubles mana from permanents"
+        },
+        {
+          "name": "Basalt Monolith",
+          "role": "Generates three mana"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite colorless mana",
+      "colors": [
+        "G",
+        "U"
+      ]
+    },
+    {
+      "id": "kodama-landfall-combo",
+      "cards": [
+        {
+          "name": "Kodama of the East Tree",
+          "role": "Puts permanent on landfall"
+        },
+        {
+          "name": "Tireless Provisioner",
+          "role": "Creates treasures on landfall"
+        },
+        {
+          "name": "Simic Growth Chamber",
+          "role": "Bounces and replays"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite landfall and treasures",
+      "colors": [
+        "G",
+        "U"
+      ]
+    },
+    {
+      "id": "kodama-scute-swarm",
+      "cards": [
+        {
+          "name": "Kodama of the East Tree",
+          "role": "Puts permanent on landfall"
+        },
+        {
+          "name": "Scute Swarm",
+          "role": "Creates tokens on landfall"
+        },
+        {
+          "name": "Simic Growth Chamber",
+          "role": "Bounces and replays"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite insect tokens",
+      "colors": [
+        "G",
+        "U"
+      ]
+    },
+    {
+      "id": "bolas-citadel-sensei-top",
+      "cards": [
+        {
+          "name": "Bolas's Citadel",
+          "role": "Casts from top for life"
+        },
+        {
+          "name": "Sensei's Divining Top",
+          "role": "Draws and replaces"
+        },
+        {
+          "name": "Aetherflux Reservoir",
+          "role": "Gains life and kills"
+        }
+      ],
+      "type": "win",
+      "description": "Storm off with top of library",
+      "colors": [
+        "B"
+      ]
+    },
+    {
+      "id": "selvala-umbral-mantle",
+      "cards": [
+        {
+          "name": "Selvala, Heart of the Wilds",
+          "role": "Taps for power mana"
+        },
+        {
+          "name": "Umbral Mantle",
+          "role": "Untaps for +2/+2"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana with big creature",
+      "colors": [
+        "G"
+      ]
+    },
+    {
+      "id": "selvala-staff-domination",
+      "cards": [
+        {
+          "name": "Selvala, Heart of the Wilds",
+          "role": "Taps for power mana"
+        },
+        {
+          "name": "Staff of Domination",
+          "role": "Untaps and draws"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana with big creature",
+      "colors": [
+        "G"
+      ]
+    },
+    {
+      "id": "freed-from-real-arbor-elf",
+      "cards": [
+        {
+          "name": "Freed from the Real",
+          "role": "Untaps for one blue"
+        },
+        {
+          "name": "Arbor Elf",
+          "role": "Untaps forest"
+        },
+        {
+          "name": "Utopia Sprawl",
+          "role": "Enchants forest for mana"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite colored mana",
+      "colors": [
+        "U",
+        "G"
+      ]
+    },
+    {
+      "id": "pemmin-aura-arbor-elf",
+      "cards": [
+        {
+          "name": "Pemmin's Aura",
+          "role": "Untaps for one blue"
+        },
+        {
+          "name": "Arbor Elf",
+          "role": "Untaps forest"
+        },
+        {
+          "name": "Utopia Sprawl",
+          "role": "Enchants forest for mana"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite colored mana",
+      "colors": [
+        "U",
+        "G"
+      ]
+    },
+    {
+      "id": "retreat-coralhelm-combo",
+      "cards": [
+        {
+          "name": "Retreat to Coralhelm",
+          "role": "Untaps creature on land"
+        },
+        {
+          "name": "Sakura-Tribe Scout",
+          "role": "Puts lands into play"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite landfall triggers",
+      "colors": [
+        "U",
+        "G"
+      ]
+    },
+    {
+      "id": "retreat-coralhelm-walking-atlas",
+      "cards": [
+        {
+          "name": "Retreat to Coralhelm",
+          "role": "Untaps creature on land"
+        },
+        {
+          "name": "Walking Atlas",
+          "role": "Puts lands into play"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite landfall triggers",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "wilderness-reclamation-nexus",
+      "cards": [
+        {
+          "name": "Wilderness Reclamation",
+          "role": "Untaps lands on end step"
+        },
+        {
+          "name": "Nexus of Fate",
+          "role": "Extra turns"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite turns with mana",
+      "colors": [
+        "U",
+        "G"
+      ]
+    },
+    {
+      "id": "consecrated-sphinx-notion-thief",
+      "cards": [
+        {
+          "name": "Consecrated Sphinx",
+          "role": "Draws on opponent draw"
+        },
+        {
+          "name": "Notion Thief",
+          "role": "You draw instead"
+        }
+      ],
+      "type": "value",
+      "description": "Draw deck on opponent draw",
+      "colors": [
+        "U",
+        "B"
+      ]
+    },
+    {
+      "id": "chulane-aluren",
+      "cards": [
+        {
+          "name": "Chulane, Teller of Tales",
+          "role": "Draws and bounces"
+        },
+        {
+          "name": "Aluren",
+          "role": "Free creature spells"
+        },
+        {
+          "name": "Shrieking Drake",
+          "role": "Bounces on entry"
+        }
+      ],
+      "type": "infinite",
+      "description": "Draw entire deck with free spells",
+      "colors": [
+        "W",
+        "U",
+        "G"
+      ]
+    },
+    {
+      "id": "aminatou-felidar",
+      "cards": [
+        {
+          "name": "Aminatou, the Fateshifter",
+          "role": "Blinks permanent"
+        },
+        {
+          "name": "Felidar Guardian",
+          "role": "Blinks planeswalker"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite planeswalker activations",
+      "colors": [
+        "W",
+        "U",
+        "B"
+      ]
+    },
+    {
+      "id": "teshar-salvager",
+      "cards": [
+        {
+          "name": "Teshar, Ancestor's Apostle",
+          "role": "Returns historic on cast"
+        },
+        {
+          "name": "Salvager of Ruin",
+          "role": "Returns artifacts"
+        },
+        {
+          "name": "Lotus Petal",
+          "role": "Generates mana"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana and recursion",
+      "colors": [
+        "W"
+      ]
+    },
+    {
+      "id": "hullbreaker-horror-sol-ring",
+      "cards": [
+        {
+          "name": "Hullbreaker Horror",
+          "role": "Bounces on spell cast"
+        },
+        {
+          "name": "Sol Ring",
+          "role": "Generates two mana"
+        },
+        {
+          "name": "Mana Vault",
+          "role": "Generates three mana"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite mana and bounce spells",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "ghostly-flicker-archeomancer",
+      "cards": [
+        {
+          "name": "Ghostly Flicker",
+          "role": "Blinks two permanents"
+        },
+        {
+          "name": "Archaeomancer",
+          "role": "Returns Ghostly Flicker"
+        },
+        {
+          "name": "Mulldrifter",
+          "role": "Draws cards"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite ETB and mana with Familiars",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "tooth-and-nail-combo",
+      "cards": [
+        {
+          "name": "Tooth and Nail",
+          "role": "Tutors two creatures"
+        },
+        {
+          "name": "Avenger of Zendikar",
+          "role": "Creates plant tokens"
+        },
+        {
+          "name": "Craterhoof Behemoth",
+          "role": "Pumps team for lethal"
+        }
+      ],
+      "type": "win",
+      "description": "Tutor lethal creature combo",
+      "colors": [
+        "G"
+      ]
+    },
+    {
+      "id": "natural-order-craterhoof",
+      "cards": [
+        {
+          "name": "Natural Order",
+          "role": "Sacrifices creature"
+        },
+        {
+          "name": "Craterhoof Behemoth",
+          "role": "Massive power boost"
+        }
+      ],
+      "type": "win",
+      "description": "Lethal attack with tokens",
+      "colors": [
+        "G"
+      ]
+    },
+    {
+      "id": "scapeshift-valakut",
+      "cards": [
+        {
+          "name": "Scapeshift",
+          "role": "Sacrifices lands"
+        },
+        {
+          "name": "Valakut, the Molten Pinnacle",
+          "role": "Damages on mountains"
+        },
+        {
+          "name": "Mountain",
+          "role": "Triggers Valakut"
+        }
+      ],
+      "type": "win",
+      "description": "Massive damage from land sacrifice",
+      "colors": [
+        "R",
+        "G"
+      ]
+    },
+    {
+      "id": "nine-lives-solemnity",
+      "cards": [
+        {
+          "name": "Nine Lives",
+          "role": "Prevents damage with counters"
+        },
+        {
+          "name": "Solemnity",
+          "role": "Prevents counters"
+        }
+      ],
+      "type": "lock",
+      "description": "Prevent all damage to you",
+      "colors": [
+        "W"
+      ]
+    },
+    {
+      "id": "polyraptor-forerunners",
+      "cards": [
+        {
+          "name": "Polyraptor",
+          "role": "Creates copy when damaged"
+        },
+        {
+          "name": "Forerunners of the Empire",
+          "role": "Damages all dinosaurs"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite dinosaur tokens",
+      "colors": [
+        "R",
+        "G"
+      ]
+    },
+    {
+      "id": "polyraptor-marauding-raptor",
+      "cards": [
+        {
+          "name": "Polyraptor",
+          "role": "Creates copies when damaged"
+        },
+        {
+          "name": "Marauding Raptor",
+          "role": "Damages dinosaurs on entry"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite dinosaur tokens",
+      "colors": [
+        "R",
+        "G"
+      ]
+    },
+    {
+      "id": "approach-second-sun",
+      "cards": [
+        {
+          "name": "Approach of the Second Sun",
+          "role": "Win on second cast"
+        },
+        {
+          "name": "Wilderness Reclamation",
+          "role": "Untaps lands"
+        },
+        {
+          "name": "Teferi, Hero of Dominaria",
+          "role": "Draws cards"
+        }
+      ],
+      "type": "win",
+      "description": "Win with control setup",
+      "colors": [
+        "W",
+        "U",
+        "G"
+      ]
+    },
+    {
+      "id": "felidar-sovereign-lifegain",
+      "cards": [
+        {
+          "name": "Felidar Sovereign",
+          "role": "Win with 40+ life"
+        },
+        {
+          "name": "Archangel of Thune",
+          "role": "Grows creatures on life gain"
+        },
+        {
+          "name": "Spike Feeder",
+          "role": "Gains life"
+        }
+      ],
+      "type": "win",
+      "description": "Win via life total requirement",
+      "colors": [
+        "W",
+        "G"
+      ]
+    },
+    {
+      "id": "test-of-endurance-lifegain",
+      "cards": [
+        {
+          "name": "Test of Endurance",
+          "role": "Win with 50+ life"
+        },
+        {
+          "name": "Aetherflux Reservoir",
+          "role": "Gains life on spell cast"
+        }
+      ],
+      "type": "win",
+      "description": "Win with life gain engine",
+      "colors": [
+        "W"
+      ]
+    },
+    {
+      "id": "revel-in-riches-combo",
+      "cards": [
+        {
+          "name": "Revel in Riches",
+          "role": "Win with 10 treasures"
+        },
+        {
+          "name": "Dockside Extortionist",
+          "role": "Creates treasures"
+        }
+      ],
+      "type": "win",
+      "description": "Win with treasure tokens",
+      "colors": [
+        "B",
+        "R"
+      ]
+    },
+    {
+      "id": "mortal-combat-self-mill",
+      "cards": [
+        {
+          "name": "Mortal Combat",
+          "role": "Win with 20 creatures"
+        },
+        {
+          "name": "Hermit Druid",
+          "role": "Mills entire library"
+        }
+      ],
+      "type": "win",
+      "description": "Win with graveyard full",
+      "colors": [
+        "B",
+        "G"
+      ]
+    },
+    {
+      "id": "coalition-victory-transguild",
+      "cards": [
+        {
+          "name": "Coalition Victory",
+          "role": "Win with all colors"
+        },
+        {
+          "name": "Transguild Courier",
+          "role": "All colors creature"
+        }
+      ],
+      "type": "win",
+      "description": "Win with five colors",
+      "colors": [
+        "W",
+        "U",
+        "B",
+        "R",
+        "G"
+      ]
+    },
+    {
+      "id": "thassa-oracle-paradigm-shift",
+      "cards": [
+        {
+          "name": "Thassa's Oracle",
+          "role": "Win with empty library"
+        },
+        {
+          "name": "Paradigm Shift",
+          "role": "Exiles library"
+        }
+      ],
+      "type": "win",
+      "description": "Win by exiling library",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "lab-maniac-demonic-consultation",
+      "cards": [
+        {
+          "name": "Laboratory Maniac",
+          "role": "Win with empty library"
+        },
+        {
+          "name": "Demonic Consultation",
+          "role": "Exile entire library"
+        }
+      ],
+      "type": "win",
+      "description": "Win with empty library draw",
+      "colors": [
+        "U",
+        "B"
+      ]
+    },
+    {
+      "id": "jace-wielder-tainted-pact",
+      "cards": [
+        {
+          "name": "Jace, Wielder of Mysteries",
+          "role": "Win with empty library"
+        },
+        {
+          "name": "Tainted Pact",
+          "role": "Exile entire library"
+        }
+      ],
+      "type": "win",
+      "description": "Win with empty library draw",
+      "colors": [
+        "U",
+        "B"
+      ]
+    },
+    {
+      "id": "syr-konrad-dauthi-voidwalker",
+      "cards": [
+        {
+          "name": "Syr Konrad, the Grim",
+          "role": "Damages on mill"
+        },
+        {
+          "name": "Dauthi Voidwalker",
+          "role": "Exiles from graveyard"
+        },
+        {
+          "name": "Mesmeric Orb",
+          "role": "Mills on untap"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage with mill",
+      "colors": [
+        "B"
+      ]
+    },
+    {
+      "id": "basalt-mesmeric-orb",
+      "cards": [
+        {
+          "name": "Basalt Monolith",
+          "role": "Untaps for mana"
+        },
+        {
+          "name": "Mesmeric Orb",
+          "role": "Mills on untap"
+        },
+        {
+          "name": "Thassa's Oracle",
+          "role": "Win with empty library"
+        }
+      ],
+      "type": "win",
+      "description": "Mill self for Thoracle win",
+      "colors": [
+        "U"
+      ]
+    },
+    {
+      "id": "slimefoot-token-combo",
+      "cards": [
+        {
+          "name": "Slimefoot, the Stowaway",
+          "role": "Creates and drains with saprolings"
+        },
+        {
+          "name": "Ashnod's Altar",
+          "role": "Sacrifices for mana"
+        },
+        {
+          "name": "Parallel Lives",
+          "role": "Doubles tokens"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite saproling damage loop",
+      "colors": [
+        "B",
+        "G"
+      ]
+    },
+    {
+      "id": "kokusho-recursion",
+      "cards": [
+        {
+          "name": "Kokusho, the Evening Star",
+          "role": "Drains on death"
+        },
+        {
+          "name": "Whisper, Blood Liturgist",
+          "role": "Returns creatures"
+        },
+        {
+          "name": "Reassembling Skeleton",
+          "role": "Returns from graveyard"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage and lifegain",
+      "colors": [
+        "B"
+      ]
+    },
+    {
+      "id": "gray-merchant-recursion",
+      "cards": [
+        {
+          "name": "Gray Merchant of Asphodel",
+          "role": "Drains on ETB"
+        },
+        {
+          "name": "Nim Deathmantle",
+          "role": "Returns creature"
+        },
+        {
+          "name": "Ashnod's Altar",
+          "role": "Sacrifices for mana"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite drain with devotion",
+      "colors": [
+        "B"
+      ]
+    },
+    {
+      "id": "oathsworn-vampire-altar",
+      "cards": [
+        {
+          "name": "Oathsworn Vampire",
+          "role": "Returns from graveyard"
+        },
+        {
+          "name": "Phyrexian Altar",
+          "role": "Sacrifices for mana"
+        },
+        {
+          "name": "Cruel Celebrant",
+          "role": "Drains on death"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite drain with vampire",
+      "colors": [
+        "B",
+        "W"
+      ]
+    },
+    {
+      "id": "edgar-markov-combo",
+      "cards": [
+        {
+          "name": "Edgar Markov",
+          "role": "Creates vampire tokens"
+        },
+        {
+          "name": "Phyrexian Altar",
+          "role": "Sacrifices for mana"
+        },
+        {
+          "name": "Oathsworn Vampire",
+          "role": "Returns from graveyard"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite vampire tokens and mana",
+      "colors": [
+        "W",
+        "B",
+        "R"
+      ]
+    },
+    {
+      "id": "reassembling-skeleton-phyrexian-altar",
+      "cards": [
+        {
+          "name": "Reassembling Skeleton",
+          "role": "Returns from graveyard"
+        },
+        {
+          "name": "Phyrexian Altar",
+          "role": "Sacrifices for mana"
+        },
+        {
+          "name": "Pitiless Plunderer",
+          "role": "Creates treasures on death"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite death triggers",
+      "colors": [
+        "B"
+      ]
+    },
+    {
+      "id": "elenda-infinite-death",
+      "cards": [
+        {
+          "name": "Elenda, the Dusk Rose",
+          "role": "Grows on death"
+        },
+        {
+          "name": "Phyrexian Altar",
+          "role": "Sacrifices for mana"
+        },
+        {
+          "name": "Oathsworn Vampire",
+          "role": "Returns from graveyard"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite counters and vampires",
+      "colors": [
+        "W",
+        "B"
+      ]
+    },
+    {
+      "id": "living-death-loops",
+      "cards": [
+        {
+          "name": "Living Death",
+          "role": "Mass reanimation"
+        },
+        {
+          "name": "Eternal Witness",
+          "role": "Returns Living Death"
+        },
+        {
+          "name": "Ashnod's Altar",
+          "role": "Sacrifices for mana"
+        }
+      ],
+      "type": "value",
+      "description": "Repeated mass reanimation",
+      "colors": [
+        "B",
+        "G"
+      ]
+    },
+    {
+      "id": "entomb-reanimate-combo",
+      "cards": [
+        {
+          "name": "Entomb",
+          "role": "Tutors to graveyard"
+        },
+        {
+          "name": "Reanimate",
+          "role": "Returns creature"
+        },
+        {
+          "name": "Griselbrand",
+          "role": "Draws cards for life"
+        }
+      ],
+      "type": "value",
+      "description": "Fast reanimation of bomb",
+      "colors": [
+        "B"
+      ]
+    },
+    {
+      "id": "survival-vengevine",
+      "cards": [
+        {
+          "name": "Survival of the Fittest",
+          "role": "Discards for creature tutor"
+        },
+        {
+          "name": "Vengevine",
+          "role": "Returns from graveyard"
+        },
+        {
+          "name": "Basking Rootwalla",
+          "role": "Free creature spell"
+        }
+      ],
+      "type": "value",
+      "description": "Repeated creature recursion value",
+      "colors": [
+        "G"
+      ]
+    },
+    {
+      "id": "birthing-pod-persist",
+      "cards": [
+        {
+          "name": "Birthing Pod",
+          "role": "Sacrifices for creatures"
+        },
+        {
+          "name": "Melira, Sylvok Outcast",
+          "role": "Prevents -1/-1 counters"
+        },
+        {
+          "name": "Kitchen Finks",
+          "role": "Returns with persist"
+        }
+      ],
+      "type": "value",
+      "description": "Repeatedly tutor same CMC creatures",
+      "colors": [
+        "G",
+        "W"
+      ]
+    },
+    {
+      "id": "melira-ballista-animation",
+      "cards": [
+        {
+          "name": "Melira, Sylvok Outcast",
+          "role": "Prevents -1/-1 counters"
+        },
+        {
+          "name": "Walking Ballista",
+          "role": "Enters with counters"
+        },
+        {
+          "name": "Animation Module",
+          "role": "Creates servos"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage and servos",
+      "colors": [
+        "G"
+      ]
+    },
+    {
+      "id": "melira-redcap-seer",
+      "cards": [
+        {
+          "name": "Melira, Sylvok Outcast",
+          "role": "Prevents -1/-1 counters"
+        },
+        {
+          "name": "Murderous Redcap",
+          "role": "Damages with persist"
+        },
+        {
+          "name": "Viscera Seer",
+          "role": "Sacrifices for scry"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage and scry",
+      "colors": [
+        "G",
+        "B"
+      ]
+    },
+    {
+      "id": "anafenza-redcap",
+      "cards": [
+        {
+          "name": "Anafenza, Kin-Tree Spirit",
+          "role": "Prevents -1/-1 counters"
+        },
+        {
+          "name": "Murderous Redcap",
+          "role": "Damages with persist"
+        },
+        {
+          "name": "Viscera Seer",
+          "role": "Sacrifices for scry"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage and scry",
+      "colors": [
+        "W",
+        "B",
+        "R"
+      ]
+    },
+    {
+      "id": "goblin-bombardment-redcap",
+      "cards": [
+        {
+          "name": "Goblin Bombardment",
+          "role": "Sacrifices for damage"
+        },
+        {
+          "name": "Murderous Redcap",
+          "role": "Returns with persist"
+        },
+        {
+          "name": "Metallic Mimic",
+          "role": "Prevents -1/-1 counters"
+        }
+      ],
+      "type": "infinite",
+      "description": "Infinite damage with goblins",
+      "colors": [
+        "R",
+        "B"
+      ]
+    }
+  ]
+}
