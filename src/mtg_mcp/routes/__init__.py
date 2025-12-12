@@ -11,13 +11,14 @@ if TYPE_CHECKING:
 def register_all_routes(mcp: FastMCP) -> None:
     """Register all tool routes with the MCP server."""
     # Import here to avoid circular imports
-    from . import cards, deck, images, prompts, resources, sets
+    from . import cards, deck, images, prompts, resources, sets, synergy
 
     # Tools
     cards.register(mcp)
     sets.register(mcp)
     images.register(mcp)
     deck.register(mcp)
+    synergy.register(mcp)
 
     # Resources and prompts
     resources.register(mcp)

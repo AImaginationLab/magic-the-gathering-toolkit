@@ -8,17 +8,13 @@ from mtg_mcp.data.models import (
     Card,
     CardDetail,
     CardSummary,
-    ImageUrls,
     LegalitiesResponse,
-    Prices,
-    PurchaseLinks,
-    RelatedLinks,
     RulingEntry,
     RulingsResponse,
     SearchCardsInput,
     SearchResult,
 )
-from mtg_mcp.exceptions import CardNotFoundError, ValidationError
+from mtg_mcp.exceptions import ValidationError
 
 if TYPE_CHECKING:
     from mtg_mcp.data.database import MTGDatabase, ScryfallDatabase
@@ -72,25 +68,10 @@ async def get_card(
     if scryfall:
         image = await scryfall.get_card_image(card.name, card.set_code)
         if image:
-            detail.images = ImageUrls(
-                small=image.image_small,
-                normal=image.image_normal,
-                large=image.image_large,
-                png=image.image_png,
-                art_crop=image.image_art_crop,
-            )
-            detail.prices = Prices(
-                usd=image.get_price_usd(),
-                usd_foil=image.get_price_usd_foil(),
-            )
-            detail.purchase_links = PurchaseLinks(
-                tcgplayer=image.purchase_tcgplayer,
-                cardmarket=image.purchase_cardmarket,
-            )
-            detail.related_links = RelatedLinks(
-                edhrec=image.link_edhrec,
-                gatherer=image.link_gatherer,
-            )
+            detail.images = image.to_image_urls()
+            detail.prices = image.to_prices()
+            detail.purchase_links = image.to_purchase_links()
+            detail.related_links = image.to_related_links()
 
     return detail
 
@@ -103,12 +84,8 @@ async def get_card_rulings(
     rulings = await db.get_card_rulings(name)
 
     if not rulings:
-        # Verify card exists - will raise CardNotFoundError if not
-        try:
-            await db.get_card_by_name(name, include_extras=False)
-        except CardNotFoundError:
-            raise
-
+        # Verify card exists - raises CardNotFoundError if not
+        await db.get_card_by_name(name, include_extras=False)
         return RulingsResponse(
             card_name=name,
             rulings=[],
@@ -129,12 +106,8 @@ async def get_card_legalities(
     legalities = await db.get_card_legalities(name)
 
     if not legalities:
-        # Verify card exists - will raise CardNotFoundError if not
-        try:
-            await db.get_card_by_name(name, include_extras=False)
-        except CardNotFoundError:
-            raise
-
+        # Verify card exists - raises CardNotFoundError if not
+        await db.get_card_by_name(name, include_extras=False)
         return LegalitiesResponse(
             card_name=name,
             legalities={},
@@ -159,15 +132,8 @@ async def get_random_card(
     if scryfall:
         image = await scryfall.get_card_image(card.name)
         if image:
-            detail.images = ImageUrls(
-                small=image.image_small,
-                normal=image.image_normal,
-                large=image.image_large,
-            )
-            detail.prices = Prices(
-                usd=image.get_price_usd(),
-                usd_foil=image.get_price_usd_foil(),
-            )
+            detail.images = image.to_image_urls()
+            detail.prices = image.to_prices()
 
     return detail
 

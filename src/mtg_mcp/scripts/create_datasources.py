@@ -240,6 +240,150 @@ def create_scryfall_db(json_path: Path, db_path: Path, updated_at: str) -> None:
     conn.close()
 
 
+def import_synergy_data(output_dir: Path) -> Path | None:
+    """Import synergy data from JSON files into SQLite."""
+    combos_json = output_dir / "combos.json"
+    synergies_json = output_dir / "synergies.json"
+
+    if not combos_json.exists() and not synergies_json.exists():
+        console.print("\n[dim]No synergy JSON files found in resources/[/]")
+        console.print("[dim]Run /research-combos and /research-synergies to generate them[/]")
+        return None
+
+    console.print("\n[bold]Importing synergy data...[/]")
+
+    db_path = output_dir / "synergy.sqlite"
+    db_path.unlink(missing_ok=True)
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        CREATE TABLE combos (
+            id TEXT PRIMARY KEY,
+            type TEXT NOT NULL,
+            description TEXT NOT NULL,
+            colors TEXT NOT NULL
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE combo_cards (
+            combo_id TEXT NOT NULL,
+            card_name TEXT NOT NULL,
+            role TEXT NOT NULL,
+            position INTEGER NOT NULL,
+            FOREIGN KEY (combo_id) REFERENCES combos(id)
+        )
+    """)
+    cursor.execute("CREATE INDEX idx_combo_cards_name ON combo_cards(card_name)")
+    cursor.execute("CREATE INDEX idx_combo_cards_combo ON combo_cards(combo_id)")
+
+    cursor.execute("""
+        CREATE TABLE keyword_synergies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            keyword TEXT NOT NULL,
+            pattern TEXT NOT NULL
+        )
+    """)
+    cursor.execute("CREATE INDEX idx_keyword_synergies_kw ON keyword_synergies(keyword)")
+
+    cursor.execute("""
+        CREATE TABLE ability_synergies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            trigger_text TEXT NOT NULL,
+            pattern TEXT NOT NULL
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE type_synergies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            card_type TEXT NOT NULL,
+            pattern TEXT NOT NULL
+        )
+    """)
+    cursor.execute("CREATE INDEX idx_type_synergies_type ON type_synergies(card_type)")
+
+    cursor.execute("""
+        CREATE TABLE meta (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    """)
+
+    combo_count = 0
+    if combos_json.exists():
+        with combos_json.open() as f:
+            data = json.load(f)
+
+        for combo in data.get("combos", []):
+            cursor.execute(
+                "INSERT INTO combos (id, type, description, colors) VALUES (?, ?, ?, ?)",
+                (combo["id"], combo["type"], combo["description"], json.dumps(combo["colors"])),
+            )
+            for i, card in enumerate(combo["cards"]):
+                cursor.execute(
+                    "INSERT INTO combo_cards (combo_id, card_name, role, position) VALUES (?, ?, ?, ?)",
+                    (combo["id"], card["name"], card["role"], i),
+                )
+            combo_count += 1
+
+        console.print(f"[green]✓[/] Imported {combo_count} combos")
+
+    synergy_count = 0
+    if synergies_json.exists():
+        with synergies_json.open() as f:
+            data = json.load(f)
+
+        for item in data.get("keyword_synergies", []):
+            for pattern in item["patterns"]:
+                cursor.execute(
+                    "INSERT INTO keyword_synergies (keyword, pattern) VALUES (?, ?)",
+                    (item["keyword"], pattern),
+                )
+                synergy_count += 1
+
+        for item in data.get("ability_synergies", []):
+            for pattern in item["patterns"]:
+                cursor.execute(
+                    "INSERT INTO ability_synergies (trigger_text, pattern) VALUES (?, ?)",
+                    (item["trigger"], pattern),
+                )
+                synergy_count += 1
+
+        for item in data.get("type_synergies", []):
+            for pattern in item["patterns"]:
+                cursor.execute(
+                    "INSERT INTO type_synergies (card_type, pattern) VALUES (?, ?)",
+                    (item["card_type"], pattern),
+                )
+                synergy_count += 1
+
+        console.print(f"[green]✓[/] Imported {synergy_count} synergy patterns")
+
+    cursor.execute(
+        "INSERT INTO meta (key, value) VALUES (?, ?)",
+        ("created_at", datetime.now().isoformat()),
+    )
+    cursor.execute(
+        "INSERT INTO meta (key, value) VALUES (?, ?)",
+        ("combo_count", str(combo_count)),
+    )
+    cursor.execute(
+        "INSERT INTO meta (key, value) VALUES (?, ?)",
+        ("synergy_count", str(synergy_count)),
+    )
+
+    conn.commit()
+    conn.close()
+
+    size_kb = db_path.stat().st_size / 1024
+    console.print(f"[green]✓[/] Saved synergy.sqlite ({size_kb:.1f} KB)")
+
+    return db_path
+
+
 def insert_card(cursor: sqlite3.Cursor, card: dict[str, Any]) -> None:
     """Insert a single card into the database."""
 
@@ -334,20 +478,30 @@ def main(
         bool,
         typer.Option("--skip-scryfall", help="Skip downloading Scryfall"),
     ] = False,
+    synergy_only: Annotated[
+        bool,
+        typer.Option("--synergy-only", help="Only import synergy data from JSON"),
+    ] = False,
 ) -> None:
     """Download and create MTG database files."""
     console.print("[bold]MTG Database Setup[/]\n")
 
-    # Create output directory
     output_dir = output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     console.print(f"Output directory: [cyan]{output_dir}[/]")
+
+    if synergy_only:
+        import_synergy_data(output_dir)
+        console.print("\n[bold green]Done![/]")
+        return
 
     if not skip_mtgjson:
         download_mtgjson(output_dir)
 
     if not skip_scryfall:
         download_scryfall(output_dir)
+
+    import_synergy_data(output_dir)
 
     console.print("\n[bold green]Done![/] Databases are ready to use.")
     console.print("\n[dim]Set environment variables if using a custom location:[/]")

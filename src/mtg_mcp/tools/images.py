@@ -6,15 +6,11 @@ from typing import TYPE_CHECKING
 
 from ..data.models import (
     CardImageResponse,
-    ImageUrls,
     PriceResponse,
-    Prices,
     PriceSearchResponse,
     PriceSearchResult,
     PrintingInfo,
     PrintingsResponse,
-    PurchaseLinks,
-    RelatedLinks,
 )
 from ..exceptions import CardNotFoundError, DatabaseNotAvailableError, ValidationError
 
@@ -45,28 +41,10 @@ async def get_card_image(
     return CardImageResponse(
         card_name=image.name,
         set_code=image.set_code,
-        images=ImageUrls(
-            small=image.image_small,
-            normal=image.image_normal,
-            large=image.image_large,
-            png=image.image_png,
-            art_crop=image.image_art_crop,
-        ),
-        prices=Prices(
-            usd=image.get_price_usd(),
-            usd_foil=image.get_price_usd_foil(),
-            eur=image.price_eur / 100 if image.price_eur else None,
-            eur_foil=image.price_eur_foil / 100 if image.price_eur_foil else None,
-        ),
-        purchase_links=PurchaseLinks(
-            tcgplayer=image.purchase_tcgplayer,
-            cardmarket=image.purchase_cardmarket,
-            cardhoarder=image.purchase_cardhoarder,
-        ),
-        related_links=RelatedLinks(
-            edhrec=image.link_edhrec,
-            gatherer=image.link_gatherer,
-        ),
+        images=image.to_image_urls(),
+        prices=image.to_prices(),
+        purchase_links=image.to_purchase_links(),
+        related_links=image.to_related_links(),
         highres_image=image.highres_image,
         full_art=image.full_art,
     )
@@ -113,17 +91,8 @@ async def get_card_price(
     return PriceResponse(
         card_name=image.name,
         set_code=image.set_code,
-        prices=Prices(
-            usd=image.get_price_usd(),
-            usd_foil=image.get_price_usd_foil(),
-            eur=image.price_eur / 100 if image.price_eur else None,
-            eur_foil=image.price_eur_foil / 100 if image.price_eur_foil else None,
-        ),
-        purchase_links=PurchaseLinks(
-            tcgplayer=image.purchase_tcgplayer,
-            cardmarket=image.purchase_cardmarket,
-            cardhoarder=image.purchase_cardhoarder,
-        ),
+        prices=image.to_prices(),
+        purchase_links=image.to_purchase_links(),
     )
 
 

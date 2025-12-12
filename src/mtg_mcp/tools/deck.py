@@ -87,6 +87,15 @@ RAMP_PATTERNS = frozenset(
 )
 
 
+async def _get_card_price(scryfall: ScryfallDatabase, card_name: str) -> float | None:
+    """Get USD price for a card, or None if unavailable."""
+    try:
+        image = await scryfall.get_card_image(card_name)
+        return image.get_price_usd() if image else None
+    except CardNotFoundError:
+        return None
+
+
 async def _resolve_deck_cards(
     db: MTGDatabase,
     cards: list[DeckCardInput],
@@ -480,38 +489,24 @@ async def analyze_deck_price(
     sideboard_total = 0.0
 
     for card_input in input.cards:
-        try:
-            card_image = await scryfall.get_card_image(card_input.name)
-            if card_image:
-                unit_price = card_image.get_price_usd()
-                if unit_price is not None:
-                    total_price = unit_price * card_input.quantity
-                    card_prices.append(
-                        CardPrice(
-                            name=card_input.name,
-                            quantity=card_input.quantity,
-                            unit_price=unit_price,
-                            total_price=total_price,
-                        )
-                    )
-                    if card_input.sideboard:
-                        sideboard_total += total_price
-                    else:
-                        mainboard_total += total_price
-                else:
-                    missing_prices.append(card_input.name)
-            else:
-                missing_prices.append(card_input.name)
-        except CardNotFoundError:
+        price_info = await _get_card_price(scryfall, card_input.name)
+        if price_info is None:
             missing_prices.append(card_input.name)
-        except (KeyError, AttributeError, TypeError) as e:
-            # Log unexpected errors for debugging but continue processing
-            import logging
+            continue
 
-            logging.getLogger(__name__).warning(
-                "Unexpected error getting price for %s: %s", card_input.name, e
+        total_price = price_info * card_input.quantity
+        card_prices.append(
+            CardPrice(
+                name=card_input.name,
+                quantity=card_input.quantity,
+                unit_price=price_info,
+                total_price=total_price,
             )
-            missing_prices.append(card_input.name)
+        )
+        if card_input.sideboard:
+            sideboard_total += total_price
+        else:
+            mainboard_total += total_price
 
     # Sort by total price descending, take top 10
     card_prices.sort(key=lambda x: x.total_price or 0, reverse=True)

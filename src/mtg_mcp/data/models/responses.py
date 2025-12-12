@@ -364,3 +364,83 @@ class PriceAnalysisResult(BaseModel):
     def most_expensive_count(self) -> int:
         """Number of cards in the most_expensive list (up to 10)."""
         return len(self.most_expensive)
+
+
+# =============================================================================
+# Synergy & Strategy Response Models
+# =============================================================================
+
+# Type literals for synergy detection
+SynergyType = Literal["keyword", "tribal", "ability", "theme", "archetype"]
+ComboType = Literal["infinite", "value", "lock", "win"]
+SuggestionCategory = Literal["synergy", "staple", "upgrade", "budget"]
+
+
+class SynergyResult(BaseModel):
+    """A card that synergizes with the input card."""
+
+    name: str
+    synergy_type: SynergyType
+    reason: str  # Human-readable explanation
+    score: float = Field(ge=0.0, le=1.0)  # Synergy strength
+    mana_cost: str | None = None
+    type_line: str | None = None
+
+
+class FindSynergiesResult(BaseModel):
+    """Result of find_synergies tool."""
+
+    card_name: str
+    synergies: list[SynergyResult]
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def total_found(self) -> int:
+        """Number of synergies found."""
+        return len(self.synergies)
+
+
+class ComboCard(BaseModel):
+    """A card in a combo."""
+
+    name: str
+    role: str  # What this card does in the combo
+
+
+class Combo(BaseModel):
+    """A known combo."""
+
+    id: str  # Unique identifier
+    cards: list[ComboCard]
+    description: str  # What the combo does
+    combo_type: ComboType
+    colors: list[str] = Field(default_factory=list)  # Colors involved
+
+
+class DetectCombosResult(BaseModel):
+    """Result of detect_combos tool."""
+
+    combos: list[Combo] = Field(default_factory=list)  # Found complete combos
+    potential_combos: list[Combo] = Field(default_factory=list)  # Missing 1-2 pieces
+    missing_cards: dict[str, list[str]] = Field(
+        default_factory=dict
+    )  # combo_id -> missing cards
+
+
+class SuggestedCard(BaseModel):
+    """A suggested card to add."""
+
+    name: str
+    reason: str
+    category: SuggestionCategory
+    mana_cost: str | None = None
+    type_line: str | None = None
+    price_usd: float | None = None
+
+
+class SuggestCardsResult(BaseModel):
+    """Result of suggest_cards tool."""
+
+    suggestions: list[SuggestedCard] = Field(default_factory=list)
+    detected_themes: list[str] = Field(default_factory=list)
+    deck_colors: list[str] = Field(default_factory=list)

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import random
 import re
-import textwrap
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -14,15 +13,25 @@ from rich.panel import Panel
 from mtg_mcp.cli.context import DatabaseContext, run_async
 from mtg_mcp.cli.display import display_image_in_terminal, fetch_card_image
 from mtg_mcp.cli.formatting import (
-    FLAVOR_QUOTES,
     GOODBYE_QUOTES,
-    MANA_SYMBOLS,
     prettify_mana,
     strip_quotes,
 )
+from mtg_mcp.cli.synergy_display import (
+    display_combos,
+    display_synergies_paginated,
+)
+from mtg_mcp.cli.tui import (
+    console as tui_console,
+    render_card,
+    render_card_not_found,
+    render_error,
+    render_full_help,
+    render_welcome,
+)
 from mtg_mcp.data.models.inputs import SearchCardsInput
 from mtg_mcp.exceptions import CardNotFoundError, MTGError, SetNotFoundError
-from mtg_mcp.tools import cards, images, sets
+from mtg_mcp.tools import cards, images, sets, synergy
 
 if TYPE_CHECKING:
     from mtg_mcp.data.database import MTGDatabase, ScryfallDatabase
@@ -213,107 +222,10 @@ def parse_search_filters(args: str) -> tuple[str | None, SearchCardsInput]:
     return name_query, search_input
 
 
-# ASCII art banner
-BANNER = """
-[bold red]    ╔╦╗╔═╗╔═╗╦╔═╗[/]  [bold white]┌┬┐┬ ┬┌─┐[/]
-[bold red]    ║║║╠═╣║ ╦║║  [/]  [bold white] │ ├─┤├┤ [/]
-[bold red]    ╩ ╩╩ ╩╚═╝╩╚═╝[/]  [bold white] ┴ ┴ ┴└─┘[/]
-[bold blue]  ╔═╗╔═╗╔╦╗╦ ╦╔═╗╦═╗╦╔╗╔╔═╗[/]
-[bold blue]  ║ ╦╠═╣ ║ ╠═╣║╣ ╠╦╝║║║║║ ╦[/]
-[bold blue]  ╚═╝╩ ╩ ╩ ╩ ╩╚═╝╩╚═╩╝╚╝╚═╝[/]
-"""
-
-
 async def show_card(db: MTGDatabase, scryfall: ScryfallDatabase | None, name: str) -> None:
     """Display a card with MTG card-like formatting."""
     card_result = await cards.get_card(db, scryfall, name=name)
-
-    # Determine border color based on card colors
-    border_style = "grey70"  # Default gray for colorless/artifacts
-    if card_result.colors:
-        color_map = {
-            "W": "grey93",
-            "U": "dodger_blue1",
-            "B": "medium_purple",
-            "R": "red1",
-            "G": "green3",
-        }
-        if len(card_result.colors) == 1:
-            border_style = color_map.get(card_result.colors[0], "grey70")
-        elif len(card_result.colors) >= 2:
-            border_style = "gold1"  # Gold for multicolor
-
-    # Card dimensions
-    panel_width = 60
-    text_width = 50
-    sep_width = panel_width - 6
-    sep = f"[dim]{'─' * sep_width}[/]"
-
-    lines: list[str] = []
-
-    # NAME + MANA COST
-    mana = prettify_mana(card_result.mana_cost) if card_result.mana_cost else ""
-    if mana:
-        lines.append(f"[bold]{card_result.name}[/]  {mana}")
-    else:
-        lines.append(f"[bold]{card_result.name}[/]")
-
-    lines.append(sep)
-
-    # TYPE LINE
-    lines.append(f"[italic]{card_result.type}[/]")
-
-    # RULES TEXT
-    if card_result.text:
-        lines.append(sep)
-        pretty_text = prettify_mana(card_result.text)
-        pretty_text = pretty_text.replace("\\n", "\n")
-
-        paragraphs = pretty_text.split("\n")
-        for i, para in enumerate(paragraphs):
-            if para.strip():
-                wrapped = textwrap.fill(para.strip(), width=text_width)
-                lines.append(wrapped)
-                if i < len(paragraphs) - 1:
-                    lines.append("")
-
-    # FLAVOR TEXT
-    if card_result.flavor:
-        lines.append(sep)
-        flavor = card_result.flavor.replace("\\n", "\n")
-        wrapped_flavor = textwrap.fill(flavor, width=text_width)
-        lines.append(f'[dim italic]"{wrapped_flavor}"[/]')
-
-    # P/T or LOYALTY
-    if card_result.power is not None and card_result.toughness is not None:
-        lines.append(sep)
-        lines.append(f"⚔️ [bold]{card_result.power}/{card_result.toughness}[/]")
-    elif card_result.loyalty is not None:
-        lines.append(sep)
-        lines.append(f"🛡️ [bold]{card_result.loyalty}[/]")
-
-    # FOOTER
-    footer_parts = []
-    if card_result.set_code:
-        rarity_icons = {"common": "○", "uncommon": "◐", "rare": "●", "mythic": "★"}
-        rarity_colors = {"common": "white", "uncommon": "cyan", "rare": "yellow", "mythic": "red"}
-        icon = rarity_icons.get(card_result.rarity.lower(), "○") if card_result.rarity else "○"
-        r_color = (
-            rarity_colors.get(card_result.rarity.lower(), "white")
-            if card_result.rarity
-            else "white"
-        )
-        footer_parts.append(f"[{r_color}]{icon} {card_result.set_code.upper()}[/]")
-    if card_result.prices and card_result.prices.usd:
-        footer_parts.append(f"💰 [green]${card_result.prices.usd:.2f}[/]")
-
-    if footer_parts:
-        lines.append(sep)
-        lines.append(" · ".join(footer_parts))
-
-    console.print(
-        Panel("\n".join(lines), border_style=border_style, padding=(1, 2), width=panel_width)
-    )
+    tui_console.print(render_card(card_result))
 
 
 def describe_art(art: Any) -> str:
@@ -385,31 +297,11 @@ async def handle_search_command(
     page_size = 20
     page = 1
 
-    while True:
-        # Create new filters for current page
-        search_filters = SearchCardsInput(
-            name=base_filters.name,
-            type=base_filters.type,
-            subtype=base_filters.subtype,
-            colors=base_filters.colors,
-            color_identity=base_filters.color_identity,
-            cmc=base_filters.cmc,
-            cmc_min=base_filters.cmc_min,
-            cmc_max=base_filters.cmc_max,
-            power=base_filters.power,
-            toughness=base_filters.toughness,
-            rarity=base_filters.rarity,
-            set_code=base_filters.set_code,
-            format_legal=base_filters.format_legal,
-            text=base_filters.text,
-            keywords=base_filters.keywords,
-            sort_by=base_filters.sort_by,
-            sort_order=base_filters.sort_order,
-            page=page,
-            page_size=page_size,
-        )
+    def make_filters(p: int) -> SearchCardsInput:
+        return base_filters.model_copy(update={"page": p, "page_size": page_size})
 
-        search_result = await cards.search_cards(db, scryfall, search_filters)
+    while True:
+        search_result = await cards.search_cards(db, scryfall, make_filters(page))
 
         if search_result.count == 0:
             console.print("[yellow]No cards found matching your criteria[/]")
@@ -464,38 +356,15 @@ async def handle_search_command(
             elif nav.isdigit():
                 idx = int(nav)
                 if 1 <= idx <= total:
-                    # Find and display the card
                     card_idx = idx - 1
                     card_page = card_idx // page_size + 1
+                    # Use cached result if same page, otherwise fetch
+                    result = search_result
                     if card_page != page:
-                        # Fetch the right page
-                        fetch_filters = SearchCardsInput(
-                            name=base_filters.name,
-                            type=base_filters.type,
-                            subtype=base_filters.subtype,
-                            colors=base_filters.colors,
-                            color_identity=base_filters.color_identity,
-                            cmc=base_filters.cmc,
-                            cmc_min=base_filters.cmc_min,
-                            cmc_max=base_filters.cmc_max,
-                            power=base_filters.power,
-                            toughness=base_filters.toughness,
-                            rarity=base_filters.rarity,
-                            set_code=base_filters.set_code,
-                            format_legal=base_filters.format_legal,
-                            text=base_filters.text,
-                            keywords=base_filters.keywords,
-                            page=card_page,
-                            page_size=page_size,
-                        )
-                        card_result = await cards.search_cards(db, scryfall, fetch_filters)
-                        card_in_page = card_idx % page_size
-                        if card_in_page < len(card_result.cards):
-                            await show_card(db, scryfall, card_result.cards[card_in_page].name)
-                    else:
-                        card_in_page = card_idx % page_size
-                        if card_in_page < len(search_result.cards):
-                            await show_card(db, scryfall, search_result.cards[card_in_page].name)
+                        result = await cards.search_cards(db, scryfall, make_filters(card_page))
+                    card_in_page = card_idx % page_size
+                    if card_in_page < len(result.cards):
+                        await show_card(db, scryfall, result.cards[card_in_page].name)
                 else:
                     console.print(f"[yellow]Invalid selection (1-{total})[/]")
         except (EOFError, KeyboardInterrupt):
@@ -667,49 +536,6 @@ async def handle_set_command(db: MTGDatabase, args: str) -> None:
                 pass
 
 
-def show_help() -> None:
-    """Display REPL help."""
-    console.print("\n[bold]⚔️  Spell Book[/]\n")
-    console.print("  [bold cyan]Just type a card name[/] to look it up!")
-    console.print("")
-    console.print("  [cyan]search[/] <query>   Search with filters (paginated)")
-    console.print("  [cyan]art[/] <name>       Browse & display card art (pick from variants)")
-    console.print("  [cyan]rulings[/] <name>   Official card rulings")
-    console.print("  [cyan]legal[/] <name>     Format legalities")
-    console.print("  [cyan]price[/] <name>     Current prices")
-    console.print("  [cyan]random[/]           Discover a random card")
-    console.print("  [cyan]sets[/]             Browse all sets (paginated, searchable)")
-    console.print("  [cyan]set[/] <name>       Set details (by code or name)")
-    console.print("  [cyan]stats[/]            Database info")
-    console.print("  [cyan]quit[/]             Exit")
-    console.print()
-    console.print("[bold]🔍 Search Filters[/]")
-    console.print("  [dim]Use filter:value syntax. Filters can be combined.[/]")
-    console.print()
-    console.print("  [cyan]t:[/]type         Card type (creature, instant, sorcery...)")
-    console.print("  [cyan]s:[/]subtype      Subtype (elf, dragon, equipment...)")
-    console.print("  [cyan]c:[/]colors       Colors: W U B R G (e.g., c:RG or c:R,G)")
-    console.print("  [cyan]ci:[/]identity    Color identity (for Commander)")
-    console.print("  [cyan]cmc:[/]N          Exact mana value")
-    console.print("  [cyan]cmc>:[/]N         Minimum mana value")
-    console.print("  [cyan]cmc<:[/]N         Maximum mana value")
-    console.print("  [cyan]f:[/]format       Format legal (modern, commander...)")
-    console.print("  [cyan]r:[/]rarity       Rarity (common, uncommon, rare, mythic)")
-    console.print("  [cyan]set:[/]CODE       Set code (e.g., set:DOM)")
-    console.print('  [cyan]text:[/]"..."     Oracle text search')
-    console.print("  [cyan]kw:[/]keyword     Keyword (flying, trample...)")
-    console.print("  [cyan]sort:[/]field     Sort by: name, cmc, color, rarity, type")
-    console.print("  [cyan]order:[/]dir      Sort order: asc (default) or desc")
-    console.print()
-    console.print("[dim]  Examples:[/]")
-    console.print("    search dragon t:creature c:R")
-    console.print("    search t:instant f:modern cmc<:3")
-    console.print('    search text:"draw a card" c:U')
-    console.print("    search r:mythic set:MOM")
-    console.print("    search t:creature c:R sort:cmc order:desc")
-    console.print()
-
-
 def setup_readline() -> None:
     """Set up readline for command history."""
     try:
@@ -730,23 +556,17 @@ def start_repl() -> None:
     """Start the interactive REPL."""
     ctx = DatabaseContext()
 
-    console.print(BANNER)
-    console.print(f"[dim italic]{random.choice(FLAVOR_QUOTES)}[/]\n")
-
     async def run_repl() -> None:
         setup_readline()
 
-        console.print("[dim]Tapping mana sources...[/]")
+        console.print("\n[dim]Tapping mana sources...[/]")
         db = await ctx.get_db()
         scryfall = await ctx.get_scryfall()
         db_stats = await db.get_database_stats()
 
-        mana_bar = "".join(MANA_SYMBOLS.values())
-        console.print(f"\n{mana_bar}")
-        console.print(
-            f"[bold green]Library loaded![/] {db_stats.get('unique_cards', '?'):,} cards across {db_stats.get('total_sets', '?')} sets"
-        )
-        console.print("[dim]Type a card name to look it up, or [cyan]?[/] for help[/]\n")
+        card_count = db_stats.get("unique_cards", 0)
+        set_count = db_stats.get("total_sets", 0)
+        render_welcome(card_count, set_count)
 
         while True:
             try:
@@ -769,7 +589,7 @@ def start_repl() -> None:
                     break
 
                 elif cmd in ("help", "?"):
-                    show_help()
+                    render_full_help()
 
                 elif cmd == "search":
                     if not args:
@@ -879,6 +699,29 @@ def start_repl() -> None:
                         f"  Version: [dim]{stats_data.get('data_version', 'unknown')}[/]\n"
                     )
 
+                elif cmd in ("synergy", "syn"):
+                    if not args:
+                        console.print("[yellow]Usage: synergy <card name>[/]")
+                        console.print("[dim]  Find cards that synergize with a given card[/]")
+                        continue
+                    synergy_result = await synergy.find_synergies(
+                        db, card_name=args, max_results=50
+                    )
+                    await display_synergies_paginated(synergy_result, page_size=10)
+
+                elif cmd in ("combos", "combo"):
+                    if not args:
+                        console.print("[yellow]Usage: combos <card name>[/]")
+                        console.print("[dim]  Find known combos involving a card[/]")
+                        continue
+                    combos_result = await synergy.detect_combos(db, card_name=args)
+                    display_combos(combos_result, title=f"Combos involving {args}")
+
+                elif cmd == "suggest":
+                    console.print("[yellow]The 'suggest' command requires a deck file.[/]")
+                    console.print("[dim]  Use: mtg synergy suggest deck.txt[/]")
+                    console.print("[dim]  Or in REPL: analyze your deck with 'combos' for individual cards[/]")
+
                 else:
                     # Not a known command - treat as card name
                     card_name = line
@@ -888,20 +731,15 @@ def start_repl() -> None:
                         filters = SearchCardsInput(name=card_name, page_size=5)
                         search_result = await cards.search_cards(db, scryfall, filters)
                         if search_result.count == 0:
-                            console.print(
-                                f"[dim]No cards found matching '[/][yellow]{card_name}[/][dim]'[/]"
-                            )
+                            render_card_not_found(card_name)
                         elif search_result.count == 1:
                             await show_card(db, scryfall, search_result.cards[0].name)
                         else:
-                            console.print("\n[dim]Did you mean one of these?[/]")
-                            for c in search_result.cards:
-                                mana = f" [yellow]{c.mana_cost}[/]" if c.mana_cost else ""
-                                console.print(f"  [cyan]{c.name}[/]{mana}")
-                            console.print()
+                            suggestions = [c.name for c in search_result.cards]
+                            render_card_not_found(card_name, suggestions)
 
             except MTGError as e:
-                console.print(f"[red]Error: {e.message}[/]")
+                render_error(e.message)
 
         await ctx.close()
 

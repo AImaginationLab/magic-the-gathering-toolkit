@@ -1,8 +1,14 @@
 """Card-related models."""
 
+from __future__ import annotations
+
 import json
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+if TYPE_CHECKING:
+    from mtg_mcp.data.models.responses import ImageUrls, Prices, PurchaseLinks, RelatedLinks
 
 
 class CardRuling(BaseModel):
@@ -161,12 +167,58 @@ class CardImage(BaseModel):
 
     def get_price_usd(self) -> float | None:
         """Get USD price as float dollars."""
-        if self.price_usd is not None:
-            return self.price_usd / 100
-        return None
+        return self.price_usd / 100 if self.price_usd is not None else None
 
     def get_price_usd_foil(self) -> float | None:
         """Get USD foil price as float dollars."""
-        if self.price_usd_foil is not None:
-            return self.price_usd_foil / 100
-        return None
+        return self.price_usd_foil / 100 if self.price_usd_foil is not None else None
+
+    def get_price_eur(self) -> float | None:
+        """Get EUR price as float."""
+        return self.price_eur / 100 if self.price_eur is not None else None
+
+    def get_price_eur_foil(self) -> float | None:
+        """Get EUR foil price as float."""
+        return self.price_eur_foil / 100 if self.price_eur_foil is not None else None
+
+    def to_image_urls(self) -> ImageUrls:
+        """Convert to ImageUrls response model."""
+        from mtg_mcp.data.models.responses import ImageUrls
+
+        return ImageUrls(
+            small=self.image_small,
+            normal=self.image_normal,
+            large=self.image_large,
+            png=self.image_png,
+            art_crop=self.image_art_crop,
+        )
+
+    def to_prices(self) -> Prices:
+        """Convert to Prices response model."""
+        from mtg_mcp.data.models.responses import Prices
+
+        return Prices(
+            usd=self.get_price_usd(),
+            usd_foil=self.get_price_usd_foil(),
+            eur=self.get_price_eur(),
+            eur_foil=self.get_price_eur_foil(),
+        )
+
+    def to_purchase_links(self) -> PurchaseLinks:
+        """Convert to PurchaseLinks response model."""
+        from mtg_mcp.data.models.responses import PurchaseLinks
+
+        return PurchaseLinks(
+            tcgplayer=self.purchase_tcgplayer,
+            cardmarket=self.purchase_cardmarket,
+            cardhoarder=self.purchase_cardhoarder,
+        )
+
+    def to_related_links(self) -> RelatedLinks:
+        """Convert to RelatedLinks response model."""
+        from mtg_mcp.data.models.responses import RelatedLinks
+
+        return RelatedLinks(
+            edhrec=self.link_edhrec,
+            gatherer=self.link_gatherer,
+        )

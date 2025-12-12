@@ -8,7 +8,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from mtg_mcp.cli.commands import card_app, deck_app, set_app
+from mtg_mcp.cli.commands import card_app, deck_app, set_app, synergy_app
 from mtg_mcp.cli.context import DatabaseContext, output_json, run_async
 from mtg_mcp.cli.repl import start_repl
 
@@ -28,6 +28,7 @@ cli = typer.Typer(
 cli.add_typer(card_app, name="card")
 cli.add_typer(set_app, name="set")
 cli.add_typer(deck_app, name="deck")
+cli.add_typer(synergy_app, name="synergy")
 
 
 # =============================================================================
@@ -86,8 +87,16 @@ def stats(
 
 @cli.command()
 def repl() -> None:
-    """Start interactive REPL mode."""
+    """Start interactive REPL mode (classic)."""
     start_repl()
+
+
+@cli.command()
+def tui() -> None:
+    """Start the interactive TUI (Textual-based, with keyboard navigation)."""
+    from mtg_mcp.cli.textual_app import run_app
+
+    run_app()
 
 
 if __name__ == "__main__":
