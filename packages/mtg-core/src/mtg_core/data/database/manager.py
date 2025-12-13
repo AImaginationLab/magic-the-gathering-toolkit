@@ -12,6 +12,7 @@ from ...config import Settings, get_settings
 from .cache import CardCache
 from .mtg import MTGDatabase
 from .scryfall import ScryfallDatabase
+from .user import UserDatabase
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -28,6 +29,7 @@ class DatabaseManager:
         self._scryfall_conn: aiosqlite.Connection | None = None
         self._db: MTGDatabase | None = None
         self._scryfall: ScryfallDatabase | None = None
+        self._user: UserDatabase | None = None
         self._cache = CardCache(max_size=self._settings.cache_max_size)
 
     @property
@@ -41,6 +43,11 @@ class DatabaseManager:
     def scryfall(self) -> ScryfallDatabase | None:
         """Get the Scryfall database instance (may be None)."""
         return self._scryfall
+
+    @property
+    def user(self) -> UserDatabase | None:
+        """Get the user database instance (may be None if not initialized)."""
+        return self._user
 
     async def start(self) -> None:
         """Open the database connections."""
@@ -72,6 +79,21 @@ class DatabaseManager:
         else:
             logger.warning("Scryfall database not found at %s", scryfall_path)
 
+        # User database (always created, stores decks/collections)
+        try:
+            self._user = UserDatabase(self._settings.user_db_path)
+            await self._user.connect()
+        except Exception:
+            logger.exception("Failed to open user database at %s", self._settings.user_db_path)
+            self._user = None
+
+    async def start_user_db(self) -> UserDatabase:
+        """Explicitly start user database. Used by apps that need deck management."""
+        if self._user is None:
+            self._user = UserDatabase(self._settings.user_db_path)
+            await self._user.connect()
+        return self._user
+
     async def stop(self) -> None:
         """Close the database connections."""
         if self._conn:
@@ -82,6 +104,9 @@ class DatabaseManager:
             await self._scryfall_conn.close()
             self._scryfall_conn = None
             self._scryfall = None
+        if self._user:
+            await self._user.close()
+            self._user = None
         await self._cache.clear()
 
 

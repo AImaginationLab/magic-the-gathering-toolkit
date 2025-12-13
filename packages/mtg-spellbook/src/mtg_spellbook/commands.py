@@ -7,10 +7,10 @@ from typing import TYPE_CHECKING, Any, Protocol
 from textual import work
 from textual.widgets import Static, TabbedContent
 
-from mtg_spellbook.formatting import prettify_mana
 from mtg_core.data.models.inputs import SearchCardsInput
 from mtg_core.exceptions import CardNotFoundError
 from mtg_core.tools import cards, images, sets, synergy
+from mtg_spellbook.formatting import prettify_mana
 
 from .search import parse_search_query
 from .widgets import CardPanel
@@ -181,9 +181,16 @@ class CommandHandlersMixin:
             self._update_card_panel(self._current_results[0])
             await self._load_card_extras(self._current_results[0])
 
-    async def _load_card_extras(self, card: CardDetail) -> None:
-        """Load rulings, legalities, and printings for a card."""
-        panel = self.query_one("#card-panel", CardPanel)
+    async def _load_card_extras(
+        self, card: CardDetail, panel_id: str = "#card-panel"
+    ) -> None:
+        """Load rulings, legalities, and printings for a card.
+
+        Args:
+            card: The card to load extras for
+            panel_id: CSS selector for the CardPanel to update (default: main panel)
+        """
+        panel = self.query_one(panel_id, CardPanel)
 
         if self._db:
             await panel.load_rulings(self._db, card.name)
@@ -396,7 +403,7 @@ class CommandHandlersMixin:
             result = await sets.get_set(self._db, code)
 
             panel = self.query_one("#card-panel", CardPanel)
-            card_text = panel.query_one("#card-text", Static)
+            card_text = panel.query_one(panel.get_child_id("card-text"), Static)
 
             lines = [
                 f"[bold]{result.name}[/] [{result.code.upper()}]",
@@ -419,7 +426,7 @@ class CommandHandlersMixin:
         stats = await self._db.get_database_stats()
 
         panel = self.query_one("#card-panel", CardPanel)
-        card_text = panel.query_one("#card-text", Static)
+        card_text = panel.query_one(panel.get_child_id("card-text"), Static)
 
         lines = [
             "[bold]📊 Database Statistics[/]",
@@ -439,8 +446,8 @@ class CommandHandlersMixin:
         panel = self.query_one("#card-panel", CardPanel)
         await panel.load_rulings(self._db, card_name)
 
-        tabs = panel.query_one("#card-tabs", TabbedContent)
-        tabs.active = "tab-rulings"
+        tabs = panel.query_one(panel.get_child_id("tabs"), TabbedContent)
+        tabs.active = panel.get_child_name("tab-rulings")
 
     @work
     async def load_legalities(self, card_name: str) -> None:
@@ -451,8 +458,8 @@ class CommandHandlersMixin:
         panel = self.query_one("#card-panel", CardPanel)
         await panel.load_legalities(self._db, card_name)
 
-        tabs = panel.query_one("#card-tabs", TabbedContent)
-        tabs.active = "tab-legal"
+        tabs = panel.query_one(panel.get_child_id("tabs"), TabbedContent)
+        tabs.active = panel.get_child_name("tab-legal")
 
     @work
     async def show_price(self, card_name: str) -> None:
@@ -467,7 +474,7 @@ class CommandHandlersMixin:
             )
 
             panel = self.query_one("#card-panel", CardPanel)
-            price_text = panel.query_one("#price-text", Static)
+            price_text = panel.query_one(panel.get_child_id("price-text"), Static)
 
             lines = [f"[bold]💰 {result.card_name}[/]", ""]
             if result.prices:
@@ -482,8 +489,8 @@ class CommandHandlersMixin:
 
             price_text.update("\n".join(lines))
 
-            tabs = panel.query_one("#card-tabs", TabbedContent)
-            tabs.active = "tab-price"
+            tabs = panel.query_one(panel.get_child_id("tabs"), TabbedContent)
+            tabs.active = panel.get_child_name("tab-price")
 
         except Exception:
             self._show_message(f"[red]Could not get price for: {card_name}[/]")
@@ -499,8 +506,8 @@ class CommandHandlersMixin:
             panel = self.query_one("#card-panel", CardPanel)
             await panel.load_printings(self._scryfall, card_name)
 
-            tabs = panel.query_one("#card-tabs", TabbedContent)
-            tabs.active = "tab-art"
+            tabs = panel.query_one(panel.get_child_id("tabs"), TabbedContent)
+            tabs.active = panel.get_child_name("tab-art")
 
         except CardNotFoundError:
             self._show_message(f"[red]Card not found: {card_name}[/]")
@@ -510,7 +517,7 @@ class CommandHandlersMixin:
         self._hide_synergy_panel()
 
         panel = self.query_one("#card-panel", CardPanel)
-        card_text = panel.query_one("#card-text", Static)
+        card_text = panel.query_one(panel.get_child_id("card-text"), Static)
 
         help_text = """[bold yellow]⚔️ MTG Spellbook Help[/]
 
@@ -549,7 +556,7 @@ class CommandHandlersMixin:
 [bold cyan]Navigation:[/]
   [yellow]↑↓[/]        Navigate results
   [yellow]Tab[/]       Switch tabs
-  [yellow]←→[/]        Navigate art printings
+  [yellow]←→[/]        Navigate art printings (on Art tab)
   [yellow]Esc[/]       Focus input
   [yellow]Ctrl+L[/]    Clear
   [yellow]Ctrl+C[/]    Quit
@@ -587,31 +594,31 @@ class CommandHandlersMixin:
         panel.update_card(card)
 
     def _show_synergy_panel(self) -> None:
-        """Show synergy panel (for combos), hide card panel."""
-        self.query_one("#card-panel").styles.display = "none"
-        self.query_one("#synergy-panel").styles.display = "block"
-        self.query_one("#synergy-panel").add_class("visible")
+        """Show side-by-side comparison mode (for synergies/combos)."""
+        # Show source panel on left, card panel on right (both 50% width)
+        self.query_one("#source-card-panel").add_class("visible")
+        self.query_one("#card-panel").add_class("synergy-mode")
 
     def _hide_synergy_panel(self) -> None:
-        """Hide synergy panel, show card panel at full height."""
-        from .widgets import SynergyPanel
-
-        self.query_one("#synergy-panel").styles.display = "none"
-        self.query_one("#synergy-panel").remove_class("visible")
-        self.query_one("#card-panel").styles.display = "block"
+        """Hide comparison mode, show card panel at full width."""
+        # Hide source panel, show card panel at full width
+        self.query_one("#source-card-panel").remove_class("visible")
         self.query_one("#card-panel").remove_class("synergy-mode")
         # Clear source card when hiding
-        synergy_panel = self.query_one("#synergy-panel", SynergyPanel)
-        synergy_panel.clear_source()
+        source_panel = self.query_one("#source-card-panel", CardPanel)
+        source_panel.update_card(None)
 
     def _show_source_card(self, card: Any) -> None:
-        """Show source card in synergy panel below card panel."""
-        from .widgets import SynergyPanel
-
-        synergy_panel = self.query_one("#synergy-panel", SynergyPanel)
-        synergy_panel.show_source_card(card)
-        # Show both panels - card panel shrinks, synergy panel appears below
-        self.query_one("#card-panel").styles.display = "block"
+        """Show source card in the right panel for side-by-side comparison."""
+        source_panel = self.query_one("#source-card-panel", CardPanel)
+        source_panel.update_card(card)
+        # Show side-by-side layout
+        self.query_one("#source-card-panel").add_class("visible")
         self.query_one("#card-panel").add_class("synergy-mode")
-        self.query_one("#synergy-panel").styles.display = "block"
-        self.query_one("#synergy-panel").add_class("visible")
+        # Load extras for source card (reuses same method with different panel)
+        self._load_source_extras(card)
+
+    @work
+    async def _load_source_extras(self, card: Any) -> None:
+        """Load extras for the source card panel."""
+        await self._load_card_extras(card, "#source-card-panel")

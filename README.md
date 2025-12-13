@@ -1,6 +1,6 @@
 # Magic: The Gathering Toolkit
 
-A fast, local toolkit for Magic: The Gathering. Search 33,000+ cards, browse artwork, check prices, validate decks, and get AI-powered deck-building assistance—all powered by offline SQLite databases.
+Magic: The Gathering Toolkit is a set of core packages, terminal UI, and MCP server for exploring and analyzing your cards and decks.  Search 33,000+ cards, browse artwork, check prices, save and maintain decks, explore synergies and more, powered by local SQLite databases.
 
 ## Packages
 
@@ -16,8 +16,8 @@ This is a UV workspace with three packages:
 
 ```bash
 # Clone and install
-git clone git@github.com:aimaginationlab/magic-the-gathering-mcp.git
-cd magic-the-gathering-mcp
+git clone https://github.com/AImaginationLab/magic-the-gathering-toolkit.git
+cd magic-the-gathering-toolkit
 uv sync
 
 # Download databases (required)
@@ -32,7 +32,7 @@ uv run mtg-mcp
 
 ## MTG Spellbook (TUI)
 
-A themed terminal interface for card lookups, artwork browsing, and deck analysis.
+A themed terminal interface for card lookups, artwork browsing, and synergies, and deck analysis.
 
 ```bash
 uv run mtg-spellbook
@@ -67,7 +67,7 @@ Add to Claude Desktop config (`~/Library/Application Support/Claude/claude_deskt
 }
 ```
 
-Then ask Claude things like:
+Then ask things like:
 - "Build me a budget Mono-Red Commander deck under $50"
 - "What are the best counterspells in Modern?"
 - "Find cards that synergize with Rhystic Study"

@@ -7,10 +7,12 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from mtg_core.config import get_settings
-from mtg_core.data.database import DatabaseManager, MTGDatabase, ScryfallDatabase
+from mtg_core.data.database import DatabaseManager, MTGDatabase, ScryfallDatabase, UserDatabase
 
 if TYPE_CHECKING:
     from types import TracebackType
+
+    from mtg_spellbook.deck_manager import DeckManager
 
 
 class DatabaseContext:
@@ -26,6 +28,8 @@ class DatabaseContext:
         self._manager: DatabaseManager | None = None
         self._db: MTGDatabase | None = None
         self._scryfall: ScryfallDatabase | None = None
+        self._user: UserDatabase | None = None
+        self._deck_manager: DeckManager | None = None
 
     async def __aenter__(self) -> DatabaseContext:
         """Enter async context manager."""
@@ -55,6 +59,24 @@ class DatabaseContext:
         """Get ScryfallDatabase, connecting if needed."""
         await self.get_db()
         return self._scryfall
+
+    async def get_user_db(self) -> UserDatabase | None:
+        """Get UserDatabase, connecting if needed."""
+        await self.get_db()
+        if self._user is None and self._manager is not None:
+            self._user = self._manager.user
+        return self._user
+
+    async def get_deck_manager(self) -> DeckManager | None:
+        """Get DeckManager, connecting if needed."""
+        if self._deck_manager is None:
+            db = await self.get_db()
+            user = await self.get_user_db()
+            if user is not None:
+                from mtg_spellbook.deck_manager import DeckManager
+
+                self._deck_manager = DeckManager(user, db, self._scryfall)
+        return self._deck_manager
 
     async def close(self) -> None:
         """Close database connections."""
