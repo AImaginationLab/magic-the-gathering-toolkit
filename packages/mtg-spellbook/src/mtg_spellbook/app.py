@@ -16,7 +16,7 @@ from textual.widgets import Footer, Input, Label, ListItem, ListView, Static, Ta
 from mtg_spellbook.context import DatabaseContext
 
 from .commands import CommandHandlersMixin
-from .deck_widgets import (
+from .deck import (
     AddToDeckModal,
     AddToDeckRequested,
     CardAddedToDeck,

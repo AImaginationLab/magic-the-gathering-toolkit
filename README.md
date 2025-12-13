@@ -61,7 +61,8 @@ Add to Claude Desktop config (`~/Library/Application Support/Claude/claude_deskt
   "mcpServers": {
     "mtg": {
       "command": "uv",
-      "args": ["run", "--directory", "/path/to/magic-the-gathering-mcp", "mtg-mcp"]
+      "args": ["run", "--directory", "/path/to/magic-the-gathering-toolkit", "mtg-mcp"]
+      
     }
   }
 }
