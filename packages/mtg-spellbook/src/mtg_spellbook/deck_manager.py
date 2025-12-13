@@ -114,11 +114,13 @@ class DeckManager:
         description: str | None = None,
     ) -> int:
         """Create a new deck."""
-        return await self.user.create_deck(name, format, commander, description)
+        result: int = await self.user.create_deck(name, format, commander, description)
+        return result
 
     async def list_decks(self) -> list[DeckSummary]:
         """List all decks."""
-        return await self.user.list_decks()
+        result: list[DeckSummary] = await self.user.list_decks()
+        return result
 
     async def get_deck(self, deck_id: int) -> DeckWithCards | None:
         """Get a deck with all card data loaded."""
@@ -139,7 +141,8 @@ class DeckManager:
 
     async def delete_deck(self, deck_id: int) -> bool:
         """Delete a deck."""
-        return await self.user.delete_deck(deck_id)
+        result: bool = await self.user.delete_deck(deck_id)
+        return result
 
     async def update_deck(
         self,
@@ -185,7 +188,8 @@ class DeckManager:
 
     async def remove_card(self, deck_id: int, card_name: str, sideboard: bool = False) -> bool:
         """Remove a card from a deck."""
-        return await self.user.remove_card(deck_id, card_name, sideboard)
+        result: bool = await self.user.remove_card(deck_id, card_name, sideboard)
+        return result
 
     async def set_quantity(
         self,
@@ -295,7 +299,8 @@ class DeckManager:
 
     async def find_decks_with_card(self, card_name: str) -> list[DeckSummary]:
         """Find all decks containing a card."""
-        return await self.user.find_decks_with_card(card_name)
+        result: list[DeckSummary] = await self.user.find_decks_with_card(card_name)
+        return result
 
     # ─────────────────────────────────────────────────────────────────────────
     # Import/Export

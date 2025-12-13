@@ -2,7 +2,7 @@
 
 APP_CSS = """
 /* ═══════════════════════════════════════════════════════════
-   MTG SPELLBOOK - Card Frame Inspired Design
+   MTG SPELLBOOK - Enhanced Card Frame Design
    ═══════════════════════════════════════════════════════════ */
 
 Screen {
@@ -12,7 +12,7 @@ Screen {
     grid-rows: auto 1fr auto auto;
 }
 
-/* ─── Header: Epic Banner ─── */
+/* ─── Header: Enhanced Banner ─── */
 #header-content {
     width: 100%;
     height: 5;
@@ -21,7 +21,7 @@ Screen {
     padding: 1 2;
     content-align: center middle;
     text-align: center;
-    color: #c9a227;
+    color: #e6c84a;
 }
 
 /* ─── Main Layout ─── */
@@ -30,21 +30,22 @@ Screen {
     height: 100%;
 }
 
-/* ─── Results: Card Stack ─── */
+/* ─── Results: Enhanced Card Stack ─── */
 #results-container {
     width: 35;
     height: 100%;
-    background: #121212;
+    background: #0f0f0f;
     border-right: solid #3d3d3d;
 }
 
 #results-header {
     height: 3;
-    background: #1a1a1a;
-    border-bottom: solid #3d3d3d;
+    background: #1a1a2e;
+    border-bottom: solid #c9a227;
     padding: 0 1;
     content-align: center middle;
-    color: #888;
+    color: #e6c84a;
+    text-style: bold;
 }
 
 #results-list {
@@ -54,14 +55,17 @@ Screen {
     scrollbar-color-active: #fff8dc;
 }
 
+/* Enhanced list items with better hover */
 #results-list > ListItem {
     padding: 0 1;
     height: auto;
     border-bottom: solid #1a1a1a;
+    background: #121212;
 }
 
 #results-list > ListItem:hover {
     background: #1a1a2e;
+    border-left: solid #5a5a6e;
 }
 
 #results-list > ListItem.-highlight {
@@ -69,13 +73,18 @@ Screen {
     border-left: heavy #c9a227;
 }
 
-/* ─── Card Panel: Main Display ─── */
+/* Enhanced highlight on hover */
+#results-list > ListItem.-highlight:hover {
+    background: #2e2e58;
+    border-left: heavy #e6c84a;
+}
+
+/* ─── Card Panel: Enhanced Display ─── */
 #detail-container {
     height: 100%;
     background: #0d0d0d;
 }
 
-/* Container for side-by-side card comparison in synergy mode */
 #card-comparison-container {
     width: 100%;
     height: 100%;
@@ -85,24 +94,23 @@ Screen {
     width: 100%;
     height: 100%;
     background: #151515;
-    border: round #2a2a2a;
+    border: round #3d3d3d;
     margin: 0 1;
 }
 
-/* When in synergy mode, card panel takes right half */
 #card-panel.synergy-mode {
     width: 50%;
     height: 100%;
 }
 
-/* ─── Source Card Panel (Synergy Mode Right Side) ─── */
+/* ─── Source Card Panel (Synergy Mode) ─── */
 #source-card-panel {
     width: 0;
     height: 100%;
     display: none;
     background: #151515;
-    border: round #2a2a2a;
-    border-left: solid #c9a227;
+    border: round #3d3d3d;
+    border-left: heavy #c9a227;
     margin: 0 1 0 0;
 }
 
@@ -114,10 +122,10 @@ Screen {
 #source-header {
     height: 3;
     background: #1a1a2e;
-    border-bottom: solid #c9a227;
+    border-bottom: heavy #c9a227;
     padding: 0 1;
     content-align: center middle;
-    color: #c9a227;
+    color: #e6c84a;
 }
 
 #source-scroll {
@@ -131,7 +139,7 @@ Screen {
     background: #151515;
 }
 
-/* ─── Tabs: Tome Navigation ─── */
+/* ─── Tabs: Enhanced Navigation ─── */
 #card-tabs {
     height: 100%;
 }
@@ -141,10 +149,12 @@ Tabs {
     border-bottom: solid #3d3d3d;
 }
 
+/* Enhanced tab styling */
 Tab {
     background: #1a1a1a;
     color: #777;
     padding: 0 2;
+    border-right: solid #252525;
 }
 
 Tab:hover {
@@ -153,7 +163,7 @@ Tab:hover {
 }
 
 Tab.-active {
-    background: #252530;
+    background: #1e1e2e;
     color: #e6c84a;
     text-style: bold;
 }
@@ -172,7 +182,6 @@ TabPane {
     background: #151515;
 }
 
-/* Fix focused/highlighted text contrast */
 *:focus {
     text-style: none;
 }
@@ -182,20 +191,17 @@ TabPane:focus-within {
 }
 
 /* ─── Card Text Area ─── */
-/* Match any card-text widget (prefixed IDs like card-panel-card-text) */
 Static.-card-text {
     background: #151515;
 }
 
 /* ─── Art Gallery ─── */
-/* Match any tab-art (prefixed IDs like card-panel-tab-art) */
 TabPane.-tab-art {
     layout: vertical;
     align: center middle;
     background: #0a0a0a;
 }
 
-/* Match any art-info widget */
 Static.-art-info {
     height: auto;
     width: 100%;
@@ -205,7 +211,6 @@ Static.-art-info {
     border-bottom: solid #2a2a2a;
 }
 
-/* Match any art-image widget */
 Image.-art-image {
     width: auto;
     height: 1fr;
@@ -238,7 +243,7 @@ TabPane.-tab-rulings VerticalScroll {
     height: auto;
 }
 
-/* ─── Input: Command Line ─── */
+/* ─── Input: Enhanced Command Line ─── */
 #input-bar {
     width: 100%;
     height: 3;
@@ -248,7 +253,7 @@ TabPane.-tab-rulings VerticalScroll {
 }
 
 #input-bar Label {
-    color: #c9a227;
+    color: #e6c84a;
     width: auto;
     padding: 0 1 0 0;
 }
@@ -263,44 +268,33 @@ TabPane.-tab-rulings VerticalScroll {
 #search-input:focus {
     border: tall #c9a227;
     background: #1e1e32;
+    color: #ffffff;
 }
 
-/* ─── Footer ─── */
+/* ─── Footer: Enhanced ─── */
 Footer {
     background: #0a0a0a;
-    color: #555;
+    color: #666;
     height: 1;
 }
 
 Footer > .footer--key {
     background: #1a1a2e;
-    color: #c9a227;
+    color: #e6c84a;
+    text-style: bold;
 }
 
 Footer > .footer--description {
-    color: #666;
+    color: #777;
 }
 
-/* ─── Rarity Colors (for use in rich text) ─── */
-/* Common: #1a1a1a (dark) */
-/* Uncommon: #c0c0c0 (silver) */
-/* Rare: #c9a227 (gold) */
-/* Mythic: #e65c00 (orange-red) */
-
-/* ─── Mana Colors ─── */
-/* White: #f9faf4 */
-/* Blue: #0e68ab */
-/* Black: #150b00 */
-/* Red: #d3202a */
-/* Green: #00733e */
-
-/* ─── Deck Panel ─── */
+/* ─── Deck Panel: Enhanced "Binder" Aesthetic ─── */
 #deck-panel {
     width: 0;
     height: 100%;
     display: none;
-    background: #121212;
-    border-right: solid #3d3d3d;
+    background: #0a0a14;
+    border-right: heavy #c9a227;
 }
 
 #deck-panel.visible {
@@ -310,10 +304,12 @@ Footer > .footer--description {
 
 #deck-list-header {
     height: 3;
-    background: #1a1a1a;
-    border-bottom: solid #3d3d3d;
+    background: #1a1a2e;
+    border-bottom: heavy #c9a227;
     padding: 0 1;
     content-align: center middle;
+    color: #e6c84a;
+    text-style: bold;
 }
 
 #new-deck-btn {
@@ -327,19 +323,27 @@ Footer > .footer--description {
     scrollbar-color-hover: #e6c84a;
 }
 
+/* Enhanced deck list items */
 #deck-list > ListItem {
     padding: 0 1;
     height: auto;
     border-bottom: solid #1a1a1a;
+    background: #121218;
+    margin: 0 1;
 }
 
 #deck-list > ListItem:hover {
     background: #1a1a2e;
+    border: solid #5a5a6e;
+    margin: 0;
+    padding: 0 2;
 }
 
 #deck-list > ListItem.-highlight {
     background: #2a2a4e;
     border-left: heavy #c9a227;
+    margin: 0;
+    padding: 0 2;
 }
 
 #deck-list-footer {
@@ -347,5 +351,41 @@ Footer > .footer--description {
     padding: 0 1;
     background: #1a1a1a;
     border-top: solid #3d3d3d;
+}
+
+/* ─── Enhanced Buttons (for modals) ─── */
+Button {
+    background: #2a2a4e;
+    color: #e0e0e0;
+    border: solid #3d3d3d;
+}
+
+Button:hover {
+    background: #3a3a5e;
+    color: #ffffff;
+    border: solid #5d5d7d;
+}
+
+Button:focus {
+    border: heavy #c9a227;
+    text-style: bold;
+}
+
+Button.-primary {
+    background: #c9a227;
+    color: #0d0d0d;
+    border: solid #e6c84a;
+    text-style: bold;
+}
+
+Button.-primary:hover {
+    background: #e6c84a;
+    color: #000000;
+}
+
+/* ─── Enhanced Focus States ─── */
+ListView:focus ListItem.-highlight {
+    background: #3a3a6e;
+    border-left: heavy #e6c84a;
 }
 """
