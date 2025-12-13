@@ -109,10 +109,13 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
         self._viewing_deck_id: int | None = None  # Currently viewed deck
 
     def compose(self) -> ComposeResult:
-        # Header - Epic ASCII banner
+        # Header - Epic ASCII banner (enhanced styling)
         yield Static(
             "[#555]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/]\n"
-            "              [bold #c9a227]✦  M T G   S P E L L B O O K  ✦[/]              [#444]Loading...[/]\n"
+            "     [bold #c9a227]✦[/]  "
+            "[bold #e6c84a]M T G   S P E L L B O O K[/]  "
+            "[bold #c9a227]✦[/]     "
+            "[dim]Loading...[/]\n"
             "[#555]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/]",
             id="header-content",
         )
@@ -153,12 +156,16 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
         self._card_count = stats.get("unique_cards", 0)
         self._set_count = stats.get("total_sets", 0)
 
-        # Update header with stats
+        # Update header with stats (enhanced styling)
         header = self.query_one("#header-content", Static)
         header.update(
             "[#555]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/]\n"
-            f"              [bold #c9a227]✦  M T G   S P E L L B O O K  ✦[/]              "
-            f"[#666]{self._card_count:,} cards · {self._set_count} sets[/]\n"
+            f"     [bold #c9a227]✦[/]  "
+            f"[bold #e6c84a]M T G   S P E L L B O O K[/]  "
+            f"[bold #c9a227]✦[/]     "
+            f"[#e6c84a]{self._card_count:,}[/] [dim]cards[/] "
+            f"[#555]·[/] "
+            f"[#e6c84a]{self._set_count}[/] [dim]sets[/]\n"
             "[#555]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/]"
         )
 

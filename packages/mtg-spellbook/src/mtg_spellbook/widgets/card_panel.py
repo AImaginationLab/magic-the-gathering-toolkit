@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import re
 from io import BytesIO
 from typing import TYPE_CHECKING
 
@@ -109,6 +111,19 @@ class CardPanel(Vertical):
             pass
         return False
 
+    def show_loading(self, message: str = "Loading card details...") -> None:
+        """Show loading indicator on card panel."""
+        card_text = self.query_one(f"#{self._child_id('card-text')}", Static)
+        card_text.update(f"[dim #c9a227]✦ {message}[/]")
+
+    def show_art_loading(self) -> None:
+        """Show art loading indicator."""
+        try:
+            art_info = self.query_one(f"#{self._child_id('art-info')}", Static)
+            art_info.update("[dim #c9a227]🎨 Loading artwork...[/]")
+        except Exception:
+            pass
+
     def update_card(self, card: CardDetail | None) -> None:
         """Update the displayed card."""
         self._card = card
@@ -116,8 +131,11 @@ class CardPanel(Vertical):
         card_text = self.query_one(f"#{self._child_id('card-text')}", Static)
         if card:
             card_text.update(self._render_card_text(card))
+            # Update panel border based on rarity
+            self._update_rarity_border(card)
         else:
             card_text.update("[dim]Select a card to view details[/]")
+            self._reset_border()
 
         price_text = self.query_one(f"#{self._child_id('price-text')}", Static)
         if card and card.prices:
@@ -161,43 +179,53 @@ class CardPanel(Vertical):
         return "dim"
 
     def _render_card_text(self, card: CardDetail) -> str:
-        """Render card as rich text."""
+        """Render card as rich text with enhanced typography."""
         lines = []
 
+        # TITLE with enhanced color
         mana = prettify_mana(card.mana_cost) if card.mana_cost else ""
-        lines.append(f"[bold]{card.name}[/]  {mana}" if mana else f"[bold]{card.name}[/]")
-        lines.append(f"[italic dim]{card.type}[/]")
+        if mana:
+            lines.append(f"[bold #e6c84a]{card.name}[/]  {mana}")
+        else:
+            lines.append(f"[bold #e6c84a]{card.name}[/]")
+
+        # TYPE with color coding
+        type_color = self._get_type_color(card.type)
+        lines.append(f"[italic {type_color}]{card.type}[/]")
+
+        # Visual separator
+        lines.append("[dim]" + "─" * 50 + "[/]")
         lines.append("")
 
+        # CARD TEXT with keyword highlighting
         if card.text:
             text = prettify_mana(card.text).replace("\\n", "\n")
+            text = self._highlight_keywords(text)
             lines.append(text)
             lines.append("")
 
+        # FLAVOR TEXT with enhanced styling
         if card.flavor:
             flavor = card.flavor.replace("\\n", "\n")
-            lines.append(f'[dim italic]"{flavor}"[/]')
+            lines.append("[dim]" + "─" * 50 + "[/]")
+            lines.append(f'[dim italic #999]"{flavor}"[/]')
             lines.append("")
 
+        # STATS with icons
         if card.power is not None and card.toughness is not None:
-            lines.append(f"[bold]{card.power}/{card.toughness}[/]")
+            lines.append(f"[bold #c9a227]⚔  {card.power} / {card.toughness}[/]")
         elif card.loyalty is not None:
-            lines.append(f"[bold]Loyalty: {card.loyalty}[/]")
+            lines.append(f"[bold #c9a227]✦ Loyalty: {card.loyalty}[/]")
         elif card.defense is not None:
-            lines.append(f"[bold]Defense: {card.defense}[/]")
+            lines.append(f"[bold #c9a227]🛡 Defense: {card.defense}[/]")
 
+        # FOOTER with rarity icon
         footer_parts = []
         if card.set_code:
-            footer_parts.append(f"[cyan]{card.set_code.upper()}[/]")
+            footer_parts.append(f"[cyan]📦 {card.set_code.upper()}[/]")
         if card.rarity:
-            rarity_colors = {
-                "common": "white",
-                "uncommon": "cyan",
-                "rare": "yellow",
-                "mythic": "red",
-            }
-            color = rarity_colors.get(card.rarity.lower(), "white")
-            footer_parts.append(f"[{color}]{card.rarity.capitalize()}[/]")
+            rarity_icon, color = self._get_rarity_style(card.rarity)
+            footer_parts.append(f"[{color}]{rarity_icon} {card.rarity.capitalize()}[/]")
 
         if footer_parts:
             lines.append("")
@@ -205,36 +233,132 @@ class CardPanel(Vertical):
 
         return "\n".join(lines)
 
+    def _get_type_color(self, card_type: str) -> str:
+        """Get color based on card type."""
+        type_lower = card_type.lower()
+        if "creature" in type_lower:
+            return "#7ec850"  # Green
+        elif "instant" in type_lower or "sorcery" in type_lower:
+            return "#4a9fd8"  # Blue
+        elif "artifact" in type_lower:
+            return "#9a9a9a"  # Gray
+        elif "enchantment" in type_lower:
+            return "#b86fce"  # Purple
+        elif "planeswalker" in type_lower:
+            return "#e6c84a"  # Gold
+        elif "land" in type_lower:
+            return "#a67c52"  # Brown
+        return "#888"
+
+    def _get_rarity_style(self, rarity: str) -> tuple[str, str]:
+        """Get icon and color for rarity."""
+        rarity_styles = {
+            "common": ("●", "#888"),
+            "uncommon": ("◆", "#c0c0c0"),
+            "rare": ("♦", "#c9a227"),
+            "mythic": ("★", "#e65c00"),
+        }
+        return rarity_styles.get(rarity.lower(), ("○", "#666"))
+
+    def _update_rarity_border(self, card: CardDetail) -> None:
+        """Update panel border color based on card rarity."""
+        from textual.css.types import EdgeType
+
+        if not card.rarity:
+            return
+
+        rarity_lower = card.rarity.lower()
+        border_colors = {
+            "mythic": "#e65c00",  # Orange for mythics
+            "rare": "#c9a227",  # Gold for rares
+            "uncommon": "#c0c0c0",  # Silver for uncommons
+            "common": "#3d3d3d",  # Default gray
+        }
+
+        color = border_colors.get(rarity_lower, "#3d3d3d")
+        border_type: EdgeType = "heavy" if rarity_lower in ("mythic", "rare") else "round"
+
+        with contextlib.suppress(Exception):
+            self.styles.border = (border_type, color)
+
+    def _reset_border(self) -> None:
+        """Reset panel border to default."""
+        with contextlib.suppress(Exception):
+            self.styles.border = ("round", "#3d3d3d")
+
+    def _highlight_keywords(self, text: str) -> str:
+        """Highlight keyword abilities."""
+        keywords = [
+            "Flying", "First strike", "Double strike", "Deathtouch", "Haste",
+            "Hexproof", "Indestructible", "Lifelink", "Menace", "Reach",
+            "Trample", "Vigilance", "Ward", "Flash", "Defender", "Prowess",
+            "Protection", "Shroud", "Fear", "Intimidate", "Landwalk",
+            "Regenerate", "Banding", "Flanking", "Phasing", "Cumulative upkeep",
+            "Echo", "Fading", "Kicker", "Flashback", "Madness", "Morph",
+            "Storm", "Affinity", "Entwine", "Splice", "Offering", "Ninjutsu",
+            "Epic", "Convoke", "Dredge", "Transmute", "Bloodthirst", "Haunt",
+            "Replicate", "Forecast", "Graft", "Recover", "Ripple", "Split second",
+            "Suspend", "Vanishing", "Absorb", "Aura swap", "Delve", "Fortify",
+            "Frenzy", "Gravestorm", "Poisonous", "Transfigure", "Champion",
+            "Changeling", "Evoke", "Hideaway", "Prowl", "Reinforce", "Conspire",
+            "Persist", "Wither", "Retrace", "Devour", "Exalted", "Unearth",
+            "Cascade", "Annihilator", "Level up", "Rebound", "Infect",
+            "Battle cry", "Living weapon", "Undying", "Miracle", "Soulbond",
+            "Overload", "Scavenge", "Unleash", "Cipher", "Evolve", "Extort",
+            "Fuse", "Bestow", "Tribute", "Dethrone", "Hidden agenda", "Outlast",
+            "Prowess", "Dash", "Exploit", "Menace", "Renown", "Awaken", "Devoid",
+            "Ingest", "Myriad", "Surge", "Skulk", "Emerge", "Escalate", "Melee",
+            "Crew", "Fabricate", "Partner", "Undaunted", "Improvise", "Aftermath",
+            "Embalm", "Eternalize", "Afflict", "Ascend", "Assist", "Jump-start",
+            "Mentor", "Afterlife", "Riot", "Spectacle", "Escape", "Companion",
+            "Mutate", "Cycling", "Equip",
+        ]
+        for keyword in keywords:
+            # Case-insensitive replacement that preserves the original case
+            pattern = re.compile(r'\b' + re.escape(keyword) + r'\b', re.IGNORECASE)
+            text = pattern.sub(f"[bold #e6c84a]{keyword}[/]", text)
+        return text
+
     def _render_prices(self, card: CardDetail) -> str:
-        """Render price information."""
-        lines = [f"[bold]💰 {card.name}[/]", ""]
+        """Render price information with enhanced styling."""
+        lines = [f"[bold #e6c84a]💰 {card.name}[/]"]
+        lines.append("[dim]" + "─" * 40 + "[/]")
+        lines.append("")
 
         if card.prices:
             if card.prices.usd:
-                lines.append(f"  USD:      [green]${card.prices.usd:.2f}[/]")
+                lines.append(f"  [dim]USD:[/]      [green bold]${card.prices.usd:.2f}[/]")
             if card.prices.usd_foil:
-                lines.append(f"  Foil:     [yellow]${card.prices.usd_foil:.2f}[/]")
+                lines.append(f"  [dim]Foil:[/]     [yellow bold]${card.prices.usd_foil:.2f}[/] ✨")
             if card.prices.eur:
-                lines.append(f"  EUR:      [green]€{card.prices.eur:.2f}[/]")
+                lines.append(f"  [dim]EUR:[/]      [green bold]€{card.prices.eur:.2f}[/]")
+
+            lines.append("")
+            lines.append("[dim italic]Prices from Scryfall[/]")
         else:
             lines.append("  [dim]No price data available[/]")
 
         return "\n".join(lines)
 
     async def load_rulings(self, db: MTGDatabase, card_name: str) -> None:
-        """Load and display rulings for a card."""
+        """Load and display rulings for a card with enhanced styling."""
         rulings_text = self.query_one(f"#{self._child_id('rulings-text')}", Static)
 
         try:
             result = await cards.get_card_rulings(db, card_name)
             if result.rulings:
                 lines = [
-                    f"[bold]📜 {result.count} rulings for {result.card_name}[/]",
+                    f"[bold #e6c84a]📜 {result.card_name}[/]",
+                    f"[dim]{result.count} official rulings[/]",
+                    "[dim]" + "─" * 50 + "[/]",
                     "",
                 ]
-                for ruling in result.rulings:
-                    lines.append(f"[dim]{ruling.date}[/]")
-                    lines.append(f"  {ruling.text}")
+                for i, ruling in enumerate(result.rulings, 1):
+                    # Date with icon
+                    lines.append(f"[#c9a227]#{i}[/] [dim italic]{ruling.date}[/]")
+                    # Ruling text with highlighting
+                    ruling_text = self._highlight_keywords(ruling.text)
+                    lines.append(f"   {ruling_text}")
                     lines.append("")
                 rulings_text.update("\n".join(lines))
             else:
@@ -243,33 +367,39 @@ class CardPanel(Vertical):
             rulings_text.update(f"[red]Card not found: {card_name}[/]")
 
     async def load_legalities(self, db: MTGDatabase, card_name: str) -> None:
-        """Load and display format legalities."""
+        """Load and display format legalities with enhanced styling."""
         legal_text = self.query_one(f"#{self._child_id('legal-text')}", Static)
 
         try:
             result = await cards.get_card_legalities(db, card_name)
-            lines = [f"[bold]⚖️ {result.card_name}[/]", ""]
+            lines = [f"[bold #e6c84a]⚖️ {result.card_name}[/]"]
+            lines.append("[dim]" + "─" * 40 + "[/]")
+            lines.append("")
 
             formats = [
-                "standard",
-                "pioneer",
-                "modern",
-                "legacy",
-                "vintage",
-                "commander",
-                "pauper",
-                "brawl",
+                ("standard", "Standard"),
+                ("pioneer", "Pioneer"),
+                ("modern", "Modern"),
+                ("legacy", "Legacy"),
+                ("vintage", "Vintage"),
+                ("commander", "Commander"),
+                ("pauper", "Pauper"),
+                ("brawl", "Brawl"),
             ]
-            for fmt in formats:
+
+            for fmt, display_name in formats:
                 if fmt in result.legalities:
                     status = result.legalities[fmt]
                     if status == "Legal":
-                        icon, style = "✓", "green"
+                        icon, style = "✓", "green bold"
                     elif status == "Banned":
-                        icon, style = "✗", "red"
+                        icon, style = "✗", "red bold"
+                    elif status == "Restricted":
+                        icon, style = "⚠", "yellow bold"
                     else:
-                        icon, style = "~", "yellow"
-                    lines.append(f"  {icon} [{style}]{fmt.capitalize():12}[/] {status}")
+                        icon, style = "○", "dim"
+
+                    lines.append(f"  [{style}]{icon}[/] [dim]{display_name:12}[/] [{style}]{status}[/]")
 
             legal_text.update("\n".join(lines))
         except CardNotFoundError:
