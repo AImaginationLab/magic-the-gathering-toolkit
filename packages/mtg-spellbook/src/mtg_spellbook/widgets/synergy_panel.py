@@ -125,9 +125,7 @@ class SynergyPanel(Vertical):
             score_bar = self._render_score_bar(syn.score)
             score_color = self._score_color(syn.score)
 
-            lines.append(
-                f"  [{score_color}]{score_bar}[/] {icon} [bold]{syn.name}[/]{mana}"
-            )
+            lines.append(f"  [{score_color}]{score_bar}[/] {icon} [bold]{syn.name}[/]{mana}")
             lines.append(f"       [dim italic]{syn.reason}[/]")
             lines.append("")
 
