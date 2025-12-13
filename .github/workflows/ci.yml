@@ -58,6 +58,22 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras
 
+      - name: Cache databases
+        uses: actions/cache@v4
+        with:
+          path: resources/
+          key: mtg-databases-${{ hashFiles('packages/mtg-core/src/mtg_core/scripts/create_datasources.py') }}
+          restore-keys: |
+            mtg-databases-
+
+      - name: Download databases
+        run: |
+          if [ ! -f resources/AllPrintings.sqlite ]; then
+            uv run create-datasources
+          else
+            echo "Databases already cached"
+          fi
+
       - name: Run tests with coverage
         run: |
           uv run python -m pytest tests/ \
