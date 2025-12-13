@@ -190,7 +190,7 @@ class CardPanel(Vertical):
             lines.append(f"[bold #e6c84a]{card.name}[/]")
 
         # TYPE with color coding
-        type_color = self._get_type_color(card.type)
+        type_color = self._get_type_color(card.type or "")
         lines.append(f"[italic {type_color}]{card.type}[/]")
 
         # Visual separator

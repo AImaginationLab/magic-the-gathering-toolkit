@@ -53,7 +53,7 @@ class CommandHelpersMixin:
         mana = prettify_mana(card.mana_cost) if card.mana_cost else ""
 
         # Type icon
-        type_icon = self._get_type_icon(card.type)
+        type_icon = self._get_type_icon(card.type or "")
 
         # Build line
         parts = [f"[bold {name_color}]{card.name}[/]"]

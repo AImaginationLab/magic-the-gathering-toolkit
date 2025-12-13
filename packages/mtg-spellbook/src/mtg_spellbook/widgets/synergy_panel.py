@@ -35,13 +35,13 @@ class SynergyPanel(Vertical):
         mana = prettify_mana(card.mana_cost) if card.mana_cost else ""
 
         # Get type icon
-        type_icon = self._get_type_icon(card.type)
+        type_icon = self._get_type_icon(card.type or "")
 
         parts = [f"[bold #e6c84a]🎯 Synergies for:[/] [bold #e6c84a]{card.name}[/]"]
         if mana:
             parts.append(mana)
 
-        type_color = self._get_type_color(card.type)
+        type_color = self._get_type_color(card.type or "")
         type_part = f"[{type_color}]{type_icon} {card.type}[/]"
         if card.power is not None and card.toughness is not None:
             type_part += f" [bold #c9a227]⚔ {card.power}/{card.toughness}[/]"
