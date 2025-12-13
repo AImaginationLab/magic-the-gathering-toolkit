@@ -65,9 +65,11 @@ class DatabaseManager:
                 "Download AllPrintings.sqlite from https://mtgjson.com/downloads/all-files/"
             )
 
+        max_conn = self._settings.db_max_connections
+
         self._conn = await aiosqlite.connect(db_path)
         self._conn.row_factory = aiosqlite.Row
-        self._db = MTGDatabase(self._conn, self._cache)
+        self._db = MTGDatabase(self._conn, self._cache, max_connections=max_conn)
 
         # Scryfall database (optional)
         scryfall_path = self._settings.scryfall_db_path
@@ -75,9 +77,9 @@ class DatabaseManager:
             try:
                 self._scryfall_conn = await aiosqlite.connect(scryfall_path)
                 self._scryfall_conn.row_factory = aiosqlite.Row
-                self._scryfall = ScryfallDatabase(self._scryfall_conn)
+                self._scryfall = ScryfallDatabase(self._scryfall_conn, max_connections=max_conn)
                 logger.info("Scryfall database loaded from %s", scryfall_path)
-            except Exception:
+            except (aiosqlite.Error, OSError):
                 logger.exception("Failed to open Scryfall database at %s", scryfall_path)
                 # Clean up partial connection if needed
                 if self._scryfall_conn:
@@ -88,24 +90,27 @@ class DatabaseManager:
 
         # User database (always created, stores decks/collections)
         try:
-            self._user = UserDatabase(self._settings.user_db_path)
+            self._user = UserDatabase(self._settings.user_db_path, max_connections=max_conn)
             await self._user.connect()
-        except Exception:
+        except (aiosqlite.Error, OSError):
             logger.exception("Failed to open user database at %s", self._settings.user_db_path)
             self._user = None
 
         # Combo database (stores combo data)
         try:
-            self._combos = ComboDatabase(self._settings.combo_db_path)
+            self._combos = ComboDatabase(self._settings.combo_db_path, max_connections=max_conn)
             await self._combos.connect()
-        except Exception:
+        except (aiosqlite.Error, OSError):
             logger.exception("Failed to open combo database at %s", self._settings.combo_db_path)
             self._combos = None
 
     async def start_user_db(self) -> UserDatabase:
         """Explicitly start user database. Used by apps that need deck management."""
         if self._user is None:
-            self._user = UserDatabase(self._settings.user_db_path)
+            self._user = UserDatabase(
+                self._settings.user_db_path,
+                max_connections=self._settings.db_max_connections,
+            )
             await self._user.connect()
         return self._user
 

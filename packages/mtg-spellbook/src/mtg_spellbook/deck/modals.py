@@ -11,6 +11,8 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, Select, Static
 
+from ..ui.theme import ui_colors
+
 if TYPE_CHECKING:
     from mtg_core.data.database import DeckSummary
 
@@ -60,7 +62,7 @@ class NewDeckModal(ModalScreen[int | None]):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="new-deck-dialog"):
-            yield Label("[bold #c9a227]Create New Deck[/]")
+            yield Label(f"[bold {ui_colors.GOLD_DIM}]Create New Deck[/]")
             yield Label("Name:")
             yield Input(placeholder="My Awesome Deck", id="deck-name-input")
             yield Label("Format:")
@@ -254,7 +256,7 @@ class AddToDeckModal(ModalScreen[tuple[int, int] | None]):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="add-to-deck-dialog"):
-            yield Label("[bold #c9a227]Add to Deck[/]")
+            yield Label(f"[bold {ui_colors.GOLD_DIM}]Add to Deck[/]")
             yield Label(f"[bold]{self.card_name}[/]")
             yield Label("Deck:")
             if self.decks:

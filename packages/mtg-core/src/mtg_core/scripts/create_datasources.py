@@ -107,6 +107,7 @@ def create_mtgjson_indexes(db_path: Path) -> None:
         ("idx_cardLegalities_uuid", "cardLegalities", "uuid"),
         ("idx_cardLegalities_format", "cardLegalities", "format"),
         ("idx_cardRulings_uuid", "cardRulings", "uuid"),
+        ("idx_sets_release_date", "sets", "releaseDate"),
     ]
 
     created = 0
@@ -120,6 +121,87 @@ def create_mtgjson_indexes(db_path: Path) -> None:
     conn.commit()
     conn.close()
     console.print(f"[green]✓[/] Created {created} indexes")
+
+
+def create_fts5_index(db_path: Path) -> None:
+    """Create FTS5 full-text search index for card searches.
+
+    Creates a virtual table with porter tokenizer for stemming on:
+    - name: Card name
+    - type: Full type line
+    - text: Oracle text
+    """
+    console.print("[dim]Creating FTS5 full-text search index...[/]")
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    try:
+        # Create FTS5 virtual table with porter tokenizer for stemming
+        cursor.execute("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS cards_fts USING fts5(
+                uuid UNINDEXED,
+                name,
+                type,
+                text,
+                tokenize='porter unicode61'
+            )
+        """)
+
+        # Check if FTS table is already populated
+        cursor.execute("SELECT COUNT(*) FROM cards_fts")
+        fts_count = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(*) FROM cards")
+        cards_count = cursor.fetchone()[0]
+
+        if fts_count == 0 or fts_count < cards_count:
+            # Clear and repopulate the FTS table
+            console.print("[dim]Populating FTS5 index...[/]")
+            cursor.execute("DELETE FROM cards_fts")
+            cursor.execute("""
+                INSERT INTO cards_fts(uuid, name, type, text)
+                SELECT uuid, name, type, text FROM cards
+            """)
+            console.print(f"[green]✓[/] Indexed {cards_count:,} cards for full-text search")
+        else:
+            console.print("[green]✓[/] FTS5 index already populated")
+
+        # Create triggers to keep FTS in sync with cards table
+        cursor.execute("""
+            CREATE TRIGGER IF NOT EXISTS cards_fts_insert AFTER INSERT ON cards
+            BEGIN
+                INSERT INTO cards_fts(uuid, name, type, text)
+                VALUES (NEW.uuid, NEW.name, NEW.type, NEW.text);
+            END
+        """)
+
+        cursor.execute("""
+            CREATE TRIGGER IF NOT EXISTS cards_fts_update AFTER UPDATE ON cards
+            BEGIN
+                UPDATE cards_fts SET name = NEW.name, type = NEW.type, text = NEW.text
+                WHERE uuid = NEW.uuid;
+            END
+        """)
+
+        cursor.execute("""
+            CREATE TRIGGER IF NOT EXISTS cards_fts_delete AFTER DELETE ON cards
+            BEGIN
+                DELETE FROM cards_fts WHERE uuid = OLD.uuid;
+            END
+        """)
+
+        conn.commit()
+        console.print("[green]✓[/] FTS5 triggers created")
+
+    except sqlite3.OperationalError as e:
+        if "no such module: fts5" in str(e).lower():
+            console.print("[yellow]Warning:[/] FTS5 not available in this SQLite build")
+            console.print("[dim]Card text search will fall back to LIKE queries[/]")
+        else:
+            raise
+    finally:
+        conn.close()
 
 
 def download_mtgjson(output_dir: Path) -> Path:
@@ -145,6 +227,9 @@ def download_mtgjson(output_dir: Path) -> Path:
 
     # Create indexes for better query performance
     create_mtgjson_indexes(output_file)
+
+    # Create FTS5 full-text search index
+    create_fts5_index(output_file)
 
     # Check file size
     size_mb = output_file.stat().st_size / (1024 * 1024)
@@ -247,6 +332,9 @@ def create_scryfall_db(json_path: Path, db_path: Path, updated_at: str) -> None:
         "CREATE INDEX idx_cards_illustration_priority ON cards(illustration_id, art_priority, set_code)"
     )
     cursor.execute("CREATE INDEX idx_cards_name_illustration ON cards(name, illustration_id)")
+    cursor.execute(
+        "CREATE INDEX idx_cards_price_usd ON cards(price_usd) WHERE price_usd IS NOT NULL"
+    )
 
     cursor.execute("""
         CREATE TABLE meta (
@@ -480,6 +568,24 @@ def create_indexes(
         raise typer.Exit(1)
 
     create_mtgjson_indexes(db_path)
+    console.print("\n[bold green]Done![/]")
+
+
+@app.command("create-fts")
+def create_fts(
+    db_path: Annotated[
+        Path,
+        typer.Argument(help="Path to AllPrintings.sqlite"),
+    ],
+) -> None:
+    """Create FTS5 full-text search index on an existing MTGJson database."""
+    console.print("[bold]Creating FTS5 index on MTGJson database[/]\n")
+
+    if not db_path.exists():
+        console.print(f"[red]Error:[/] Database not found: {db_path}")
+        raise typer.Exit(1)
+
+    create_fts5_index(db_path)
     console.print("\n[bold green]Done![/]")
 
 

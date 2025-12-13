@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 from textual.app import ComposeResult
 from textual.widgets import Static
 
+from ..ui.theme import ui_colors
+
 if TYPE_CHECKING:
     from ..pagination import PaginationState
 
@@ -72,19 +74,17 @@ class PaginationHeader(Static):
         content = self.query_one("#pagination-content", Static)
 
         if self._pagination is None or self._pagination.total_items == 0:
-            content.update(f"[bold #e6c84a]{self._title} (0)[/]")
+            content.update(f"[bold {ui_colors.GOLD}]{self._title} (0)[/]")
             return
 
         p = self._pagination
 
         if p.total_pages <= 1:
             # Single page - simple display
-            content.update(f"[bold #e6c84a]{self._title} ({p.total_items})[/]")
+            content.update(f"[bold {ui_colors.GOLD}]{self._title} ({p.total_items})[/]")
         else:
             # Multiple pages - show full pagination
-            info = (
-                f"[bold #e6c84a]{self._title}: {p.start_index}-{p.end_index} of {p.total_items}[/]"
-            )
+            info = f"[bold {ui_colors.GOLD}]{self._title}: {p.start_index}-{p.end_index} of {p.total_items}[/]"
             position = f"[#888]Page {p.current_page}/{p.total_pages}[/]"
             controls = "[dim]n:Next p:Prev g:GoTo[/]"
 
@@ -96,4 +96,4 @@ class PaginationHeader(Static):
     def show_loading(self) -> None:
         """Show loading state."""
         content = self.query_one("#pagination-content", Static)
-        content.update(f"[bold #e6c84a]{self._title}[/]  [yellow]Loading...[/]")
+        content.update(f"[bold {ui_colors.GOLD}]{self._title}[/]  [yellow]Loading...[/]")

@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+from collections.abc import AsyncIterator, Sequence
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import aiosqlite
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -71,9 +71,10 @@ class ComboCardRow:
 class ComboDatabase:
     """SQLite database for combo data."""
 
-    def __init__(self, db_path: Path):
+    def __init__(self, db_path: Path, max_connections: int = 5):
         self.db_path = db_path
         self._conn: aiosqlite.Connection | None = None
+        self._semaphore = asyncio.Semaphore(max_connections)
 
     @property
     def conn(self) -> aiosqlite.Connection:
@@ -81,6 +82,14 @@ class ComboDatabase:
         if self._conn is None:
             raise RuntimeError("ComboDatabase not connected. Call connect() first.")
         return self._conn
+
+    @asynccontextmanager
+    async def _execute(
+        self, query: str, params: Sequence[Any] = ()
+    ) -> AsyncIterator[aiosqlite.Cursor]:
+        """Execute a query with concurrency limiting."""
+        async with self._semaphore, self.conn.execute(query, params) as cursor:
+            yield cursor
 
     async def connect(self) -> None:
         """Connect and initialize schema."""
@@ -190,26 +199,53 @@ class ComboDatabase:
     async def find_combos_by_card(
         self, card_name: str
     ) -> list[tuple[ComboRow, list[ComboCardRow]]]:
-        """Find all combos containing a specific card."""
+        """Find all combos containing a specific card.
+
+        Uses a single SQL query with JOINs to efficiently fetch combos and their
+        cards without loading all combos into memory.
+        """
         card_name_lower = card_name.lower()
 
-        # Find combo IDs containing this card
-        async with self.conn.execute(
-            """
-            SELECT DISTINCT combo_id FROM combo_cards
-            WHERE card_name_lower = ?
-            """,
-            (card_name_lower,),
-        ) as cursor:
-            combo_ids = [row["combo_id"] for row in await cursor.fetchall()]
+        # Single query to get all combo data for combos containing this card
+        query = """
+            SELECT c.id, c.combo_type, c.description, c.colors,
+                   cc.card_name, cc.role, cc.position
+            FROM combos c
+            JOIN combo_cards cc ON c.id = cc.combo_id
+            WHERE c.id IN (
+                SELECT DISTINCT combo_id FROM combo_cards
+                WHERE card_name_lower = ?
+            )
+            ORDER BY c.id, cc.position
+        """
 
-        results = []
-        for combo_id in combo_ids:
-            combo_data = await self.get_combo(combo_id)
-            if combo_data:
-                results.append(combo_data)
+        async with self.conn.execute(query, (card_name_lower,)) as cursor:
+            rows = await cursor.fetchall()
 
-        return results
+        # Group rows by combo
+        combos_map: dict[str, tuple[ComboRow, list[ComboCardRow]]] = {}
+        for row in rows:
+            combo_id = row["id"]
+            if combo_id not in combos_map:
+                combos_map[combo_id] = (
+                    ComboRow(
+                        id=combo_id,
+                        combo_type=row["combo_type"],
+                        description=row["description"],
+                        colors=json.loads(row["colors"]),
+                    ),
+                    [],
+                )
+            combos_map[combo_id][1].append(
+                ComboCardRow(
+                    combo_id=combo_id,
+                    card_name=row["card_name"],
+                    role=row["role"],
+                    position=row["position"],
+                )
+            )
+
+        return list(combos_map.values())
 
     async def find_combos_in_deck(
         self, deck_card_names: list[str]
@@ -219,48 +255,67 @@ class ComboDatabase:
     ]:
         """Find complete and potential combos in a deck.
 
+        Uses SQL filtering to only load combos that have at least one card present
+        in the deck, rather than loading all combos and filtering in Python.
+
         Returns:
             Tuple of (complete_combos, potential_combos_with_missing)
             where potential_combos_with_missing is (combo, cards, missing_card_names)
         """
+        if not deck_card_names:
+            return [], []
+
         deck_names_lower = {name.lower() for name in deck_card_names}
 
-        # Get all combos
-        async with self.conn.execute("SELECT * FROM combos") as cursor:
-            combo_rows = await cursor.fetchall()
+        # Build parameterized query for deck card names
+        placeholders = ",".join("?" * len(deck_names_lower))
+        deck_names_list = list(deck_names_lower)
 
+        # Find combos that have at least one card in the deck
+        # This filters at the SQL level instead of loading all combos
+        query = f"""
+            SELECT c.id, c.combo_type, c.description, c.colors,
+                   cc.card_name, cc.card_name_lower, cc.role, cc.position
+            FROM combos c
+            JOIN combo_cards cc ON c.id = cc.combo_id
+            WHERE c.id IN (
+                SELECT DISTINCT combo_id FROM combo_cards
+                WHERE card_name_lower IN ({placeholders})
+            )
+            ORDER BY c.id, cc.position
+        """
+
+        async with self.conn.execute(query, deck_names_list) as cursor:
+            rows = await cursor.fetchall()
+
+        # Group rows by combo and track card presence
+        combos_data: dict[str, tuple[ComboRow, list[ComboCardRow]]] = {}
+        for row in rows:
+            combo_id = row["id"]
+            if combo_id not in combos_data:
+                combos_data[combo_id] = (
+                    ComboRow(
+                        id=combo_id,
+                        combo_type=row["combo_type"],
+                        description=row["description"],
+                        colors=json.loads(row["colors"]),
+                    ),
+                    [],
+                )
+            combos_data[combo_id][1].append(
+                ComboCardRow(
+                    combo_id=combo_id,
+                    card_name=row["card_name"],
+                    role=row["role"],
+                    position=row["position"],
+                )
+            )
+
+        # Categorize combos as complete or potential
         complete: list[tuple[ComboRow, list[ComboCardRow]]] = []
         potential: list[tuple[ComboRow, list[ComboCardRow], list[str]]] = []
 
-        for combo_row in combo_rows:
-            combo = ComboRow(
-                id=combo_row["id"],
-                combo_type=combo_row["combo_type"],
-                description=combo_row["description"],
-                colors=json.loads(combo_row["colors"]),
-            )
-
-            # Get cards for this combo
-            async with self.conn.execute(
-                """
-                SELECT * FROM combo_cards
-                WHERE combo_id = ?
-                ORDER BY position
-                """,
-                (combo.id,),
-            ) as cursor:
-                card_rows = await cursor.fetchall()
-
-            cards = [
-                ComboCardRow(
-                    combo_id=r["combo_id"],
-                    card_name=r["card_name"],
-                    role=r["role"],
-                    position=r["position"],
-                )
-                for r in card_rows
-            ]
-
+        for combo, cards in combos_data.values():
             combo_card_names = {c.card_name.lower() for c in cards}
             present = combo_card_names & deck_names_lower
             missing = combo_card_names - deck_names_lower
@@ -268,7 +323,6 @@ class ComboDatabase:
             if not missing:
                 complete.append((combo, cards))
             elif len(missing) <= 2 and len(present) >= 1:
-                # Get original names for missing cards
                 missing_names = [c.card_name for c in cards if c.card_name.lower() in missing]
                 potential.append((combo, cards, missing_names))
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Any
 
 from textual import work
@@ -127,11 +128,16 @@ class CardCommandsMixin:
 
         panel = self.query_one(panel_id, CardPanel)
 
+        tasks = [panel.load_printings(self._scryfall, card.name)]
         if self._db:
-            await panel.load_rulings(self._db, card.name)
-            await panel.load_legalities(self._db, card.name)
+            tasks.extend(
+                [
+                    panel.load_rulings(self._db, card.name),
+                    panel.load_legalities(self._db, card.name),
+                ]
+            )
 
-        await panel.load_printings(self._scryfall, card.name)
+        await asyncio.gather(*tasks, return_exceptions=True)
 
     @work
     async def lookup_random(self) -> None:
