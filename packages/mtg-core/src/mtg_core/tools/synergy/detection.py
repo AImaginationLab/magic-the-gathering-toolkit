@@ -84,8 +84,7 @@ def find_combos_for_card(card_name: str) -> list[Combo]:
 
     for combo_data in KNOWN_COMBOS:
         combo_card_names = [
-            normalize_card_name(c[0] if isinstance(c, tuple) else c)
-            for c in combo_data["cards"]
+            normalize_card_name(c[0] if isinstance(c, tuple) else c) for c in combo_data["cards"]
         ]
         if card_name_lower in combo_card_names:
             found_combos.append(combo_to_model(combo_data))
@@ -108,12 +107,9 @@ def find_combos_in_deck(
 
     for combo_data in KNOWN_COMBOS:
         combo_card_names = [
-            normalize_card_name(c[0] if isinstance(c, tuple) else c)
-            for c in combo_data["cards"]
+            normalize_card_name(c[0] if isinstance(c, tuple) else c) for c in combo_data["cards"]
         ]
-        combo_card_originals = [
-            c[0] if isinstance(c, tuple) else c for c in combo_data["cards"]
-        ]
+        combo_card_originals = [c[0] if isinstance(c, tuple) else c for c in combo_data["cards"]]
 
         present = set(combo_card_names) & deck_card_names
         missing = set(combo_card_names) - deck_card_names
@@ -144,9 +140,7 @@ def _combo_row_to_model(combo: ComboRow, cards: list[ComboCardRow]) -> Combo:
     )
 
 
-async def find_combos_for_card_db(
-    combo_db: ComboDatabase, card_name: str
-) -> list[Combo]:
+async def find_combos_for_card_db(combo_db: ComboDatabase, card_name: str) -> list[Combo]:
     """Find all combos involving a specific card using the database."""
     results = await combo_db.find_combos_by_card(card_name)
     return [_combo_row_to_model(combo, cards) for combo, cards in results]

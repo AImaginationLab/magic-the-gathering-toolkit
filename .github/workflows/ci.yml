@@ -60,7 +60,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          uv run pytest tests/ \
+          uv run python -m pytest tests/ \
             --cov=packages/mtg-core/src \
             --cov=packages/mtg-mcp/src \
             --cov=packages/mtg-spellbook/src \

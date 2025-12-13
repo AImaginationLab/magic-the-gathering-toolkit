@@ -83,9 +83,7 @@ class CardCache:
         """Get cache statistics."""
         async with self._lock:
             now = time.monotonic()
-            expired_count = sum(
-                1 for entry in self._cache.values() if self._is_expired(entry, now)
-            )
+            expired_count = sum(1 for entry in self._cache.values() if self._is_expired(entry, now))
             return {
                 "size": len(self._cache),
                 "max_size": self.max_size,
@@ -102,9 +100,7 @@ class CardCache:
     def _evict_expired(self) -> int:
         """Remove expired entries. Must be called with lock held."""
         now = time.monotonic()
-        expired_keys = [
-            key for key, entry in self._cache.items() if self._is_expired(entry, now)
-        ]
+        expired_keys = [key for key, entry in self._cache.items() if self._is_expired(entry, now)]
         for key in expired_keys:
             del self._cache[key]
         return len(expired_keys)

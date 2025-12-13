@@ -53,9 +53,7 @@ async def search_synergies(
             if normalized not in seen_names:
                 seen_names.add(normalized)
                 results.append(
-                    create_synergy_result(
-                        card, source_card, synergy_type, reason, score_modifier
-                    )
+                    create_synergy_result(card, source_card, synergy_type, reason, score_modifier)
                 )
 
     return results

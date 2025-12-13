@@ -15,6 +15,7 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
+    "pytest-cov>=4.0",
     "ruff>=0.4",
     "mypy>=1.10",
 ]
@@ -55,4 +56,5 @@ filterwarnings = [
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
+    "pytest-cov>=4.0",
 ]

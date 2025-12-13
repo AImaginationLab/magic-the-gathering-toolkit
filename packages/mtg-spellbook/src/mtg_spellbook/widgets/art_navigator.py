@@ -37,9 +37,7 @@ class CardImageWidget(Static):
         self.remove_children()
 
         if not HAS_IMAGE_SUPPORT:
-            self.mount(
-                Static("[dim]Image display not available\n(install textual-image)[/]")
-            )
+            self.mount(Static("[dim]Image display not available\n(install textual-image)[/]"))
             return
 
         try:
@@ -67,7 +65,7 @@ class ArtNavigator(Vertical, can_focus=True):
     Press down to focus, then left/right to navigate between printings.
     """
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[Binding]] = [  # type: ignore[assignment]
         Binding("left", "prev_art", "← Prev", show=False),
         Binding("right", "next_art", "→ Next", show=False),
         Binding("up", "release_focus", "↑ Back", show=False),

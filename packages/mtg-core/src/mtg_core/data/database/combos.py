@@ -102,9 +102,7 @@ class ComboDatabase:
         """Create tables if they don't exist."""
         await self.conn.executescript(COMBO_SCHEMA_SQL)
 
-        async with self.conn.execute(
-            "SELECT version FROM combo_schema_version LIMIT 1"
-        ) as cursor:
+        async with self.conn.execute("SELECT version FROM combo_schema_version LIMIT 1") as cursor:
             row = await cursor.fetchone()
             if row is None:
                 await self.conn.execute(
@@ -140,9 +138,7 @@ class ComboDatabase:
         )
 
         # Delete existing cards for this combo
-        await self.conn.execute(
-            "DELETE FROM combo_cards WHERE combo_id = ?", (combo_id,)
-        )
+        await self.conn.execute("DELETE FROM combo_cards WHERE combo_id = ?", (combo_id,))
 
         # Insert cards
         for position, (name, role) in enumerate(cards):
@@ -158,9 +154,7 @@ class ComboDatabase:
 
     async def get_combo(self, combo_id: str) -> tuple[ComboRow, list[ComboCardRow]] | None:
         """Get a combo by ID with its cards."""
-        async with self.conn.execute(
-            "SELECT * FROM combos WHERE id = ?", (combo_id,)
-        ) as cursor:
+        async with self.conn.execute("SELECT * FROM combos WHERE id = ?", (combo_id,)) as cursor:
             row = await cursor.fetchone()
             if row is None:
                 return None

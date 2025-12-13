@@ -63,9 +63,10 @@ def download_file(url: str, dest: Path, description: str) -> None:
     """Download a file with progress bar."""
     # Use longer read timeout for large file downloads
     timeout = httpx.Timeout(connect=30.0, read=300.0, write=30.0, pool=30.0)
-    with httpx.Client(follow_redirects=True, timeout=timeout) as client, client.stream(
-        "GET", url
-    ) as response:
+    with (
+        httpx.Client(follow_redirects=True, timeout=timeout) as client,
+        client.stream("GET", url) as response,
+    ):
         response.raise_for_status()
         total = int(response.headers.get("content-length", 0))
 
@@ -242,7 +243,9 @@ def create_scryfall_db(json_path: Path, db_path: Path, updated_at: str) -> None:
     cursor.execute("CREATE INDEX idx_cards_name ON cards(name)")
     cursor.execute("CREATE INDEX idx_cards_set_code ON cards(set_code)")
     cursor.execute("CREATE INDEX idx_cards_name_set ON cards(name, set_code)")
-    cursor.execute("CREATE INDEX idx_cards_illustration_priority ON cards(illustration_id, art_priority, set_code)")
+    cursor.execute(
+        "CREATE INDEX idx_cards_illustration_priority ON cards(illustration_id, art_priority, set_code)"
+    )
     cursor.execute("CREATE INDEX idx_cards_name_illustration ON cards(name, illustration_id)")
 
     cursor.execute("""
@@ -281,9 +284,7 @@ def create_scryfall_db(json_path: Path, db_path: Path, updated_at: str) -> None:
     cursor.execute(
         "INSERT INTO meta (key, value) VALUES (?, ?)", ("scryfall_updated_at", updated_at)
     )
-    cursor.execute(
-        "INSERT INTO meta (key, value) VALUES (?, ?)", ("card_count", str(len(cards)))
-    )
+    cursor.execute("INSERT INTO meta (key, value) VALUES (?, ?)", ("card_count", str(len(cards))))
 
     conn.commit()
     conn.close()
@@ -427,12 +428,13 @@ def main_callback(
         download_scryfall(output_dir_resolved)
 
     if not skip_combos:
+
         async def _init_combos() -> None:
             settings = get_settings()
             db_path = settings.combo_db_path
             db_path.parent.mkdir(parents=True, exist_ok=True)
 
-            console.print(f"\n[bold]Initializing Combo Database[/]")
+            console.print("\n[bold]Initializing Combo Database[/]")
             console.print(f"Output: [cyan]{db_path}[/]\n")
 
             combo_db = ComboDatabase(db_path)
@@ -523,7 +525,7 @@ def init_combos(
         db_path = output_path or get_settings().combo_db_path
         db_path.parent.mkdir(parents=True, exist_ok=True)
 
-        console.print(f"[bold]Initializing Combo Database[/]")
+        console.print("[bold]Initializing Combo Database[/]")
         console.print(f"Output: [cyan]{db_path}[/]\n")
 
         # Connect to database

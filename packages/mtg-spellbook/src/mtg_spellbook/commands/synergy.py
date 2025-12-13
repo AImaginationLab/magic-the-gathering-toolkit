@@ -39,17 +39,13 @@ class SynergyCommandsMixin:
         self._synergy_info = {}
 
         try:
-            source_card = await cards.get_card(
-                self._db, self._scryfall, name=card_name
-            )
+            source_card = await cards.get_card(self._db, self._scryfall, name=card_name)
         except CardNotFoundError:
             self._show_message(f"[red]Card not found: {card_name}[/]")
             self._synergy_mode = False
             return
 
-        result = await synergy.find_synergies(
-            self._db, card_name=card_name, max_results=50
-        )
+        result = await synergy.find_synergies(self._db, card_name=card_name, max_results=50)
 
         if not result.synergies:
             self._show_message(f"[yellow]No synergies found for {card_name}[/]")
@@ -66,16 +62,12 @@ class SynergyCommandsMixin:
         self._current_results = []
         for syn in result.synergies[:25]:
             try:
-                detail = await cards.get_card(
-                    self._db, self._scryfall, name=syn.name
-                )
+                detail = await cards.get_card(self._db, self._scryfall, name=syn.name)
                 self._current_results.append(detail)
             except CardNotFoundError:
                 pass
 
-        self._update_synergy_results(
-            self._current_results, card_name, len(result.synergies)
-        )
+        self._update_synergy_results(self._current_results, card_name, len(result.synergies))
         self._show_source_card(source_card)
 
         if self._current_results:
@@ -142,16 +134,14 @@ class SynergyCommandsMixin:
         source_panel.update_card(card)
         self.query_one("#source-card-panel").add_class("visible")
         self.query_one("#card-panel").add_class("synergy-mode")
-        self._load_source_extras(card)
+        self._load_source_extras(card)  # type: ignore[no-untyped-call]
 
     @work
     async def _load_source_extras(self, card: Any) -> None:
         """Load extras for the source card panel."""
         await self._load_card_extras(card, "#source-card-panel")
 
-    async def _load_card_extras(
-        self, card: Any, panel_id: str = "#card-panel"
-    ) -> None:
+    async def _load_card_extras(self, card: Any, panel_id: str = "#card-panel") -> None:
         """Load rulings, legalities, and printings for a card."""
         ...
 
@@ -179,9 +169,7 @@ class SynergyCommandsMixin:
                 lines.append("")
 
         if result.potential_combos:
-            lines.append(
-                f"[bold yellow]Potential Combos ({len(result.potential_combos)}):[/]"
-            )
+            lines.append(f"[bold yellow]Potential Combos ({len(result.potential_combos)}):[/]")
             for combo in result.potential_combos:
                 missing = result.missing_cards.get(combo.id, [])
                 lines.append(f"  [bold cyan]{combo.id}[/] [{combo.combo_type}]")

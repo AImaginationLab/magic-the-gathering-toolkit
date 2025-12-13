@@ -6,7 +6,6 @@ from typing import Annotated, Any
 
 from mcp.server.fastmcp import FastMCP
 
-from mtg_mcp_server.context import ToolContext, get_app
 from mtg_core.data.models import (
     AnalyzeDeckInput,
     ColorAnalysisResult,
@@ -19,6 +18,7 @@ from mtg_core.data.models import (
     ValidateDeckInput,
 )
 from mtg_core.tools import deck
+from mtg_mcp_server.context import ToolContext, get_app
 
 
 def _parse_deck_cards(cards_data: list[dict[str, Any]]) -> list[DeckCardInput]:

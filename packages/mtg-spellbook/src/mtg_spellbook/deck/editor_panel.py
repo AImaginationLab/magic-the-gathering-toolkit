@@ -19,9 +19,7 @@ if TYPE_CHECKING:
 class DeckCardItem(ListItem):
     """A single card in the deck editor."""
 
-    def __init__(
-        self, card_name: str, quantity: int, mana_cost: str | None = None
-    ) -> None:
+    def __init__(self, card_name: str, quantity: int, mana_cost: str | None = None) -> None:
         super().__init__()
         self.card_name = card_name
         self.quantity = quantity
@@ -35,7 +33,7 @@ class DeckCardItem(ListItem):
 class DeckEditorPanel(Vertical):
     """Panel for editing a deck."""
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[Binding]] = [  # type: ignore[assignment]
         Binding("plus", "increase_qty", "+1"),
         Binding("equal", "increase_qty", "+1"),
         Binding("minus", "decrease_qty", "-1"),
@@ -105,7 +103,7 @@ class DeckEditorPanel(Vertical):
         curve: dict[int, int] = {}
         for card in deck.mainboard:
             if card.card:
-                cmc = int(card.card.mana_value or 0)
+                cmc = int(card.card.cmc or 0)
                 curve[cmc] = curve.get(cmc, 0) + card.quantity
 
         if curve:

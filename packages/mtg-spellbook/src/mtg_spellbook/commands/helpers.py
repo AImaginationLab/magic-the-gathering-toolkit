@@ -30,9 +30,7 @@ class CommandHelpersMixin:
 
         for card in results:
             mana = prettify_mana(card.mana_cost) if card.mana_cost else ""
-            label = (
-                f"[bold]{card.name}[/]  {mana}" if mana else f"[bold]{card.name}[/]"
-            )
+            label = f"[bold]{card.name}[/]  {mana}" if mana else f"[bold]{card.name}[/]"
             results_list.append(ListItem(Label(label)))
 
         self._update_results_header(f"Results ({len(results)})")

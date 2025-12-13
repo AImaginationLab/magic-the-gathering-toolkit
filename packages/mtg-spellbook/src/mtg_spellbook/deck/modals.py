@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class NewDeckModal(ModalScreen[int | None]):
     """Modal for creating a new deck."""
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[Binding]] = [  # type: ignore[assignment]
         Binding("escape", "cancel", "Cancel"),
     ]
 
@@ -102,9 +102,7 @@ class NewDeckModal(ModalScreen[int | None]):
             self.app.notify("Please enter a deck name", severity="error")
             return
 
-        format_val = (
-            format_select.value if format_select.value != Select.BLANK else None
-        )
+        format_val = format_select.value if format_select.value != Select.BLANK else None
 
         deck_manager = await self.app._ctx.get_deck_manager()  # type: ignore
         if deck_manager:
@@ -124,7 +122,7 @@ class NewDeckModal(ModalScreen[int | None]):
 class ConfirmDeleteModal(ModalScreen[bool]):
     """Modal for confirming deck deletion."""
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[Binding]] = [  # type: ignore[assignment]
         Binding("escape", "cancel", "Cancel"),
         Binding("y", "confirm", "Yes"),
         Binding("n", "cancel", "No"),
@@ -208,7 +206,7 @@ class ConfirmDeleteModal(ModalScreen[bool]):
 class AddToDeckModal(ModalScreen[tuple[int, int] | None]):
     """Modal for adding a card to a deck."""
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[Binding]] = [  # type: ignore[assignment]
         Binding("escape", "cancel", "Cancel"),
     ]
 
@@ -296,6 +294,7 @@ class AddToDeckModal(ModalScreen[tuple[int, int] | None]):
         if deck_id == Select.BLANK:
             self.app.notify("Please select a deck", severity="error")
             return
+        assert isinstance(deck_id, int)
 
         try:
             quantity = int(qty_input.value)
@@ -308,15 +307,11 @@ class AddToDeckModal(ModalScreen[tuple[int, int] | None]):
         if deck_manager:
             result = await deck_manager.add_card(deck_id, self.card_name, quantity)
             if result.success:
-                deck_name = next(
-                    (d.name for d in self.decks if d.id == deck_id), "deck"
-                )
+                deck_name = next((d.name for d in self.decks if d.id == deck_id), "deck")
                 self.app.notify(f"Added {quantity}x {self.card_name} to {deck_name}")
                 self.dismiss((deck_id, quantity))
             else:
-                self.app.notify(
-                    result.error or "Failed to add card", severity="error"
-                )
+                self.app.notify(result.error or "Failed to add card", severity="error")
                 self.dismiss(None)
         else:
             self.app.notify("Could not add card", severity="error")

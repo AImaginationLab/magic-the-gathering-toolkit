@@ -115,4 +115,3 @@ class CommandRouterMixin:
                 self._show_message("[yellow]Usage: card <name>[/]")
         else:
             self.lookup_card(query)
-

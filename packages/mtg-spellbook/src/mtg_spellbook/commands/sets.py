@@ -37,10 +37,7 @@ class SetCommandsMixin:
         results_list.clear()
 
         for s in result.sets[:50]:
-            label = (
-                f"[cyan]{s.code.upper()}[/] {s.name} "
-                f"[dim]({s.release_date or '?'})[/]"
-            )
+            label = f"[cyan]{s.code.upper()}[/] {s.name} [dim]({s.release_date or '?'})[/]"
             results_list.append(ListItem(Label(label)))
 
         self._update_results_header(f"Sets ({len(result.sets)})")

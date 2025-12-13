@@ -79,8 +79,7 @@ class SynergyPanel(Vertical):
             mana = f" {prettify_mana(syn.mana_cost)}" if syn.mana_cost else ""
             score_bar = "●" * int(syn.score * 5) + "○" * (5 - int(syn.score * 5))
             lines.append(
-                f"  [{self._score_color(syn.score)}]{score_bar}[/] "
-                f"{icon} [cyan]{syn.name}[/]{mana}"
+                f"  [{self._score_color(syn.score)}]{score_bar}[/] {icon} [cyan]{syn.name}[/]{mana}"
             )
             lines.append(f"         [dim]{syn.reason}[/]")
 

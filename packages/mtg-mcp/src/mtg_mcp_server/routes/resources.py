@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 
 from mcp.server.fastmcp import FastMCP
 
-from mtg_mcp_server.context import ToolContext, get_app
 from mtg_core.tools import cards, sets
+from mtg_mcp_server.context import ToolContext, get_app
 
 if TYPE_CHECKING:
     from pydantic import BaseModel

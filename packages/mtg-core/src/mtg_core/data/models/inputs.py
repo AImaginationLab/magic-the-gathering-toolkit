@@ -29,7 +29,9 @@ class SearchCardsInput(BaseModel):
     text: str | None = Field(default=None, description="Search in card text")
     keywords: list[str] | None = Field(default=None, description="Filter by keywords")
     format_legal: Format | None = Field(default=None, description="Filter by format legality")
-    sort_by: SortField | None = Field(default=None, description="Sort by field (name, cmc, color, rarity, type)")
+    sort_by: SortField | None = Field(
+        default=None, description="Sort by field (name, cmc, color, rarity, type)"
+    )
     sort_order: SortOrder = Field(default="asc", description="Sort order (asc, desc)")
     page: int = Field(default=1, ge=1, description="Page number")
     page_size: int = Field(default=25, ge=1, le=100, description="Results per page")

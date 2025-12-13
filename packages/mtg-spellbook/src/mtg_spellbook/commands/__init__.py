@@ -19,7 +19,7 @@ from .sets import SetCommandsMixin
 from .synergy import SynergyCommandsMixin
 
 
-class CommandHandlersMixin(
+class CommandHandlersMixin(  # type: ignore[misc]  # Mixin stubs vs @work-decorated implementations
     CommandRouterMixin,
     CardCommandsMixin,
     SynergyCommandsMixin,

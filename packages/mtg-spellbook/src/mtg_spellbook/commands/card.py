@@ -81,9 +81,7 @@ class CardCommandsMixin:
 
         for summary in summaries[:25]:
             try:
-                detail = await cards.get_card(
-                    self._db, self._scryfall, name=summary.name
-                )
+                detail = await cards.get_card(self._db, self._scryfall, name=summary.name)
                 self._current_results.append(detail)
             except CardNotFoundError:
                 pass
@@ -94,9 +92,7 @@ class CardCommandsMixin:
             self._update_card_panel(self._current_results[0])
             await self._load_card_extras(self._current_results[0])
 
-    async def _load_card_extras(
-        self, card: CardDetail, panel_id: str = "#card-panel"
-    ) -> None:
+    async def _load_card_extras(self, card: CardDetail, panel_id: str = "#card-panel") -> None:
         """Load rulings, legalities, and printings for a card.
 
         Args:

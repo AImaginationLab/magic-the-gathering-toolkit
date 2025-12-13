@@ -63,9 +63,7 @@ class CardPanel(Vertical):
                     id=self._child_id("art-navigator"),
                     classes="-art-navigator",
                 )
-            with TabPane(
-                "📜 Rulings", id=self._child_id("tab-rulings"), classes="-tab-rulings"
-            ):
+            with TabPane("📜 Rulings", id=self._child_id("tab-rulings"), classes="-tab-rulings"):
                 yield VerticalScroll(
                     Static(
                         "[dim]No rulings loaded[/]",
@@ -73,17 +71,13 @@ class CardPanel(Vertical):
                         classes="-rulings-text",
                     )
                 )
-            with TabPane(
-                "⚖️ Legal", id=self._child_id("tab-legal"), classes="-tab-legal"
-            ):
+            with TabPane("⚖️ Legal", id=self._child_id("tab-legal"), classes="-tab-legal"):
                 yield Static(
                     "[dim]No legality data[/]",
                     id=self._child_id("legal-text"),
                     classes="-legal-text",
                 )
-            with TabPane(
-                "💰 Price", id=self._child_id("tab-price"), classes="-tab-price"
-            ):
+            with TabPane("💰 Price", id=self._child_id("tab-price"), classes="-tab-price"):
                 yield Static(
                     "[dim]No price data[/]",
                     id=self._child_id("price-text"),
@@ -93,9 +87,7 @@ class CardPanel(Vertical):
     def on_mount(self) -> None:
         """Set up panel reference in ArtNavigator after mount."""
         try:
-            art_nav = self.query_one(
-                f"#{self._child_id('art-navigator')}", ArtNavigator
-            )
+            art_nav = self.query_one(f"#{self._child_id('art-navigator')}", ArtNavigator)
             art_nav.set_panel(self)
         except Exception:
             pass
@@ -110,9 +102,7 @@ class CardPanel(Vertical):
         try:
             tabs = self.query_one(f"#{self._child_id('tabs')}", TabbedContent)
             if tabs.active == self._child_id("tab-art"):
-                art_nav = self.query_one(
-                    f"#{self._child_id('art-navigator')}", ArtNavigator
-                )
+                art_nav = self.query_one(f"#{self._child_id('art-navigator')}", ArtNavigator)
                 art_nav.focus()
                 return True
         except Exception:
@@ -175,9 +165,7 @@ class CardPanel(Vertical):
         lines = []
 
         mana = prettify_mana(card.mana_cost) if card.mana_cost else ""
-        lines.append(
-            f"[bold]{card.name}[/]  {mana}" if mana else f"[bold]{card.name}[/]"
-        )
+        lines.append(f"[bold]{card.name}[/]  {mana}" if mana else f"[bold]{card.name}[/]")
         lines.append(f"[italic dim]{card.type}[/]")
         lines.append("")
 
@@ -281,17 +269,13 @@ class CardPanel(Vertical):
                         icon, style = "✗", "red"
                     else:
                         icon, style = "~", "yellow"
-                    lines.append(
-                        f"  {icon} [{style}]{fmt.capitalize():12}[/] {status}"
-                    )
+                    lines.append(f"  {icon} [{style}]{fmt.capitalize():12}[/] {status}")
 
             legal_text.update("\n".join(lines))
         except CardNotFoundError:
             legal_text.update(f"[red]Card not found: {card_name}[/]")
 
-    async def load_printings(
-        self, scryfall: ScryfallDatabase | None, card_name: str
-    ) -> None:
+    async def load_printings(self, scryfall: ScryfallDatabase | None, card_name: str) -> None:
         """Load all printings for a card into the art tab."""
         from mtg_core.tools import images
 
@@ -387,15 +371,12 @@ class CardPanel(Vertical):
             img_widget.image = pil_image
 
         except Exception as e:
-            current_text = art_info.renderable
+            current_text = art_info.renderable  # type: ignore[attr-defined]
             art_info.update(f"{current_text}\n[red dim]Image error: {e}[/]")
 
     def next_printing(self) -> bool:
         """Move to next printing. Returns True if moved."""
-        if (
-            not self._printings
-            or self._current_printing_index >= len(self._printings) - 1
-        ):
+        if not self._printings or self._current_printing_index >= len(self._printings) - 1:
             return False
         self._current_printing_index += 1
         self._update_art_display()

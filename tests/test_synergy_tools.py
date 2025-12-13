@@ -8,10 +8,10 @@ from mtg_core.data.database import MTGDatabase, ScryfallDatabase
 from mtg_core.tools import synergy
 from mtg_core.tools.synergy import (
     KNOWN_COMBOS,
-    _combo_to_model,
-    _detect_deck_colors,
-    _detect_themes,
-    _normalize_card_name,
+    combo_to_model,
+    detect_deck_colors,
+    detect_themes,
+    normalize_card_name,
 )
 
 # =============================================================================
@@ -24,14 +24,14 @@ class TestHelperFunctions:
 
     def test_normalize_card_name(self) -> None:
         """Test card name normalization."""
-        assert _normalize_card_name("Lightning Bolt") == "lightning bolt"
-        assert _normalize_card_name("  Sol Ring  ") == "sol ring"
-        assert _normalize_card_name("COUNTERSPELL") == "counterspell"
+        assert normalize_card_name("Lightning Bolt") == "lightning bolt"
+        assert normalize_card_name("  Sol Ring  ") == "sol ring"
+        assert normalize_card_name("COUNTERSPELL") == "counterspell"
 
     def test_combo_to_model(self) -> None:
         """Test conversion of combo dict to Combo model."""
         combo_data = KNOWN_COMBOS[0]  # Twin combo
-        combo = _combo_to_model(combo_data)
+        combo = combo_to_model(combo_data)
 
         assert combo.id == "twin"
         assert len(combo.cards) == 2
@@ -210,9 +210,7 @@ class TestSuggestCards:
             "Swamp",
         ]
 
-        result = await synergy.suggest_cards(
-            db, scryfall, deck_cards=deck_cards, max_results=5
-        )
+        result = await synergy.suggest_cards(db, scryfall, deck_cards=deck_cards, max_results=5)
 
         # Should detect aristocrats theme
         assert "aristocrats" in result.detected_themes or len(result.suggestions) >= 0
@@ -284,9 +282,7 @@ class TestSuggestCards:
             "Plains",
         ]
 
-        result = await synergy.suggest_cards(
-            db, scryfall, deck_cards=deck_cards, max_results=5
-        )
+        result = await synergy.suggest_cards(db, scryfall, deck_cards=deck_cards, max_results=5)
 
         # Should detect W, U, R (order may vary but should be WUBRG order)
         assert "W" in result.deck_colors
@@ -318,7 +314,7 @@ class TestThemeDetection:
             card.subtypes = []
             cards.append(card)
 
-        themes = _detect_themes(cards)
+        themes = detect_themes(cards)
         assert "tokens" in themes
 
     def test_detect_aristocrats_theme(self) -> None:
@@ -336,7 +332,7 @@ class TestThemeDetection:
             card.subtypes = []
             cards.append(card)
 
-        themes = _detect_themes(cards)
+        themes = detect_themes(cards)
         assert "aristocrats" in themes
 
     def test_detect_tribal_theme(self) -> None:
@@ -350,7 +346,7 @@ class TestThemeDetection:
             card.subtypes = ["Elf"]
             cards.append(card)
 
-        themes = _detect_themes(cards)
+        themes = detect_themes(cards)
         assert "tribal" in themes
 
 
@@ -374,7 +370,7 @@ class TestColorDetection:
             card.color_identity = colors
             cards.append(card)
 
-        result = _detect_deck_colors(cards)
+        result = detect_deck_colors(cards)
 
         # Should be in WUBRG order
         assert result == ["W", "U", "B", "R", "G"]
@@ -389,7 +385,7 @@ class TestColorDetection:
             card.color_identity = colors
             cards.append(card)
 
-        result = _detect_deck_colors(cards)
+        result = detect_deck_colors(cards)
 
         assert result == ["U", "R"]
         assert "W" not in result

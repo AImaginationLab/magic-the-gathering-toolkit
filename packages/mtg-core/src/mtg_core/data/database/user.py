@@ -199,9 +199,7 @@ class UserDatabase:
 
     async def get_deck(self, deck_id: int) -> DeckRow | None:
         """Get deck metadata by ID."""
-        async with self.conn.execute(
-            "SELECT * FROM decks WHERE id = ?", (deck_id,)
-        ) as cursor:
+        async with self.conn.execute("SELECT * FROM decks WHERE id = ?", (deck_id,)) as cursor:
             row = await cursor.fetchone()
             if row is None:
                 return None
@@ -255,8 +253,8 @@ class UserDatabase:
         description: str | None = None,
     ) -> None:
         """Update deck metadata."""
-        updates = []
-        params = []
+        updates: list[str] = []
+        params: list[str | int] = []
 
         if name is not None:
             updates.append("name = ?")
@@ -281,9 +279,7 @@ class UserDatabase:
 
     async def delete_deck(self, deck_id: int) -> bool:
         """Delete a deck and all its cards. Returns True if deck existed."""
-        async with self.conn.execute(
-            "DELETE FROM decks WHERE id = ?", (deck_id,)
-        ) as cursor:
+        async with self.conn.execute("DELETE FROM decks WHERE id = ?", (deck_id,)) as cursor:
             deleted = cursor.rowcount > 0
         await self.conn.commit()
         return deleted
@@ -312,9 +308,7 @@ class UserDatabase:
         )
         await self.conn.commit()
 
-    async def remove_card(
-        self, deck_id: int, card_name: str, sideboard: bool = False
-    ) -> bool:
+    async def remove_card(self, deck_id: int, card_name: str, sideboard: bool = False) -> bool:
         """Remove a card entirely from a deck."""
         async with self.conn.execute(
             """

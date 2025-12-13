@@ -6,7 +6,6 @@ from typing import Annotated, Any
 
 from mcp.server.fastmcp import FastMCP
 
-from mtg_mcp_server.context import ToolContext, get_app
 from mtg_core.data.models import (
     DetectCombosResult,
     FindSynergiesResult,
@@ -14,6 +13,7 @@ from mtg_core.data.models import (
     SuggestCardsResult,
 )
 from mtg_core.tools import synergy
+from mtg_mcp_server.context import ToolContext, get_app
 
 
 def register(mcp: FastMCP) -> None:

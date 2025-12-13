@@ -61,8 +61,13 @@ async def find_synergies(
                 terms = [(t, f"{keyword}: {r}") for t, r in KEYWORD_SYNERGIES[keyword]]
                 synergies.extend(
                     await search_synergies(
-                        db, source_card, terms, "keyword",
-                        seen_names, color_identity, format_legal,
+                        db,
+                        source_card,
+                        terms,
+                        "keyword",
+                        seen_names,
+                        color_identity,
+                        format_legal,
                     )
                 )
 
@@ -74,15 +79,19 @@ async def find_synergies(
                 continue
             synergies.extend(
                 await search_synergies(
-                    db, source_card,
+                    db,
+                    source_card,
                     [(subtype, f"Synergizes with {subtype}s")],
-                    "tribal", seen_names, color_identity, format_legal, page_size=15,
+                    "tribal",
+                    seen_names,
+                    color_identity,
+                    format_legal,
+                    page_size=15,
                 )
             )
             # Cards of same subtype
             await _add_tribal_matches(
-                db, source_card, subtype, synergies, seen_names,
-                color_identity, format_legal
+                db, source_card, subtype, synergies, seen_names, color_identity, format_legal
             )
 
     # Pass 3: Ability text synergies
@@ -91,8 +100,14 @@ async def find_synergies(
             if card_has_pattern(source_card, pattern):
                 synergies.extend(
                     await search_synergies(
-                        db, source_card, search_terms, "ability",
-                        seen_names, color_identity, format_legal, page_size=8,
+                        db,
+                        source_card,
+                        search_terms,
+                        "ability",
+                        seen_names,
+                        color_identity,
+                        format_legal,
+                        page_size=8,
                     )
                 )
 
@@ -103,8 +118,14 @@ async def find_synergies(
                 terms = [(t, f"{card_type}: {r}") for t, r in TYPE_SYNERGIES[card_type]]
                 synergies.extend(
                     await search_synergies(
-                        db, source_card, terms, "theme",
-                        seen_names, color_identity, format_legal, page_size=8,
+                        db,
+                        source_card,
+                        terms,
+                        "theme",
+                        seen_names,
+                        color_identity,
+                        format_legal,
+                        page_size=8,
                     )
                 )
 
@@ -233,8 +254,15 @@ async def suggest_cards(
         search_term = THEME_INDICATORS[theme][0]
         suggestions.extend(
             await _search_theme_suggestions(
-                db, scryfall, search_term, theme, deck_colors,
-                format_legal, budget_max, seen_names, max_results - len(suggestions)
+                db,
+                scryfall,
+                search_term,
+                theme,
+                deck_colors,
+                format_legal,
+                budget_max,
+                seen_names,
+                max_results - len(suggestions),
             )
         )
         if len(suggestions) >= max_results:
@@ -244,8 +272,13 @@ async def suggest_cards(
     if len(suggestions) < max_results and deck_colors:
         suggestions.extend(
             await _search_staple_suggestions(
-                db, scryfall, deck_colors, format_legal,
-                budget_max, seen_names, max_results - len(suggestions)
+                db,
+                scryfall,
+                deck_colors,
+                format_legal,
+                budget_max,
+                seen_names,
+                max_results - len(suggestions),
             )
         )
 

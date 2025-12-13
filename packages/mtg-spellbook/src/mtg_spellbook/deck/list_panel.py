@@ -28,16 +28,13 @@ class DeckListItem(ListItem):
 
     def compose(self) -> ComposeResult:
         format_str = f" · {self.deck.format}" if self.deck.format else ""
-        yield Static(
-            f"[bold]{self.deck.name}[/]\n"
-            f"[dim]{self.deck.card_count} cards{format_str}[/]"
-        )
+        yield Static(f"[bold]{self.deck.name}[/]\n[dim]{self.deck.card_count} cards{format_str}[/]")
 
 
 class DeckListPanel(Vertical):
     """Panel showing list of user's decks."""
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[Binding]] = [  # type: ignore[assignment]
         Binding("n", "new_deck", "New Deck"),
         Binding("d", "delete_deck", "Delete"),
         Binding("enter", "open_deck", "Open"),
@@ -63,9 +60,7 @@ class DeckListPanel(Vertical):
         deck_list.clear()
 
         if not self._decks:
-            deck_list.append(
-                ListItem(Static("[dim]No decks yet. Press N to create one.[/]"))
-            )
+            deck_list.append(ListItem(Static("[dim]No decks yet. Press N to create one.[/]")))
         else:
             for deck in self._decks:
                 deck_list.append(DeckListItem(deck))
@@ -77,16 +72,14 @@ class DeckListPanel(Vertical):
     def action_delete_deck(self) -> None:
         """Delete the selected deck."""
         deck_list = self.query_one("#deck-list", ListView)
-        if deck_list.highlighted_child and isinstance(
-            deck_list.highlighted_child, DeckListItem
-        ):
+        if deck_list.highlighted_child and isinstance(deck_list.highlighted_child, DeckListItem):
             deck = deck_list.highlighted_child.deck
             self.app.push_screen(
                 ConfirmDeleteModal(deck.id, deck.name),
                 callback=self._on_delete_confirmed,
             )
 
-    def _on_delete_confirmed(self, deleted: bool) -> None:
+    def _on_delete_confirmed(self, deleted: bool | None) -> None:
         """Called after delete confirmation."""
         if deleted:
             self.post_message(DeckSelected(-1))
@@ -94,9 +87,7 @@ class DeckListPanel(Vertical):
     def action_open_deck(self) -> None:
         """Open the selected deck."""
         deck_list = self.query_one("#deck-list", ListView)
-        if deck_list.highlighted_child and isinstance(
-            deck_list.highlighted_child, DeckListItem
-        ):
+        if deck_list.highlighted_child and isinstance(deck_list.highlighted_child, DeckListItem):
             deck = deck_list.highlighted_child.deck
             self.post_message(DeckSelected(deck.id))
 
