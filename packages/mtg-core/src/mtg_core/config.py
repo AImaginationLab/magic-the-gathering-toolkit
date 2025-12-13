@@ -36,6 +36,11 @@ def _get_default_user_db_path() -> Path:
     return Path.home() / ".mtg-spellbook" / "user_data.sqlite"
 
 
+def _get_default_combo_db_path() -> Path:
+    """Get default path to combo database."""
+    return Path.home() / ".mtg-spellbook" / "combos.sqlite"
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
@@ -57,6 +62,10 @@ class Settings(BaseSettings):
     user_db_path: Path = Field(
         default_factory=_get_default_user_db_path,
         description="Path to user database (decks, collections)",
+    )
+    combo_db_path: Path = Field(
+        default_factory=_get_default_combo_db_path,
+        description="Path to combo database",
     )
 
     # Logging

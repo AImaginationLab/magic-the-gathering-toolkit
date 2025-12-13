@@ -1,6 +1,7 @@
 """Database access module."""
 
 from .cache import CacheEntry, CardCache
+from .combos import ComboCardRow, ComboDatabase, ComboRow
 from .constants import (
     CARD_COLUMNS,
     EXCLUDE_EXTRAS,
@@ -18,6 +19,9 @@ __all__ = [
     "CARD_COLUMNS",
     "CacheEntry",
     "CardCache",
+    "ComboCardRow",
+    "ComboDatabase",
+    "ComboRow",
     "DatabaseManager",
     "DeckCardRow",
     "DeckRow",

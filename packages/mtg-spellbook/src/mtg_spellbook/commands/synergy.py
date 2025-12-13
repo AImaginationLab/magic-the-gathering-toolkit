@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from textual import work
 from textual.widgets import Label, ListItem, Static
@@ -16,17 +16,18 @@ from ..formatting import prettify_mana
 class SynergyCommandsMixin:
     """Mixin providing synergy and combo commands."""
 
-    _db: Any
-    _scryfall: Any
-    _current_results: list[Any]
-    _current_card: Any
-    _synergy_mode: bool
-    _synergy_info: dict[str, Any]
+    if TYPE_CHECKING:
+        _db: Any
+        _scryfall: Any
+        _current_results: list[Any]
+        _current_card: Any
+        _synergy_mode: bool
+        _synergy_info: dict[str, Any]
 
-    def query_one(self, selector: str, expect_type: type[Any] = ...) -> Any: ...
-    def _show_synergy_panel(self) -> None: ...
-    def _show_message(self, message: str) -> None: ...
-    def _update_results_header(self, text: str) -> None: ...
+        def query_one(self, selector: str, expect_type: type[Any] = ...) -> Any: ...
+        def _show_synergy_panel(self) -> None: ...
+        def _show_message(self, message: str) -> None: ...
+        def _update_results_header(self, text: str) -> None: ...
 
     @work
     async def find_synergies(self, card_name: str) -> None:

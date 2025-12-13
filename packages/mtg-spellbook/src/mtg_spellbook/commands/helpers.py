@@ -15,10 +15,11 @@ if TYPE_CHECKING:
 class CommandHelpersMixin:
     """Mixin providing helper methods for command handlers."""
 
-    _synergy_mode: bool
-    _synergy_info: dict[str, Any]
+    if TYPE_CHECKING:
+        _synergy_mode: bool
+        _synergy_info: dict[str, Any]
 
-    def query_one(self, selector: str, expect_type: type[Any] = ...) -> Any: ...
+        def query_one(self, selector: str, expect_type: type[Any] = ...) -> Any: ...
 
     def _update_results(self, results: list[CardDetail]) -> None:
         """Update the results list."""

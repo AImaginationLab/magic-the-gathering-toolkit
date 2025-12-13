@@ -51,3 +51,8 @@ testpaths = ["tests"]
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]

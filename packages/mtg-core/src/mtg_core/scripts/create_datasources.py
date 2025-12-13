@@ -392,6 +392,85 @@ def create_indexes(
     console.print("\n[bold green]Done![/]")
 
 
+@app.command("init-combos")
+def init_combos(
+    output_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path to combo database (default: ~/.mtg-spellbook/combos.sqlite)",
+        ),
+    ] = None,
+    json_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--json",
+            "-j",
+            help="Path to additional combos JSON file to import",
+        ),
+    ] = None,
+    include_legacy: Annotated[
+        bool,
+        typer.Option(
+            "--include-legacy/--no-legacy",
+            help="Include hardcoded combos from KNOWN_COMBOS",
+        ),
+    ] = True,
+) -> None:
+    """Initialize the combo database with known combos.
+
+    By default, imports combos from the hardcoded KNOWN_COMBOS list.
+    Optionally imports additional combos from a JSON file.
+    """
+    import asyncio
+
+    from ..config import get_settings
+    from ..data.database.combos import ComboDatabase
+    from ..tools.synergy.constants import KNOWN_COMBOS
+
+    async def _init_combos() -> None:
+        # Determine output path
+        db_path = output_path or get_settings().combo_db_path
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        console.print(f"[bold]Initializing Combo Database[/]")
+        console.print(f"Output: [cyan]{db_path}[/]\n")
+
+        # Connect to database
+        combo_db = ComboDatabase(db_path)
+        await combo_db.connect()
+
+        try:
+            total_imported = 0
+
+            # Import legacy combos
+            if include_legacy:
+                console.print("[dim]Importing hardcoded KNOWN_COMBOS...[/]")
+                count = await combo_db.import_from_legacy_format(KNOWN_COMBOS)
+                console.print(f"[green]✓[/] Imported {count} combos from KNOWN_COMBOS")
+                total_imported += count
+
+            # Import from JSON file
+            if json_path:
+                if json_path.exists():
+                    console.print(f"[dim]Importing from {json_path}...[/]")
+                    count = await combo_db.import_from_json(json_path)
+                    console.print(f"[green]✓[/] Imported {count} combos from JSON")
+                    total_imported += count
+                else:
+                    console.print(f"[yellow]Warning:[/] JSON file not found: {json_path}")
+
+            # Show final count
+            final_count = await combo_db.get_combo_count()
+            console.print(f"\n[bold green]Done![/] Combo database has {final_count} combos")
+
+        finally:
+            await combo_db.close()
+
+    asyncio.run(_init_combos())
+
+
 @app.command("download")
 def main(
     output_dir: Annotated[

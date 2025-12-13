@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from textual import work
 from textual.widgets import Label, ListItem, Static
@@ -13,12 +13,13 @@ from mtg_core.tools import sets
 class SetCommandsMixin:
     """Mixin providing set browsing and statistics commands."""
 
-    _db: Any
+    if TYPE_CHECKING:
+        _db: Any
 
-    def query_one(self, selector: str, expect_type: type[Any] = ...) -> Any: ...
-    def _hide_synergy_panel(self) -> None: ...
-    def _update_results_header(self, text: str) -> None: ...
-    def _show_message(self, message: str) -> None: ...
+        def query_one(self, selector: str, expect_type: type[Any] = ...) -> Any: ...
+        def _hide_synergy_panel(self) -> None: ...
+        def _update_results_header(self, text: str) -> None: ...
+        def _show_message(self, message: str) -> None: ...
 
     @work
     async def browse_sets(self, query: str = "") -> None:

@@ -10,6 +10,7 @@ import aiosqlite
 
 from ...config import Settings, get_settings
 from .cache import CardCache
+from .combos import ComboDatabase
 from .mtg import MTGDatabase
 from .scryfall import ScryfallDatabase
 from .user import UserDatabase
@@ -30,6 +31,7 @@ class DatabaseManager:
         self._db: MTGDatabase | None = None
         self._scryfall: ScryfallDatabase | None = None
         self._user: UserDatabase | None = None
+        self._combos: ComboDatabase | None = None
         self._cache = CardCache(max_size=self._settings.cache_max_size)
 
     @property
@@ -48,6 +50,11 @@ class DatabaseManager:
     def user(self) -> UserDatabase | None:
         """Get the user database instance (may be None if not initialized)."""
         return self._user
+
+    @property
+    def combos(self) -> ComboDatabase | None:
+        """Get the combo database instance (may be None if not initialized)."""
+        return self._combos
 
     async def start(self) -> None:
         """Open the database connections."""
@@ -87,6 +94,14 @@ class DatabaseManager:
             logger.exception("Failed to open user database at %s", self._settings.user_db_path)
             self._user = None
 
+        # Combo database (stores combo data)
+        try:
+            self._combos = ComboDatabase(self._settings.combo_db_path)
+            await self._combos.connect()
+        except Exception:
+            logger.exception("Failed to open combo database at %s", self._settings.combo_db_path)
+            self._combos = None
+
     async def start_user_db(self) -> UserDatabase:
         """Explicitly start user database. Used by apps that need deck management."""
         if self._user is None:
@@ -107,6 +122,9 @@ class DatabaseManager:
         if self._user:
             await self._user.close()
             self._user = None
+        if self._combos:
+            await self._combos.close()
+            self._combos = None
         await self._cache.clear()
 
 

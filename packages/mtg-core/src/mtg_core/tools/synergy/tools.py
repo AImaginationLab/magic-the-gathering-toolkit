@@ -23,7 +23,9 @@ from .detection import (
     detect_deck_colors,
     detect_themes,
     find_combos_for_card,
+    find_combos_for_card_db,
     find_combos_in_deck,
+    find_combos_in_deck_db,
 )
 from .scoring import (
     calculate_synergy_score,
@@ -33,7 +35,7 @@ from .scoring import (
 from .search import search_synergies
 
 if TYPE_CHECKING:
-    from ...data.database import MTGDatabase, ScryfallDatabase
+    from ...data.database import ComboDatabase, MTGDatabase, ScryfallDatabase
     from ...data.models.card import Card
 
 
@@ -153,10 +155,18 @@ async def detect_combos(
     db: MTGDatabase,  # noqa: ARG001
     card_name: str | None = None,
     deck_cards: list[str] | None = None,
+    combo_db: ComboDatabase | None = None,
 ) -> DetectCombosResult:
-    """Detect known combos in a deck or for a specific card."""
+    """Detect known combos in a deck or for a specific card.
+
+    If combo_db is provided, uses the database for combo detection.
+    Otherwise falls back to the hardcoded KNOWN_COMBOS list.
+    """
     if card_name:
-        found_combos = find_combos_for_card(card_name)
+        if combo_db:
+            found_combos = await find_combos_for_card_db(combo_db, card_name)
+        else:
+            found_combos = find_combos_for_card(card_name)
         return DetectCombosResult(
             combos=found_combos,
             potential_combos=[],
@@ -164,7 +174,10 @@ async def detect_combos(
         )
 
     if deck_cards:
-        found, potential, missing = find_combos_in_deck(deck_cards)
+        if combo_db:
+            found, potential, missing = await find_combos_in_deck_db(combo_db, deck_cards)
+        else:
+            found, potential, missing = find_combos_in_deck(deck_cards)
         return DetectCombosResult(
             combos=found,
             potential_combos=potential,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from textual import work
 from textual.widgets import Static, TabbedContent
@@ -14,11 +14,12 @@ from mtg_core.tools import images
 class InfoCommandsMixin:
     """Mixin providing card info commands (rulings, legalities, price, art)."""
 
-    _db: Any
-    _scryfall: Any
+    if TYPE_CHECKING:
+        _db: Any
+        _scryfall: Any
 
-    def query_one(self, selector: str, expect_type: type[Any] = ...) -> Any: ...
-    def _show_message(self, message: str) -> None: ...
+        def query_one(self, selector: str, expect_type: type[Any] = ...) -> Any: ...
+        def _show_message(self, message: str) -> None: ...
 
     @work
     async def load_rulings(self, card_name: str) -> None:
