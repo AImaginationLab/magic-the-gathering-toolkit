@@ -9,6 +9,8 @@ from textual.containers import Vertical
 from textual.widgets import Static
 
 from ..formatting import prettify_mana
+from ..ui.formatters import CardFormatters
+from ..ui.theme import ui_colors
 
 if TYPE_CHECKING:
     from mtg_core.data.models.responses import CardDetail, FindSynergiesResult
@@ -34,58 +36,23 @@ class SynergyPanel(Vertical):
 
         mana = prettify_mana(card.mana_cost) if card.mana_cost else ""
 
-        # Get type icon
-        type_icon = self._get_type_icon(card.type or "")
+        type_icon = CardFormatters.get_type_icon(card.type or "")
 
-        parts = [f"[bold #e6c84a]🎯 Synergies for:[/] [bold #e6c84a]{card.name}[/]"]
+        parts = [
+            f"[bold {ui_colors.GOLD}]🎯 Synergies for:[/] [bold {ui_colors.GOLD}]{card.name}[/]"
+        ]
         if mana:
             parts.append(mana)
 
-        type_color = self._get_type_color(card.type or "")
+        type_color = CardFormatters.get_type_color(card.type or "")
         type_part = f"[{type_color}]{type_icon} {card.type}[/]"
         if card.power is not None and card.toughness is not None:
-            type_part += f" [bold #c9a227]⚔ {card.power}/{card.toughness}[/]"
+            type_part += f" [bold {ui_colors.GOLD_DIM}]⚔ {card.power}/{card.toughness}[/]"
         elif card.loyalty is not None:
-            type_part += f" [bold #c9a227]✦ {card.loyalty}[/]"
+            type_part += f" [bold {ui_colors.GOLD_DIM}]✦ {card.loyalty}[/]"
         parts.append(type_part)
 
         content.update("  ".join(parts))
-
-    def _get_type_icon(self, card_type: str) -> str:
-        """Get icon for card type."""
-        type_lower = card_type.lower()
-        if "creature" in type_lower:
-            return "⚔"
-        elif "instant" in type_lower:
-            return "⚡"
-        elif "sorcery" in type_lower:
-            return "📜"
-        elif "artifact" in type_lower:
-            return "⚙"
-        elif "enchantment" in type_lower:
-            return "✨"
-        elif "planeswalker" in type_lower:
-            return "👤"
-        elif "land" in type_lower:
-            return "🌍"
-        return ""
-
-    def _get_type_color(self, card_type: str) -> str:
-        """Get color based on card type."""
-        type_lower = card_type.lower()
-        if "creature" in type_lower:
-            return "#7ec850"
-        elif "instant" in type_lower or "sorcery" in type_lower:
-            return "#4a9fd8"
-        elif "artifact" in type_lower:
-            return "#9a9a9a"
-        elif "enchantment" in type_lower:
-            return "#b86fce"
-        elif "planeswalker" in type_lower:
-            return "#e6c84a"
-        elif "land" in type_lower:
-            return "#a67c52"
-        return "#888"
 
     def clear_source(self) -> None:
         """Clear the source card display."""
@@ -102,7 +69,7 @@ class SynergyPanel(Vertical):
             return
 
         lines = [
-            f"[bold #e6c84a]🔗 Synergies for {result.card_name}[/] [dim]({result.total_found} found)[/]",
+            f"[bold {ui_colors.GOLD}]🔗 Synergies for {result.card_name}[/] [dim]({result.total_found} found)[/]",
             "[dim]" + "─" * 50 + "[/]",
             "",
         ]
@@ -139,9 +106,9 @@ class SynergyPanel(Vertical):
     def _score_color(self, score: float) -> str:
         """Get color for synergy score."""
         if score >= 0.8:
-            return "#00ff00"  # Bright green
+            return ui_colors.SYNERGY_STRONG
         elif score >= 0.6:
-            return "#c9a227"  # Gold
+            return ui_colors.SYNERGY_MODERATE
         elif score >= 0.4:
-            return "#e6c84a"  # Light gold
-        return "#666"  # Gray
+            return ui_colors.SYNERGY_WEAK
+        return "#666"

@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from collections.abc import AsyncIterator, Sequence
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Any
 
 import aiosqlite
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -132,9 +132,10 @@ class DeckCardRow:
 class UserDatabase:
     """SQLite database for user data (decks, collections, etc.)."""
 
-    def __init__(self, db_path: Path):
+    def __init__(self, db_path: Path, max_connections: int = 5):
         self.db_path = db_path
         self._conn: aiosqlite.Connection | None = None
+        self._semaphore = asyncio.Semaphore(max_connections)
 
     @property
     def conn(self) -> aiosqlite.Connection:
@@ -142,6 +143,14 @@ class UserDatabase:
         if self._conn is None:
             raise RuntimeError("UserDatabase not connected. Call connect() first.")
         return self._conn
+
+    @asynccontextmanager
+    async def _execute(
+        self, query: str, params: Sequence[Any] = ()
+    ) -> AsyncIterator[aiosqlite.Cursor]:
+        """Execute a query with concurrency limiting."""
+        async with self._semaphore, self.conn.execute(query, params) as cursor:
+            yield cursor
 
     async def connect(self) -> None:
         """Connect and initialize schema."""

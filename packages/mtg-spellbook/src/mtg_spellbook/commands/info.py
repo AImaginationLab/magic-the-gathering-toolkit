@@ -80,7 +80,7 @@ class InfoCommandsMixin:
             tabs = panel.query_one(panel.get_child_id("tabs"), TabbedContent)
             tabs.active = panel.get_child_name("tab-price")
 
-        except Exception:
+        except CardNotFoundError:
             self._show_message(f"[red]Could not get price for: {card_name}[/]")
 
     @work

@@ -404,6 +404,6 @@ async def _get_card_price(scryfall: ScryfallDatabase | None, card_name: str) -> 
         image_data = await scryfall.get_card_image(card_name)
         if image_data:
             return image_data.get_price_usd()
-    except Exception:
+    except OSError:
         pass
     return None

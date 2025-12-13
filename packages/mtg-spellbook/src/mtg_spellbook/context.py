@@ -30,6 +30,7 @@ class DatabaseContext:
         self._scryfall: ScryfallDatabase | None = None
         self._user: UserDatabase | None = None
         self._deck_manager: DeckManager | None = None
+        self._keywords: set[str] | None = None
 
     async def __aenter__(self) -> DatabaseContext:
         """Enter async context manager."""
@@ -77,6 +78,13 @@ class DatabaseContext:
 
                 self._deck_manager = DeckManager(user, db, self._scryfall)
         return self._deck_manager
+
+    async def get_keywords(self) -> set[str]:
+        """Get all MTG keywords from database, cached after first load."""
+        if self._keywords is None:
+            db = await self.get_db()
+            self._keywords = await db.get_all_keywords()
+        return self._keywords
 
     async def close(self) -> None:
         """Close database connections."""

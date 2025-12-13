@@ -102,7 +102,7 @@ async def _resolve_deck_cards(
     include_extras: bool = False,
 ) -> list[tuple[DeckCardInput, Card | None]]:
     """
-    Look up all cards in deck.
+    Look up all cards in deck using batch loading.
 
     Args:
         db: Database connection
@@ -111,14 +111,18 @@ async def _resolve_deck_cards(
 
     Returns list of tuples: (input, Card or None if not found)
     """
-    results: list[tuple[DeckCardInput, Card | None]] = []
+    if not cards:
+        return []
 
+    # Batch load all cards in a single query
+    unique_names = list({card_input.name for card_input in cards})
+    cards_by_name = await db.get_cards_by_names(unique_names, include_extras=include_extras)
+
+    # Map results back to inputs
+    results: list[tuple[DeckCardInput, Card | None]] = []
     for card_input in cards:
-        try:
-            card = await db.get_card_by_name(card_input.name, include_extras=include_extras)
-            results.append((card_input, card))
-        except CardNotFoundError:
-            results.append((card_input, None))
+        card = cards_by_name.get(card_input.name.lower())
+        results.append((card_input, card))
 
     return results
 

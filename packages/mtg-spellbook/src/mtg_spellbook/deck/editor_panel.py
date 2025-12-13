@@ -10,6 +10,7 @@ from textual.containers import Horizontal, Vertical
 from textual.widgets import ListItem, ListView, Static
 
 from ..formatting import prettify_mana
+from ..ui.theme import ui_colors
 from .messages import DeckSelected
 
 if TYPE_CHECKING:
@@ -51,9 +52,9 @@ class DeckEditorPanel(Vertical):
         yield Static("[bold]No deck loaded[/]", id="deck-editor-header")
         with Horizontal(id="deck-editor-content"):
             with Vertical(id="deck-cards-container"):
-                yield Static("[#c9a227]Mainboard[/]", id="mainboard-header")
+                yield Static(f"[{ui_colors.GOLD_DIM}]Mainboard[/]", id="mainboard-header")
                 yield ListView(id="mainboard-list")
-                yield Static("[#c9a227]Sideboard[/]", id="sideboard-header")
+                yield Static(f"[{ui_colors.GOLD_DIM}]Sideboard[/]", id="sideboard-header")
                 yield ListView(id="sideboard-list")
             with Vertical(id="deck-stats-container"):
                 yield Static("[dim]Stats[/]", id="deck-stats")
@@ -80,7 +81,7 @@ class DeckEditorPanel(Vertical):
             return
 
         format_str = f" ({deck.format})" if deck.format else ""
-        header.update(f"[bold #c9a227]{deck.name}[/]{format_str}")
+        header.update(f"[bold {ui_colors.GOLD_DIM}]{deck.name}[/]{format_str}")
 
         for card in sorted(deck.mainboard, key=lambda c: c.card_name):
             mana_cost = card.card.mana_cost if card.card else None

@@ -9,6 +9,7 @@ from .constants import (
     EXCLUDE_PROMOS,
     VALID_FORMATS,
 )
+from .fts import check_fts_available, prepare_fts_query, search_cards_fts
 from .manager import DatabaseManager, create_database
 from .mtg import MTGDatabase
 from .query import QueryBuilder
@@ -34,5 +35,8 @@ __all__ = [
     "QueryBuilder",
     "ScryfallDatabase",
     "UserDatabase",
+    "check_fts_available",
     "create_database",
+    "prepare_fts_query",
+    "search_cards_fts",
 ]

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 from textual import work
 from textual.widgets import Label, ListItem, Static
 
+from mtg_core.exceptions import SetNotFoundError
 from mtg_core.tools import sets
 
 
@@ -67,7 +68,7 @@ class SetCommandsMixin:
             ]
             card_text.update("\n".join(lines))
 
-        except Exception:
+        except SetNotFoundError:
             self._show_message(f"[red]Set not found: {code}[/]")
 
     @work

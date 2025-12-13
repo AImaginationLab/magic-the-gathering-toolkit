@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 from mtg_core.data.models import (
@@ -24,15 +25,30 @@ async def search_cards(
     db: MTGDatabase,
     scryfall: ScryfallDatabase | None,
     filters: SearchCardsInput,
+    use_fts: bool = True,
 ) -> SearchResult:
-    """Search for Magic: The Gathering cards."""
-    cards, total_count = await db.search_cards(filters)
+    """Search for Magic: The Gathering cards.
 
-    results = []
-    for card in cards:
-        summary = _card_to_summary(card)
+    Args:
+        db: MTG database connection
+        scryfall: Optional Scryfall database for images/prices
+        filters: Search filters
+        use_fts: If True, use FTS5 for text searches when available
 
-        if scryfall:
+    Returns:
+        SearchResult with matching cards
+    """
+    # Use FTS-enhanced search when text filter is provided
+    if use_fts and filters.text:
+        cards, total_count = await db.search_cards_with_fts(filters, use_fts=True)
+    else:
+        cards, total_count = await db.search_cards(filters)
+
+    results = [_card_to_summary(card) for card in cards]
+
+    if scryfall:
+
+        async def _enrich_with_scryfall(summary: CardSummary, card: Card) -> None:
             image = await scryfall.get_card_image(card.name, card.set_code)
             if image:
                 summary.image = image.image_normal
@@ -40,7 +56,13 @@ async def search_cards(
                 summary.price_usd = image.get_price_usd()
                 summary.purchase_link = image.purchase_tcgplayer
 
-        results.append(summary)
+        await asyncio.gather(
+            *[
+                _enrich_with_scryfall(summary, card)
+                for summary, card in zip(results, cards, strict=True)
+            ],
+            return_exceptions=True,
+        )
 
     return SearchResult(
         cards=results,

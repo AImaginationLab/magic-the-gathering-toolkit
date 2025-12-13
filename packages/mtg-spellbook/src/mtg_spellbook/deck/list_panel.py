@@ -10,6 +10,7 @@ from textual.binding import Binding
 from textual.containers import Vertical
 from textual.widgets import Button, ListItem, ListView, Static
 
+from ..ui.theme import ui_colors
 from .messages import DeckSelected
 from .modals import ConfirmDeleteModal, NewDeckModal
 
@@ -45,7 +46,7 @@ class DeckListPanel(Vertical):
         self._decks: list[DeckSummary] = []
 
     def compose(self) -> ComposeResult:
-        yield Static("[bold #c9a227]My Decks[/]", id="deck-list-header")
+        yield Static(f"[bold {ui_colors.GOLD_DIM}]My Decks[/]", id="deck-list-header")
         yield Button("+ New Deck", id="new-deck-btn", variant="primary")
         yield ListView(id="deck-list")
         yield Static(

@@ -12,6 +12,8 @@ from mtg_core.tools import cards
 
 from ..formatting import prettify_mana
 from ..pagination import PaginationState
+from ..ui.formatters import CardFormatters
+from ..ui.theme import rarity_colors, ui_colors
 
 if TYPE_CHECKING:
     from mtg_core.data.models.responses import CardDetail
@@ -159,18 +161,18 @@ class PaginationCommandsMixin:
             results_list.index = 0
 
     def _display_synergy_results(self) -> None:
-        """Display synergy results for current page."""
+        """Display synergy results for current page with 10-segment score bar."""
         from ..widgets import ResultsList
 
         results_list = self.query_one("#results-list", ResultsList)
         results_list.clear()
 
         type_icons = {
-            "keyword": "🔑",
-            "tribal": "👥",
-            "ability": "✨",
-            "theme": "🎯",
-            "archetype": "🏛️",
+            "keyword": "\U0001f511",
+            "tribal": "\U0001f465",
+            "ability": "\u2728",
+            "theme": "\U0001f3af",
+            "archetype": "\U0001f3db\ufe0f",
         }
 
         for card in self._current_results:
@@ -178,17 +180,44 @@ class PaginationCommandsMixin:
             score = info.get("score", 0)
             synergy_type = info.get("type", "")
             reason = info.get("reason", "")
-            icon = type_icons.get(synergy_type, "•")
+            icon = type_icons.get(synergy_type, "\u2022")
 
+            # 10-segment score bar
             score_color = "green" if score >= 0.7 else "yellow" if score >= 0.4 else "dim"
-            score_bar = "●" * int(score * 5) + "○" * (5 - int(score * 5))
-            mana = prettify_mana(card.mana_cost) if card.mana_cost else ""
+            filled = int(score * 10)
+            score_bar = "\u2588" * filled + "\u2591" * (10 - filled)
 
-            lines = []
-            line1 = f"[{score_color}]{score_bar}[/] {icon} [bold]{card.name}[/]"
+            # Card name with rarity color
+            rarity_lower = (card.rarity or "").lower()
+            if rarity_lower == "mythic":
+                name_color = rarity_colors.MYTHIC
+            elif rarity_lower == "rare":
+                name_color = rarity_colors.RARE
+            else:
+                name_color = ui_colors.WHITE
+
+            mana = prettify_mana(card.mana_cost) if card.mana_cost else ""
+            type_icon = CardFormatters.get_type_icon(card.type or "")
+            short_type = CardFormatters.get_short_type(card.type or "")
+
+            # Build first line: score bar, synergy icon, name, mana, type
+            parts = [f"[{score_color}]{score_bar}[/]", icon, f"[bold {name_color}]{card.name}[/]"]
             if mana:
-                line1 += f"  {mana}"
-            lines.append(line1)
+                parts.append(mana)
+            if type_icon:
+                parts.append(f"[dim]{type_icon} {short_type}[/]")
+
+            # Add stats (P/T or loyalty)
+            stats = self._get_card_stats(card)
+            if stats:
+                parts.append(f"[dim]{stats}[/]")
+
+            # Add price
+            price = self._get_card_price(card)
+            if price:
+                parts.append(f"[dim]{price}[/]")
+
+            lines = ["  ".join(parts)]
             if reason:
                 lines.append(f"    [dim italic]{reason}[/]")
 
@@ -206,7 +235,7 @@ class PaginationCommandsMixin:
 
         if not self._pagination or self._pagination.total_items == 0:
             title = "🔍 Synergies" if self._synergy_mode else "🔍 Results"
-            header.update(f"[bold #e6c84a]{title} (0)[/]")
+            header.update(f"[bold {ui_colors.GOLD}]{title} (0)[/]")
             return
 
         p = self._pagination
@@ -215,7 +244,7 @@ class PaginationCommandsMixin:
         if p.total_pages <= 1:
             # Single page: show full title with source query
             title = f"Synergies for {p.source_query}" if self._synergy_mode else "Results"
-            header.update(f"[bold #e6c84a]{icon} {title} ({p.total_items})[/]")
+            header.update(f"[bold {ui_colors.GOLD}]{icon} {title} ({p.total_items})[/]")
         else:
             # Multiple pages: use short title to fit controls
             title = "Synergies" if self._synergy_mode else "Results"
@@ -227,7 +256,7 @@ class PaginationCommandsMixin:
                 position = "[yellow]Loading...[/]"
                 controls = ""
 
-            text = f"[bold #e6c84a]{icon} {title}: {info}[/]  [#888]{position}[/]"
+            text = f"[bold {ui_colors.GOLD}]{icon} {title}: {info}[/]  [{ui_colors.GRAY_LIGHT}]{position}[/]"
             if controls:
                 text += f"  [dim]{controls}[/]"
             header.update(text)
@@ -263,41 +292,62 @@ class PaginationCommandsMixin:
         self._pagination.cache_details(next_page, details)
 
     def _format_result_line(self, card: Any) -> str:
-        """Format a search result line with enhanced typography."""
+        """Format a search result line with enhanced typography.
+
+        Format: [Name]  [Mana]  [Icon Type]  [#Rank]  [Stats]  [Price]
+        """
         rarity_lower = (card.rarity or "").lower()
         if rarity_lower == "mythic":
-            name_color = "#e65c00"
+            name_color = rarity_colors.MYTHIC
         elif rarity_lower == "rare":
-            name_color = "#e6c84a"
+            name_color = rarity_colors.RARE
         else:
-            name_color = "#ffffff"
+            name_color = ui_colors.WHITE
 
         mana = prettify_mana(card.mana_cost) if card.mana_cost else ""
-        type_icon = self._get_type_icon(card.type or "")
+        type_icon = CardFormatters.get_type_icon(card.type or "")
 
         parts = [f"[bold {name_color}]{card.name}[/]"]
         if mana:
             parts.append(f"{mana}")
         if type_icon:
-            parts.append(f"[dim]{type_icon}[/]")
+            parts.append(f"[dim]{type_icon} {CardFormatters.get_short_type(card.type or '')}[/]")
 
-        return " ".join(parts)
+        # EDHREC rank
+        if hasattr(card, "edhrec_rank") and card.edhrec_rank is not None:
+            parts.append(f"[dim]#{card.edhrec_rank} \u2605[/]")
 
-    def _get_type_icon(self, card_type: str) -> str:
-        """Get icon for card type."""
-        type_lower = card_type.lower()
+        # Stats: P/T for creatures, loyalty for planeswalkers
+        stats = self._get_card_stats(card)
+        if stats:
+            parts.append(f"[dim]{stats}[/]")
+
+        # Price
+        price = self._get_card_price(card)
+        if price:
+            parts.append(f"[dim]{price}[/]")
+
+        return "  ".join(parts)
+
+    def _get_card_stats(self, card: Any) -> str:
+        """Get power/toughness or loyalty for card."""
+        type_lower = (card.type or "").lower()
         if "creature" in type_lower:
-            return "⚔"
-        elif "instant" in type_lower:
-            return "⚡"
-        elif "sorcery" in type_lower:
-            return "📜"
-        elif "artifact" in type_lower:
-            return "⚙"
-        elif "enchantment" in type_lower:
-            return "✨"
+            power = getattr(card, "power", None)
+            toughness = getattr(card, "toughness", None)
+            if power is not None and toughness is not None:
+                return f"{power}/{toughness}"
         elif "planeswalker" in type_lower:
-            return "👤"
-        elif "land" in type_lower:
-            return "🌍"
+            loyalty = getattr(card, "loyalty", None)
+            if loyalty is not None:
+                return f"\u2726{loyalty}"
+        return ""
+
+    def _get_card_price(self, card: Any) -> str:
+        """Get USD price for card."""
+        prices = getattr(card, "prices", None)
+        if prices is not None:
+            usd = getattr(prices, "usd", None)
+            if usd is not None:
+                return f"${usd:.2f}"
         return ""

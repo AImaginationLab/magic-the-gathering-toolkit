@@ -13,6 +13,7 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Footer, Input, Label, ListItem, ListView, Static, TabbedContent
 
+from mtg_core.exceptions import CardNotFoundError
 from mtg_spellbook.context import DatabaseContext
 
 from .commands import CommandHandlersMixin
@@ -27,6 +28,7 @@ from .deck import (
 )
 from .pagination import PaginationState
 from .styles import APP_CSS
+from .ui.theme import ui_colors
 from .widgets import CardPanel, ResultsList
 
 
@@ -77,8 +79,8 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
     BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
         Binding("ctrl+c", "quit", "Quit", show=True, priority=True),
         Binding("ctrl+q", "quit", "Quit"),
-        Binding("ctrl+l", "clear", "Clear"),
-        Binding("f1", "help", "Help"),
+        Binding("ctrl+l", "clear", "Clear", show=True),
+        Binding("ctrl+h", "help", "Help", show=True),
         Binding("escape", "focus_input", "Input"),
         Binding("tab", "next_tab", "Next Tab"),
         Binding("shift+tab", "prev_tab", "Prev Tab"),
@@ -121,12 +123,12 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
     def compose(self) -> ComposeResult:
         # Header - Epic ASCII banner (enhanced styling)
         yield Static(
-            "[#555]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/]\n"
-            "     [bold #c9a227]✦[/]  "
-            "[bold #e6c84a]M T G   S P E L L B O O K[/]  "
-            "[bold #c9a227]✦[/]     "
-            "[dim]Loading...[/]\n"
-            "[#555]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/]",
+            f"[#555]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/]\n"
+            f"     [bold {ui_colors.GOLD_DIM}]✦[/]  "
+            f"[bold {ui_colors.GOLD}]M T G   S P E L L B O O K[/]  "
+            f"[bold {ui_colors.GOLD_DIM}]✦[/]     "
+            f"[dim]Loading...[/]\n"
+            f"[#555]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/]",
             id="header-content",
         )
 
@@ -161,6 +163,11 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
         self._scryfall = await self._ctx.get_scryfall()
         self._deck_manager = await self._ctx.get_deck_manager()
 
+        # Load keywords from database and set on card panels
+        keywords = await self._ctx.get_keywords()
+        for panel in self.query(CardPanel):
+            panel.set_keywords(keywords)
+
         # Get stats
         stats = await self._db.get_database_stats()
         self._card_count = stats.get("unique_cards", 0)
@@ -169,14 +176,14 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
         # Update header with stats (enhanced styling)
         header = self.query_one("#header-content", Static)
         header.update(
-            "[#555]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/]\n"
-            f"     [bold #c9a227]✦[/]  "
-            f"[bold #e6c84a]M T G   S P E L L B O O K[/]  "
-            f"[bold #c9a227]✦[/]     "
-            f"[#e6c84a]{self._card_count:,}[/] [dim]cards[/] "
+            f"[#555]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/]\n"
+            f"     [bold {ui_colors.GOLD_DIM}]✦[/]  "
+            f"[bold {ui_colors.GOLD}]M T G   S P E L L B O O K[/]  "
+            f"[bold {ui_colors.GOLD_DIM}]✦[/]     "
+            f"[{ui_colors.GOLD}]{self._card_count:,}[/] [dim]cards[/] "
             f"[#555]·[/] "
-            f"[#e6c84a]{self._set_count}[/] [dim]sets[/]\n"
-            "[#555]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/]"
+            f"[{ui_colors.GOLD}]{self._set_count}[/] [dim]sets[/]\n"
+            f"[#555]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/]"
         )
 
         # Focus input
@@ -267,7 +274,7 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
             if current in tab_ids:
                 idx = tab_ids.index(current)
                 tabs.active = tab_ids[(idx + 1) % len(tab_ids)]
-        except Exception:
+        except (LookupError, ValueError):
             pass
 
     def action_prev_tab(self) -> None:
@@ -281,7 +288,7 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
             if current in tab_ids:
                 idx = tab_ids.index(current)
                 tabs.active = tab_ids[(idx - 1) % len(tab_ids)]
-        except Exception:
+        except (LookupError, ValueError):
             pass
 
     def action_synergy_current(self) -> None:
@@ -409,7 +416,7 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
                         "sideboard": card_data.is_sideboard,
                         "commander": card_data.is_commander,
                     }
-                except Exception:
+                except CardNotFoundError:
                     pass
 
         # Update the results list with deck cards

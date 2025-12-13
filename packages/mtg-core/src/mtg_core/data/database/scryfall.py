@@ -2,18 +2,44 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
+import time
+from collections.abc import AsyncIterator, Sequence
+from contextlib import asynccontextmanager
 from typing import Any
 
 import aiosqlite
 
+from ...config import get_settings
 from ..models import CardImage
+
+logger = logging.getLogger(__name__)
 
 
 class ScryfallDatabase:
     """Database access to Scryfall data (images, prices, links)."""
 
-    def __init__(self, db: aiosqlite.Connection):
+    def __init__(self, db: aiosqlite.Connection, max_connections: int = 5):
         self._db = db
+        self._semaphore = asyncio.Semaphore(max_connections)
+
+    @asynccontextmanager
+    async def _execute(
+        self, query: str, params: Sequence[Any] = ()
+    ) -> AsyncIterator[aiosqlite.Cursor]:
+        """Execute a query with concurrency limiting and optional slow query logging."""
+        settings = get_settings()
+        async with self._semaphore:
+            start = time.perf_counter()
+            try:
+                async with self._db.execute(query, params) as cursor:
+                    yield cursor
+            finally:
+                if settings.log_slow_queries:
+                    duration_ms = (time.perf_counter() - start) * 1000
+                    if duration_ms > settings.slow_query_threshold_ms:
+                        logger.warning("Slow query (%.1fms): %s", duration_ms, query[:100])
 
     def _row_to_card_image(self, row: aiosqlite.Row) -> CardImage:
         """Convert a database row to a CardImage model."""
@@ -50,7 +76,7 @@ class ScryfallDatabase:
         """Get image and price data for a card by name."""
         # Try with set code first if provided
         if set_code:
-            async with self._db.execute(
+            async with self._execute(
                 "SELECT * FROM cards WHERE name = ? AND set_code = ? LIMIT 1",
                 (name, set_code.upper()),
             ) as cursor:
@@ -59,7 +85,7 @@ class ScryfallDatabase:
                     return self._row_to_card_image(row)
 
         # Fall back to any printing
-        async with self._db.execute(
+        async with self._execute(
             "SELECT * FROM cards WHERE name = ? ORDER BY scryfall_id DESC LIMIT 1",
             (name,),
         ) as cursor:
@@ -71,7 +97,7 @@ class ScryfallDatabase:
 
     async def get_card_image_by_scryfall_id(self, scryfall_id: str) -> CardImage | None:
         """Get image data by Scryfall ID."""
-        async with self._db.execute(
+        async with self._execute(
             "SELECT * FROM cards WHERE scryfall_id = ?",
             (scryfall_id,),
         ) as cursor:
@@ -83,7 +109,7 @@ class ScryfallDatabase:
     async def get_all_printings(self, name: str) -> list[CardImage]:
         """Get all printings of a card with images."""
         images = []
-        async with self._db.execute(
+        async with self._execute(
             "SELECT * FROM cards WHERE name = ? ORDER BY set_code",
             (name,),
         ) as cursor:
@@ -102,7 +128,7 @@ class ScryfallDatabase:
 
         # Try optimized query using art_priority column (new schema)
         try:
-            async with self._db.execute(
+            async with self._execute(
                 """
                 SELECT c.* FROM cards c
                 INNER JOIN (
@@ -120,11 +146,11 @@ class ScryfallDatabase:
                 async for row in cursor:
                     images.append(self._row_to_card_image(row))
             return images
-        except Exception:
+        except aiosqlite.OperationalError:
             pass
 
         # Fallback: legacy query for databases without art_priority column
-        async with self._db.execute(
+        async with self._execute(
             """
             SELECT c.* FROM cards c
             INNER JOIN (
@@ -178,7 +204,7 @@ class ScryfallDatabase:
         offset = (page - 1) * page_size
 
         images = []
-        async with self._db.execute(
+        async with self._execute(
             f"""
             SELECT * FROM cards
             WHERE {where_clause}
@@ -195,17 +221,17 @@ class ScryfallDatabase:
         """Get Scryfall database statistics."""
         stats: dict[str, Any] = {}
 
-        async with self._db.execute("SELECT COUNT(*) FROM cards") as cursor:
+        async with self._execute("SELECT COUNT(*) FROM cards") as cursor:
             row = await cursor.fetchone()
             stats["total_cards"] = row[0] if row else 0
 
-        async with self._db.execute(
+        async with self._execute(
             "SELECT COUNT(*) FROM cards WHERE price_usd IS NOT NULL"
         ) as cursor:
             row = await cursor.fetchone()
             stats["cards_with_prices"] = row[0] if row else 0
 
-        async with self._db.execute("SELECT value FROM meta WHERE key = 'created_at'") as cursor:
+        async with self._execute("SELECT value FROM meta WHERE key = 'created_at'") as cursor:
             row = await cursor.fetchone()
             if row:
                 stats["created_at"] = row[0]

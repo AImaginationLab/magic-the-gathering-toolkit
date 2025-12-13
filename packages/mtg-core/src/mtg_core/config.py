@@ -84,6 +84,22 @@ class Settings(BaseSettings):
         description="Cache TTL in seconds",
     )
 
+    # Query performance logging
+    log_slow_queries: bool = Field(
+        default=False,
+        description="Enable logging of slow database queries",
+    )
+    slow_query_threshold_ms: int = Field(
+        default=100,
+        description="Threshold in milliseconds for slow query warnings",
+    )
+
+    # Connection pooling
+    db_max_connections: int = Field(
+        default=5,
+        description="Maximum concurrent database operations (semaphore limit)",
+    )
+
 
 # Singleton instance
 _settings: Settings | None = None

@@ -116,7 +116,7 @@ class ArtNavigator(Vertical, can_focus=True):
                 )
                 tabs = tabbed_content.query_one(Tabs)
                 tabs.focus()
-            except Exception:
+            except LookupError:
                 pass
 
     @work
