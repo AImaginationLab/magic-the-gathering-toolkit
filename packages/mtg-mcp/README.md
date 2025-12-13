@@ -7,9 +7,6 @@ MCP (Model Context Protocol) server for Magic: The Gathering. Integrates with Cl
 ```bash
 # As part of the workspace
 uv sync
-
-# Or standalone
-uv pip install -e packages/mtg-mcp
 ```
 
 ## Usage
@@ -29,7 +26,7 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
   "mcpServers": {
     "mtg": {
       "command": "uv",
-      "args": ["run", "--directory", "/path/to/magic-the-gathering-mcp", "mtg-mcp"]
+      "args": ["run", "--directory", "/path/to/magic-the-gathering-toolkit", "mtg-mcp"]
     }
   }
 }

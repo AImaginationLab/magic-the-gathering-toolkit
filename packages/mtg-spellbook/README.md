@@ -7,9 +7,6 @@ Interactive terminal UI for Magic: The Gathering card lookup, deck analysis, and
 ```bash
 # As part of the workspace
 uv sync
-
-# Or standalone
-uv pip install -e packages/mtg-spellbook
 ```
 
 ## Usage

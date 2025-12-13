@@ -7,9 +7,6 @@ Shared library for the Magic: The Gathering toolkit. Provides database access, c
 ```bash
 # As part of the workspace
 uv sync
-
-# Or standalone
-uv pip install -e packages/mtg-core
 ```
 
 ## Usage
