@@ -51,4 +51,4 @@ def parse_search_query(query: str) -> SearchCardsInput:
     if name_parts:
         filters["name"] = " ".join(name_parts)
 
-    return SearchCardsInput(**filters)
+    return SearchCardsInput(**filters)  # type: ignore[arg-type]

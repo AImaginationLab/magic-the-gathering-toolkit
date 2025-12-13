@@ -224,7 +224,7 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
                 else:
                     self._update_card_panel(card)
                 # Load extras in background
-                self._load_extras_for_card(card)  # type: ignore[no-untyped-call]
+                self._load_extras_for_card(card)
 
     @work
     async def _load_extras_for_card(self, card: CardDetail) -> None:
