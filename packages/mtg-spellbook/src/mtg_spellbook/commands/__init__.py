@@ -7,6 +7,7 @@ This package provides modular command handling through composable mixins:
 - InfoCommandsMixin: Rulings, legalities, price, art
 - SetCommandsMixin: Set browsing and statistics
 - CommandHelpersMixin: Shared helper methods
+- PaginationCommandsMixin: Pagination navigation
 
 The CommandHandlersMixin combines all mixins for backwards compatibility.
 """
@@ -15,6 +16,7 @@ from .base import AppProtocol, CommandRouterMixin
 from .card import CardCommandsMixin
 from .helpers import CommandHelpersMixin
 from .info import InfoCommandsMixin
+from .pagination import PaginationCommandsMixin
 from .sets import SetCommandsMixin
 from .synergy import SynergyCommandsMixin
 
@@ -26,6 +28,7 @@ class CommandHandlersMixin(  # type: ignore[misc]  # Mixin stubs vs @work-decora
     InfoCommandsMixin,
     SetCommandsMixin,
     CommandHelpersMixin,
+    PaginationCommandsMixin,
 ):
     """Combined mixin providing all command handling functionality.
 
@@ -43,6 +46,7 @@ __all__ = [
     "CommandHelpersMixin",
     "CommandRouterMixin",
     "InfoCommandsMixin",
+    "PaginationCommandsMixin",
     "SetCommandsMixin",
     "SynergyCommandsMixin",
 ]

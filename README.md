@@ -142,7 +142,7 @@ uv run mypy .           # Type check
 ## Project Structure
 
 ```
-magic-the-gathering-mcp/
+magic-the-gathering-toolkit/
 ├── packages/
 │   ├── mtg-core/           # Shared library
 │   ├── mtg-mcp/            # MCP server
