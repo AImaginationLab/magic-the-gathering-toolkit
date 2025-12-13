@@ -1,141 +1,29 @@
-"""Reusable widgets for the MTG Spellbook TUI."""
+"""Card panel widget for displaying card details."""
 
 from __future__ import annotations
 
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING
 
 import httpx
 from PIL import Image
-from textual import work
 from textual.app import ComposeResult
-from textual.binding import Binding
 from textual.containers import Vertical, VerticalScroll
 from textual.events import Key
-from textual.widgets import ListView, Static, TabbedContent, TabPane
+from textual.widgets import Static, TabbedContent, TabPane
 
 from mtg_core.exceptions import CardNotFoundError
 from mtg_core.tools import cards
-from mtg_spellbook.formatting import prettify_mana
 
-# Try to import textual-image for image display
-try:
+from ..formatting import prettify_mana
+from .art_navigator import HAS_IMAGE_SUPPORT, ArtNavigator
+
+if HAS_IMAGE_SUPPORT:
     from textual_image.widget import Image as TImage
-
-    HAS_IMAGE_SUPPORT = True
-except ImportError:
-    HAS_IMAGE_SUPPORT = False
-    TImage = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
     from mtg_core.data.database import MTGDatabase, ScryfallDatabase
-    from mtg_core.data.models.responses import CardDetail, FindSynergiesResult, PrintingInfo
-
-
-class CardImageWidget(Static):
-    """Widget to display card image or fallback to text."""
-
-    def __init__(self, *, id: str | None = None) -> None:
-        super().__init__(id=id)
-        self._image_widget: Any = None  # TImage when available
-
-    async def load_image(self, url: str) -> None:
-        """Load and display image from URL."""
-        self.remove_children()
-
-        if not HAS_IMAGE_SUPPORT:
-            self.mount(Static("[dim]Image display not available\n(install textual-image)[/]"))
-            return
-
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(url, timeout=10.0)
-                response.raise_for_status()
-                image_data = response.content
-
-            # Load image with PIL
-            pil_image = Image.open(BytesIO(image_data))
-
-            # Create textual-image widget
-            self._image_widget = TImage(pil_image)
-            self.mount(self._image_widget)
-
-        except Exception as e:
-            self.mount(Static(f"[red]Failed to load image: {e}[/]"))
-
-    def clear_image(self) -> None:
-        """Clear the displayed image."""
-        self.remove_children()
-        self._image_widget = None
-
-
-class ArtNavigator(Vertical, can_focus=True):
-    """Focusable widget for navigating card art with arrow keys.
-
-    Press down to focus, then left/right to navigate between printings.
-    """
-
-    BINDINGS: ClassVar[list[Binding]] = [
-        Binding("left", "prev_art", "← Prev", show=False),
-        Binding("right", "next_art", "→ Next", show=False),
-        Binding("up", "release_focus", "↑ Back", show=False),
-    ]
-
-    def __init__(
-        self,
-        id_prefix: str,
-        *,
-        id: str | None = None,
-        classes: str | None = None,
-    ) -> None:
-        super().__init__(id=id, classes=classes)
-        self._id_prefix = id_prefix
-        self._panel: CardPanel | None = None
-
-    def compose(self) -> ComposeResult:
-        yield Static(
-            "[dim]Select a card to view art\n\n← → to navigate printings[/]",
-            id=f"{self._id_prefix}-art-info",
-            classes="-art-info",
-        )
-        if HAS_IMAGE_SUPPORT:
-            yield TImage(id=f"{self._id_prefix}-art-image", classes="-art-image")
-
-    def set_panel(self, panel: CardPanel) -> None:
-        """Set the parent panel reference after mount."""
-        self._panel = panel
-
-    def action_next_art(self) -> None:
-        """Navigate to next artwork."""
-        if self._panel:
-            self._load_next()
-
-    def action_prev_art(self) -> None:
-        """Navigate to previous artwork."""
-        if self._panel:
-            self._load_prev()
-
-    def action_release_focus(self) -> None:
-        """Release focus back to tab panel."""
-        if self._panel:
-            try:
-                from textual.widgets import Tabs
-                tabbed_content = self._panel.query_one(self._panel.get_child_id("tabs"), TabbedContent)
-                # Focus the internal Tabs widget, not TabbedContent itself
-                tabs = tabbed_content.query_one(Tabs)
-                tabs.focus()
-            except Exception:
-                pass
-
-    @work
-    async def _load_next(self) -> None:
-        if self._panel:
-            await self._panel.load_next_art()
-
-    @work
-    async def _load_prev(self) -> None:
-        if self._panel:
-            await self._panel.load_prev_art()
+    from mtg_core.data.models.responses import CardDetail, PrintingInfo
 
 
 class CardPanel(Vertical):
@@ -147,8 +35,6 @@ class CardPanel(Vertical):
         self._printings: list[PrintingInfo] = []
         self._current_printing_index: int = 0
         self._card_name_for_art: str = ""
-        # Generate unique prefix for child widget IDs to avoid conflicts
-        # when multiple CardPanel instances exist
         self._id_prefix = id or "card-panel"
 
     def _child_id(self, name: str) -> str:
@@ -156,33 +42,47 @@ class CardPanel(Vertical):
         return f"{self._id_prefix}-{name}"
 
     def get_child_name(self, name: str) -> str:
-        """Get the child widget ID without selector (for setting active tabs, etc.).
-
-        Available names: tabs, tab-card, tab-art, tab-rulings, tab-legal, tab-price,
-                         card-text, art-info, art-image, rulings-text, legal-text, price-text
-        """
+        """Get the child widget ID without selector (for setting active tabs, etc.)."""
         return self._child_id(name)
 
     def get_child_id(self, name: str) -> str:
-        """Get the full CSS selector for a child widget (for queries).
-
-        Available names: tabs, tab-card, tab-art, tab-rulings, tab-legal, tab-price,
-                         card-text, art-navigator, art-info, art-image, rulings-text, legal-text, price-text
-        """
+        """Get the full CSS selector for a child widget (for queries)."""
         return f"#{self._child_id(name)}"
 
     def compose(self) -> ComposeResult:
         with TabbedContent(id=self._child_id("tabs")):
             with TabPane("📖 Card", id=self._child_id("tab-card"), classes="-tab-card"):
-                yield Static("[dim]Select a card to view details[/]", id=self._child_id("card-text"), classes="-card-text")
+                yield Static(
+                    "[dim]Select a card to view details[/]",
+                    id=self._child_id("card-text"),
+                    classes="-card-text",
+                )
             with TabPane("🖼️ Art", id=self._child_id("tab-art"), classes="-tab-art"):
-                yield ArtNavigator(self._id_prefix, id=self._child_id("art-navigator"), classes="-art-navigator")
+                yield ArtNavigator(
+                    self._id_prefix,
+                    id=self._child_id("art-navigator"),
+                    classes="-art-navigator",
+                )
             with TabPane("📜 Rulings", id=self._child_id("tab-rulings"), classes="-tab-rulings"):
-                yield VerticalScroll(Static("[dim]No rulings loaded[/]", id=self._child_id("rulings-text"), classes="-rulings-text"))
+                yield VerticalScroll(
+                    Static(
+                        "[dim]No rulings loaded[/]",
+                        id=self._child_id("rulings-text"),
+                        classes="-rulings-text",
+                    )
+                )
             with TabPane("⚖️ Legal", id=self._child_id("tab-legal"), classes="-tab-legal"):
-                yield Static("[dim]No legality data[/]", id=self._child_id("legal-text"), classes="-legal-text")
+                yield Static(
+                    "[dim]No legality data[/]",
+                    id=self._child_id("legal-text"),
+                    classes="-legal-text",
+                )
             with TabPane("💰 Price", id=self._child_id("tab-price"), classes="-tab-price"):
-                yield Static("[dim]No price data[/]", id=self._child_id("price-text"), classes="-price-text")
+                yield Static(
+                    "[dim]No price data[/]",
+                    id=self._child_id("price-text"),
+                    classes="-price-text",
+                )
 
     def on_mount(self) -> None:
         """Set up panel reference in ArtNavigator after mount."""
@@ -234,7 +134,6 @@ class CardPanel(Vertical):
         card_text = self.query_one(f"#{self._child_id('card-text')}", Static)
         if card:
             text = self._render_card_text(card)
-            # Append synergy info if available
             if synergy_info:
                 reason = str(synergy_info.get("reason", ""))
                 score_val = synergy_info.get("score", 0)
@@ -265,25 +164,21 @@ class CardPanel(Vertical):
         """Render card as rich text."""
         lines = []
 
-        # Name + mana cost
         mana = prettify_mana(card.mana_cost) if card.mana_cost else ""
         lines.append(f"[bold]{card.name}[/]  {mana}" if mana else f"[bold]{card.name}[/]")
         lines.append(f"[italic dim]{card.type}[/]")
         lines.append("")
 
-        # Rules text
         if card.text:
             text = prettify_mana(card.text).replace("\\n", "\n")
             lines.append(text)
             lines.append("")
 
-        # Flavor text
         if card.flavor:
             flavor = card.flavor.replace("\\n", "\n")
             lines.append(f'[dim italic]"{flavor}"[/]')
             lines.append("")
 
-        # P/T or Loyalty
         if card.power is not None and card.toughness is not None:
             lines.append(f"[bold]{card.power}/{card.toughness}[/]")
         elif card.loyalty is not None:
@@ -291,7 +186,6 @@ class CardPanel(Vertical):
         elif card.defense is not None:
             lines.append(f"[bold]Defense: {card.defense}[/]")
 
-        # Footer
         footer_parts = []
         if card.set_code:
             footer_parts.append(f"[cyan]{card.set_code.upper()}[/]")
@@ -334,7 +228,10 @@ class CardPanel(Vertical):
         try:
             result = await cards.get_card_rulings(db, card_name)
             if result.rulings:
-                lines = [f"[bold]📜 {result.count} rulings for {result.card_name}[/]", ""]
+                lines = [
+                    f"[bold]📜 {result.count} rulings for {result.card_name}[/]",
+                    "",
+                ]
                 for ruling in result.rulings:
                     lines.append(f"[dim]{ruling.date}[/]")
                     lines.append(f"  {ruling.text}")
@@ -378,9 +275,7 @@ class CardPanel(Vertical):
         except CardNotFoundError:
             legal_text.update(f"[red]Card not found: {card_name}[/]")
 
-    async def load_printings(
-        self, scryfall: ScryfallDatabase | None, card_name: str
-    ) -> None:
+    async def load_printings(self, scryfall: ScryfallDatabase | None, card_name: str) -> None:
         """Load all printings for a card into the art tab."""
         from mtg_core.tools import images
 
@@ -396,7 +291,6 @@ class CardPanel(Vertical):
                 art_info.update(f"[yellow]No printings found for {card_name}[/]")
                 return
 
-            # Sort by price (highest first)
             self._printings = sorted(
                 result.printings,
                 key=lambda p: p.price_usd if p.price_usd is not None else -1,
@@ -423,7 +317,6 @@ class CardPanel(Vertical):
         total = len(self._printings)
         idx = self._current_printing_index + 1
 
-        # Build info line
         lines = [f"[bold]{self._card_name_for_art}[/]  [dim]({idx}/{total})[/]"]
 
         set_info = printing.set_code.upper() if printing.set_code else "Unknown"
@@ -456,15 +349,12 @@ class CardPanel(Vertical):
             return
 
         try:
-            # Check if image widget exists
             try:
                 img_widget = self.query_one(f"#{self._child_id('art-image')}", TImage)
             except Exception:
-                return  # No image widget available
+                return
 
-            # Use "large" Scryfall image for better quality (if available)
             image_url = printing.image
-            # Scryfall URLs: replace "normal" with "large" for higher resolution
             if "normal" in image_url:
                 image_url = image_url.replace("normal", "large")
 
@@ -475,15 +365,13 @@ class CardPanel(Vertical):
 
             pil_image = Image.open(BytesIO(image_data))
 
-            # Convert to RGB if necessary (some images may be RGBA or palette)
             if pil_image.mode not in ("RGB", "L"):
                 pil_image = pil_image.convert("RGB")  # type: ignore[assignment]
 
             img_widget.image = pil_image
 
         except Exception as e:
-            # Show error in art info for debugging
-            current_text = art_info.renderable
+            current_text = art_info.renderable  # type: ignore[attr-defined]
             art_info.update(f"{current_text}\n[red dim]Image error: {e}[/]")
 
     def next_printing(self) -> bool:
@@ -511,90 +399,3 @@ class CardPanel(Vertical):
         """Navigate to previous printing and load image."""
         if self.prev_printing():
             await self._load_current_art_image()
-
-
-class SynergyPanel(Vertical):
-    """Display source card when viewing synergies."""
-
-    def __init__(self, *, id: str | None = None) -> None:
-        super().__init__(id=id)
-        self._source_card: CardDetail | None = None
-
-    def compose(self) -> ComposeResult:
-        yield Static("[dim]Use 'synergy <card>' to find synergistic cards[/]", id="synergy-content")
-
-    def show_source_card(self, card: CardDetail) -> None:
-        """Display the source card that synergies are based on (single-line compact view)."""
-        self._source_card = card
-        content = self.query_one("#synergy-content", Static)
-
-        # Build ultra-compact single-line display
-        mana = prettify_mana(card.mana_cost) if card.mana_cost else ""
-
-        # Single line: 🎯 Synergies for: [Name] [mana] · [type] [P/T]
-        parts = [f"[bold cyan]🎯 Synergies for:[/] [bold]{card.name}[/]"]
-        if mana:
-            parts.append(mana)
-
-        type_part = f"[dim]{card.type}[/]"
-        if card.power is not None and card.toughness is not None:
-            type_part += f" [bold]{card.power}/{card.toughness}[/]"
-        elif card.loyalty is not None:
-            type_part += f" [bold]Loyalty: {card.loyalty}[/]"
-        parts.append(type_part)
-
-        content.update("  ".join(parts))
-
-    def clear_source(self) -> None:
-        """Clear the source card display."""
-        self._source_card = None
-        content = self.query_one("#synergy-content", Static)
-        content.update("[dim]Use 'synergy <card>' to find synergistic cards[/]")
-
-    def update_synergies(self, result: FindSynergiesResult) -> None:
-        """Update displayed synergies (legacy method for combos display)."""
-        content = self.query_one("#synergy-content", Static)
-
-        if not result.synergies:
-            content.update(f"[dim]No synergies found for {result.card_name}[/]")
-            return
-
-        lines = [
-            f"[bold]🔗 Synergies for {result.card_name}[/] ({result.total_found} found)",
-            "",
-        ]
-
-        type_icons = {
-            "keyword": "🔑",
-            "tribal": "👥",
-            "ability": "✨",
-            "theme": "🎯",
-            "archetype": "🏛️",
-        }
-
-        for syn in result.synergies[:20]:
-            icon = type_icons.get(syn.synergy_type, "•")
-            mana = f" {prettify_mana(syn.mana_cost)}" if syn.mana_cost else ""
-            score_bar = "●" * int(syn.score * 5) + "○" * (5 - int(syn.score * 5))
-            lines.append(
-                f"  [{self._score_color(syn.score)}]{score_bar}[/] "
-                f"{icon} [cyan]{syn.name}[/]{mana}"
-            )
-            lines.append(f"         [dim]{syn.reason}[/]")
-
-        content.update("\n".join(lines))
-
-    def _score_color(self, score: float) -> str:
-        if score >= 0.8:
-            return "green"
-        elif score >= 0.5:
-            return "yellow"
-        return "dim"
-
-
-class ResultsList(ListView):
-    """List of search results with keyboard navigation."""
-
-    pass
-
-

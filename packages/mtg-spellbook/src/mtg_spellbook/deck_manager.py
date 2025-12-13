@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from mtg_core.data.database import DeckCardRow, DeckSummary, UserDatabase
-from mtg_core.data.models import Card, DeckCard
+from mtg_core.data.models import (
+    AnalyzeDeckInput,
+    Card,
+    DeckCardInput,
+    Format,
+    ValidateDeckInput,
+)
 from mtg_core.tools import deck as deck_tools
 
 if TYPE_CHECKING:
@@ -177,9 +183,7 @@ class DeckManager:
             new_quantity=new_qty,
         )
 
-    async def remove_card(
-        self, deck_id: int, card_name: str, sideboard: bool = False
-    ) -> bool:
+    async def remove_card(self, deck_id: int, card_name: str, sideboard: bool = False) -> bool:
         """Remove a card from a deck."""
         return await self.user.remove_card(deck_id, card_name, sideboard)
 
@@ -214,30 +218,33 @@ class DeckManager:
         cards = await self.user.get_deck_cards(deck_id)
         deck_cards = self._rows_to_deck_cards(cards)
 
-        return await deck_tools.validate_deck(
-            self.mtg,
-            deck_cards,
-            deck.format,
+        input_data = ValidateDeckInput(
+            cards=deck_cards,
+            format=cast(Format, deck.format or "commander"),
             commander=deck.commander,
         )
+        return await deck_tools.validate_deck(self.mtg, input_data)
 
     async def analyze_mana_curve(self, deck_id: int) -> ManaCurveResult:
         """Analyze deck mana curve."""
         cards = await self.user.get_deck_cards(deck_id)
         deck_cards = self._rows_to_deck_cards(cards)
-        return await deck_tools.analyze_mana_curve(self.mtg, deck_cards)
+        input_data = AnalyzeDeckInput(cards=deck_cards)
+        return await deck_tools.analyze_mana_curve(self.mtg, input_data)
 
     async def analyze_colors(self, deck_id: int) -> ColorAnalysisResult:
         """Analyze deck colors."""
         cards = await self.user.get_deck_cards(deck_id)
         deck_cards = self._rows_to_deck_cards(cards)
-        return await deck_tools.analyze_colors(self.mtg, deck_cards)
+        input_data = AnalyzeDeckInput(cards=deck_cards)
+        return await deck_tools.analyze_colors(self.mtg, input_data)
 
     async def analyze_composition(self, deck_id: int) -> CompositionResult:
         """Analyze deck composition."""
         cards = await self.user.get_deck_cards(deck_id)
         deck_cards = self._rows_to_deck_cards(cards)
-        return await deck_tools.analyze_deck_composition(self.mtg, deck_cards)
+        input_data = AnalyzeDeckInput(cards=deck_cards)
+        return await deck_tools.analyze_deck_composition(self.mtg, input_data)
 
     async def analyze_price(self, deck_id: int) -> PriceAnalysisResult | None:
         """Analyze deck price."""
@@ -246,7 +253,8 @@ class DeckManager:
 
         cards = await self.user.get_deck_cards(deck_id)
         deck_cards = self._rows_to_deck_cards(cards)
-        return await deck_tools.analyze_deck_price(self.mtg, self.scryfall, deck_cards)
+        input_data = AnalyzeDeckInput(cards=deck_cards)
+        return await deck_tools.analyze_deck_price(self.mtg, self.scryfall, input_data)
 
     async def full_analysis(self, deck_id: int) -> FullDeckAnalysis:
         """Run all analysis tools on a deck."""
@@ -257,16 +265,21 @@ class DeckManager:
         cards = await self.user.get_deck_cards(deck_id)
         deck_cards = self._rows_to_deck_cards(cards)
 
-        validation = await deck_tools.validate_deck(
-            self.mtg, deck_cards, deck.format, commander=deck.commander
+        validate_input = ValidateDeckInput(
+            cards=deck_cards,
+            format=cast(Format, deck.format or "commander"),
+            commander=deck.commander,
         )
-        mana_curve = await deck_tools.analyze_mana_curve(self.mtg, deck_cards)
-        colors = await deck_tools.analyze_colors(self.mtg, deck_cards)
-        composition = await deck_tools.analyze_deck_composition(self.mtg, deck_cards)
+        analyze_input = AnalyzeDeckInput(cards=deck_cards)
+
+        validation = await deck_tools.validate_deck(self.mtg, validate_input)
+        mana_curve = await deck_tools.analyze_mana_curve(self.mtg, analyze_input)
+        colors = await deck_tools.analyze_colors(self.mtg, analyze_input)
+        composition = await deck_tools.analyze_deck_composition(self.mtg, analyze_input)
 
         price = None
         if self.scryfall:
-            price = await deck_tools.analyze_deck_price(self.mtg, self.scryfall, deck_cards)
+            price = await deck_tools.analyze_deck_price(self.mtg, self.scryfall, analyze_input)
 
         return FullDeckAnalysis(
             validation=validation,
@@ -384,10 +397,10 @@ class DeckManager:
             )
         return result
 
-    def _rows_to_deck_cards(self, rows: list[DeckCardRow]) -> list[DeckCard]:
-        """Convert database rows to DeckCard models for analysis tools."""
+    def _rows_to_deck_cards(self, rows: list[DeckCardRow]) -> list[DeckCardInput]:
+        """Convert database rows to DeckCardInput models for analysis tools."""
         return [
-            DeckCard(
+            DeckCardInput(
                 name=row.card_name,
                 quantity=row.quantity,
                 sideboard=row.is_sideboard,

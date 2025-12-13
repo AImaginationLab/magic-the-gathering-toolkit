@@ -422,9 +422,7 @@ class DetectCombosResult(BaseModel):
 
     combos: list[Combo] = Field(default_factory=list)  # Found complete combos
     potential_combos: list[Combo] = Field(default_factory=list)  # Missing 1-2 pieces
-    missing_cards: dict[str, list[str]] = Field(
-        default_factory=dict
-    )  # combo_id -> missing cards
+    missing_cards: dict[str, list[str]] = Field(default_factory=dict)  # combo_id -> missing cards
 
 
 class SuggestedCard(BaseModel):

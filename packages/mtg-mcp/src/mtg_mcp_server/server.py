@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 from mcp.server.fastmcp import FastMCP
+
 from mtg_core.config import get_settings
 from mtg_core.data.database import DatabaseManager
 

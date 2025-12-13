@@ -23,7 +23,9 @@ from .detection import (
     detect_deck_colors,
     detect_themes,
     find_combos_for_card,
+    find_combos_for_card_db,
     find_combos_in_deck,
+    find_combos_in_deck_db,
 )
 from .scoring import (
     calculate_synergy_score,
@@ -33,7 +35,7 @@ from .scoring import (
 from .search import search_synergies
 
 if TYPE_CHECKING:
-    from ...data.database import MTGDatabase, ScryfallDatabase
+    from ...data.database import ComboDatabase, MTGDatabase, ScryfallDatabase
     from ...data.models.card import Card
 
 
@@ -59,8 +61,13 @@ async def find_synergies(
                 terms = [(t, f"{keyword}: {r}") for t, r in KEYWORD_SYNERGIES[keyword]]
                 synergies.extend(
                     await search_synergies(
-                        db, source_card, terms, "keyword",
-                        seen_names, color_identity, format_legal,
+                        db,
+                        source_card,
+                        terms,
+                        "keyword",
+                        seen_names,
+                        color_identity,
+                        format_legal,
                     )
                 )
 
@@ -72,15 +79,19 @@ async def find_synergies(
                 continue
             synergies.extend(
                 await search_synergies(
-                    db, source_card,
+                    db,
+                    source_card,
                     [(subtype, f"Synergizes with {subtype}s")],
-                    "tribal", seen_names, color_identity, format_legal, page_size=15,
+                    "tribal",
+                    seen_names,
+                    color_identity,
+                    format_legal,
+                    page_size=15,
                 )
             )
             # Cards of same subtype
             await _add_tribal_matches(
-                db, source_card, subtype, synergies, seen_names,
-                color_identity, format_legal
+                db, source_card, subtype, synergies, seen_names, color_identity, format_legal
             )
 
     # Pass 3: Ability text synergies
@@ -89,8 +100,14 @@ async def find_synergies(
             if card_has_pattern(source_card, pattern):
                 synergies.extend(
                     await search_synergies(
-                        db, source_card, search_terms, "ability",
-                        seen_names, color_identity, format_legal, page_size=8,
+                        db,
+                        source_card,
+                        search_terms,
+                        "ability",
+                        seen_names,
+                        color_identity,
+                        format_legal,
+                        page_size=8,
                     )
                 )
 
@@ -101,8 +118,14 @@ async def find_synergies(
                 terms = [(t, f"{card_type}: {r}") for t, r in TYPE_SYNERGIES[card_type]]
                 synergies.extend(
                     await search_synergies(
-                        db, source_card, terms, "theme",
-                        seen_names, color_identity, format_legal, page_size=8,
+                        db,
+                        source_card,
+                        terms,
+                        "theme",
+                        seen_names,
+                        color_identity,
+                        format_legal,
+                        page_size=8,
                     )
                 )
 
@@ -153,10 +176,18 @@ async def detect_combos(
     db: MTGDatabase,  # noqa: ARG001
     card_name: str | None = None,
     deck_cards: list[str] | None = None,
+    combo_db: ComboDatabase | None = None,
 ) -> DetectCombosResult:
-    """Detect known combos in a deck or for a specific card."""
+    """Detect known combos in a deck or for a specific card.
+
+    If combo_db is provided, uses the database for combo detection.
+    Otherwise falls back to the hardcoded KNOWN_COMBOS list.
+    """
     if card_name:
-        found_combos = find_combos_for_card(card_name)
+        if combo_db:
+            found_combos = await find_combos_for_card_db(combo_db, card_name)
+        else:
+            found_combos = find_combos_for_card(card_name)
         return DetectCombosResult(
             combos=found_combos,
             potential_combos=[],
@@ -164,7 +195,10 @@ async def detect_combos(
         )
 
     if deck_cards:
-        found, potential, missing = find_combos_in_deck(deck_cards)
+        if combo_db:
+            found, potential, missing = await find_combos_in_deck_db(combo_db, deck_cards)
+        else:
+            found, potential, missing = find_combos_in_deck(deck_cards)
         return DetectCombosResult(
             combos=found,
             potential_combos=potential,
@@ -220,8 +254,15 @@ async def suggest_cards(
         search_term = THEME_INDICATORS[theme][0]
         suggestions.extend(
             await _search_theme_suggestions(
-                db, scryfall, search_term, theme, deck_colors,
-                format_legal, budget_max, seen_names, max_results - len(suggestions)
+                db,
+                scryfall,
+                search_term,
+                theme,
+                deck_colors,
+                format_legal,
+                budget_max,
+                seen_names,
+                max_results - len(suggestions),
             )
         )
         if len(suggestions) >= max_results:
@@ -231,8 +272,13 @@ async def suggest_cards(
     if len(suggestions) < max_results and deck_colors:
         suggestions.extend(
             await _search_staple_suggestions(
-                db, scryfall, deck_colors, format_legal,
-                budget_max, seen_names, max_results - len(suggestions)
+                db,
+                scryfall,
+                deck_colors,
+                format_legal,
+                budget_max,
+                seen_names,
+                max_results - len(suggestions),
             )
         )
 

@@ -6,7 +6,6 @@ from typing import Annotated
 
 from mcp.server.fastmcp import FastMCP
 
-from mtg_mcp_server.context import ToolContext, get_app
 from mtg_core.data.models import (
     CardDetail,
     Color,
@@ -20,6 +19,7 @@ from mtg_core.data.models import (
     SortOrder,
 )
 from mtg_core.tools import cards
+from mtg_mcp_server.context import ToolContext, get_app
 
 
 def register(mcp: FastMCP) -> None:
@@ -46,7 +46,9 @@ def register(mcp: FastMCP) -> None:
         text: Annotated[str | None, "Search in card text"] = None,
         keywords: Annotated[list[str] | None, "Filter by keywords (Flying, Trample)"] = None,
         format_legal: Annotated[Format | None, "Filter by format legality"] = None,
-        sort_by: Annotated[SortField | None, "Sort by field (name, cmc, color, rarity, type)"] = None,
+        sort_by: Annotated[
+            SortField | None, "Sort by field (name, cmc, color, rarity, type)"
+        ] = None,
         sort_order: Annotated[SortOrder, "Sort order (asc, desc)"] = "asc",
         page: Annotated[int, "Page number"] = 1,
         page_size: Annotated[int, "Results per page (max 100)"] = 25,

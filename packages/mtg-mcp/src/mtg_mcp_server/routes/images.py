@@ -6,7 +6,6 @@ from typing import Annotated
 
 from mcp.server.fastmcp import FastMCP
 
-from mtg_mcp_server.context import ToolContext, get_app
 from mtg_core.data.models import (
     CardImageResponse,
     PriceResponse,
@@ -14,6 +13,7 @@ from mtg_core.data.models import (
     PrintingsResponse,
 )
 from mtg_core.tools import images
+from mtg_mcp_server.context import ToolContext, get_app
 
 
 def register(mcp: FastMCP) -> None:

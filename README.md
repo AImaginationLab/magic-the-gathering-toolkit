@@ -23,6 +23,10 @@ uv sync
 # Download databases (required)
 uv run create-datasources
 
+# Or skip specific steps
+uv run create-datasources --skip-mtgjson --skip-scryfall  # Only init combos
+uv run create-datasources --skip-combos                   # Only download databases
+
 # Launch the TUI
 uv run mtg-spellbook
 
@@ -61,7 +65,8 @@ Add to Claude Desktop config (`~/Library/Application Support/Claude/claude_deskt
   "mcpServers": {
     "mtg": {
       "command": "uv",
-      "args": ["run", "--directory", "/path/to/magic-the-gathering-mcp", "mtg-mcp"]
+      "args": ["run", "--directory", "/path/to/magic-the-gathering-toolkit", "mtg-mcp"]
+      
     }
   }
 }

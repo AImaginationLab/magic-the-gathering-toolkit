@@ -16,7 +16,7 @@ from textual.widgets import Footer, Input, Label, ListItem, ListView, Static, Ta
 from mtg_spellbook.context import DatabaseContext
 
 from .commands import CommandHandlersMixin
-from .deck_widgets import (
+from .deck import (
     AddToDeckModal,
     AddToDeckRequested,
     CardAddedToDeck,
@@ -43,6 +43,7 @@ def _reset_terminal_mouse() -> None:
 # Register cleanup at module load to ensure it runs on any exit
 atexit.register(_reset_terminal_mouse)
 
+
 # Also handle signals for cases where atexit doesn't run
 def _signal_handler(_signum: int, _frame: object) -> None:
     """Handle termination signals by cleaning up terminal."""
@@ -61,10 +62,10 @@ if TYPE_CHECKING:
     from mtg_core.data.database import MTGDatabase, ScryfallDatabase
     from mtg_core.data.models.responses import CardDetail
 
-    from .deck_manager import DeckManager
+    from .deck_manager import DeckManager, DeckWithCards
 
 
-class MTGSpellbook(CommandHandlersMixin, App[None]):
+class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
     """MTG Spellbook - Interactive card lookup TUI."""
 
     TITLE = "MTG Spellbook"
@@ -360,7 +361,7 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):
     @work
     async def _load_deck_cards(self, deck_id: int) -> None:
         """Load deck cards and display them in the results list."""
-        if not self._deck_manager:
+        if not self._deck_manager or not self._db:
             return
 
         deck = await self._deck_manager.get_deck(deck_id)
@@ -404,7 +405,7 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):
             await self._load_card_extras(self._current_results[0])
 
     def _update_deck_results(
-        self, deck: object, card_info: dict[str, dict[str, object]]
+        self, deck: DeckWithCards, card_info: dict[str, dict[str, object]]
     ) -> None:
         """Update results list with deck cards."""
         from textual.widgets import Label, ListItem
@@ -416,11 +417,11 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):
         results_list.clear()
 
         # Sort: commanders first, then mainboard, then sideboard
-        def sort_key(card: object) -> tuple[int, int, str]:
-            info = card_info.get(card.name, {})  # type: ignore
+        def sort_key(card: CardDetail) -> tuple[int, int, str]:
+            info = card_info.get(card.name, {})
             is_commander = info.get("commander", False)
             is_sideboard = info.get("sideboard", False)
-            return (0 if is_commander else 1, 1 if is_sideboard else 0, card.name)  # type: ignore
+            return (0 if is_commander else 1, 1 if is_sideboard else 0, card.name)
 
         sorted_cards = sorted(self._current_results, key=sort_key)
 
@@ -446,9 +447,8 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):
             results_list.append(ListItem(Label(line)))
 
         # Update header with deck name and card count
-        deck_obj = deck  # type: ignore
         self._update_results_header(
-            f"📚 {deck_obj.name} ({deck_obj.mainboard_count} + {deck_obj.sideboard_count} SB)"
+            f"📚 {deck.name} ({deck.mainboard_count} + {deck.sideboard_count} SB)"
         )
 
         if sorted_cards:
@@ -456,9 +456,9 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):
             results_list.index = 0
 
     @on(DeckCreated)
-    async def on_deck_created_message(self, _event: DeckCreated) -> None:
+    def on_deck_created_message(self, _event: DeckCreated) -> None:
         """Handle deck created message."""
-        await self._refresh_deck_list()
+        self._refresh_deck_list()
 
     @on(AddToDeckRequested)
     async def on_add_to_deck_requested(self, event: AddToDeckRequested) -> None:
@@ -470,6 +470,6 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):
         self.push_screen(AddToDeckModal(event.card_name, decks))
 
     @on(CardAddedToDeck)
-    async def on_card_added_to_deck(self, _event: CardAddedToDeck) -> None:
+    def on_card_added_to_deck(self, _event: CardAddedToDeck) -> None:
         """Handle card added to deck."""
-        await self._refresh_deck_list()
+        self._refresh_deck_list()

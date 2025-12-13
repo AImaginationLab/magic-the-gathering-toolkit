@@ -6,9 +6,9 @@ from typing import Annotated, Any
 
 from mcp.server.fastmcp import FastMCP
 
-from mtg_mcp_server.context import ToolContext, get_app
 from mtg_core.data.models import SetDetail, SetsResponse
 from mtg_core.tools import sets
+from mtg_mcp_server.context import ToolContext, get_app
 
 
 def register(mcp: FastMCP) -> None:

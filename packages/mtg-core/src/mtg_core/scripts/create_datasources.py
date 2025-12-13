@@ -63,9 +63,10 @@ def download_file(url: str, dest: Path, description: str) -> None:
     """Download a file with progress bar."""
     # Use longer read timeout for large file downloads
     timeout = httpx.Timeout(connect=30.0, read=300.0, write=30.0, pool=30.0)
-    with httpx.Client(follow_redirects=True, timeout=timeout) as client, client.stream(
-        "GET", url
-    ) as response:
+    with (
+        httpx.Client(follow_redirects=True, timeout=timeout) as client,
+        client.stream("GET", url) as response,
+    ):
         response.raise_for_status()
         total = int(response.headers.get("content-length", 0))
 
@@ -242,7 +243,9 @@ def create_scryfall_db(json_path: Path, db_path: Path, updated_at: str) -> None:
     cursor.execute("CREATE INDEX idx_cards_name ON cards(name)")
     cursor.execute("CREATE INDEX idx_cards_set_code ON cards(set_code)")
     cursor.execute("CREATE INDEX idx_cards_name_set ON cards(name, set_code)")
-    cursor.execute("CREATE INDEX idx_cards_illustration_priority ON cards(illustration_id, art_priority, set_code)")
+    cursor.execute(
+        "CREATE INDEX idx_cards_illustration_priority ON cards(illustration_id, art_priority, set_code)"
+    )
     cursor.execute("CREATE INDEX idx_cards_name_illustration ON cards(name, illustration_id)")
 
     cursor.execute("""
@@ -281,9 +284,7 @@ def create_scryfall_db(json_path: Path, db_path: Path, updated_at: str) -> None:
     cursor.execute(
         "INSERT INTO meta (key, value) VALUES (?, ?)", ("scryfall_updated_at", updated_at)
     )
-    cursor.execute(
-        "INSERT INTO meta (key, value) VALUES (?, ?)", ("card_count", str(len(cards)))
-    )
+    cursor.execute("INSERT INTO meta (key, value) VALUES (?, ?)", ("card_count", str(len(cards))))
 
     conn.commit()
     conn.close()
@@ -371,7 +372,97 @@ app = typer.Typer(
     name="create-datasources",
     help="Download and create MTG database files.",
     no_args_is_help=False,
+    invoke_without_command=True,
 )
+
+
+@app.callback()
+def main_callback(
+    ctx: typer.Context,
+    output_dir: Annotated[
+        Path,
+        typer.Option(
+            "--output-dir",
+            "-o",
+            help="Directory to save database files",
+        ),
+    ] = Path("resources"),
+    skip_mtgjson: Annotated[
+        bool,
+        typer.Option("--skip-mtgjson", help="Skip downloading MTGJson"),
+    ] = False,
+    skip_scryfall: Annotated[
+        bool,
+        typer.Option("--skip-scryfall", help="Skip downloading Scryfall"),
+    ] = False,
+    skip_combos: Annotated[
+        bool,
+        typer.Option("--skip-combos", help="Skip initializing combo database"),
+    ] = False,
+) -> None:
+    """Download MTG databases and initialize combo data.
+
+    By default, downloads MTGJson, Scryfall data, and initializes the combo database.
+    """
+    # Only run if no subcommand was invoked
+    if ctx.invoked_subcommand is not None:
+        return
+
+    import asyncio
+
+    from ..config import get_settings
+    from ..data.database.combos import ComboDatabase
+    from ..tools.synergy.constants import KNOWN_COMBOS
+
+    console.print("[bold]MTG Database Setup[/]\n")
+
+    # Create output directory
+    output_dir_resolved = output_dir.expanduser().resolve()
+    output_dir_resolved.mkdir(parents=True, exist_ok=True)
+    console.print(f"Output directory: [cyan]{output_dir_resolved}[/]")
+
+    if not skip_mtgjson:
+        download_mtgjson(output_dir_resolved)
+
+    if not skip_scryfall:
+        download_scryfall(output_dir_resolved)
+
+    if not skip_combos:
+
+        async def _init_combos() -> None:
+            settings = get_settings()
+            db_path = settings.combo_db_path
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+
+            console.print("\n[bold]Initializing Combo Database[/]")
+            console.print(f"Output: [cyan]{db_path}[/]\n")
+
+            combo_db = ComboDatabase(db_path)
+            await combo_db.connect()
+
+            try:
+                console.print("[dim]Importing hardcoded KNOWN_COMBOS...[/]")
+                count = await combo_db.import_from_legacy_format(KNOWN_COMBOS)
+                console.print(f"[green]✓[/] Imported {count} combos from KNOWN_COMBOS")
+
+                # Also import from new_combos_draft.json if it exists
+                json_path = Path("new_combos_draft.json")
+                if json_path.exists():
+                    console.print(f"[dim]Importing from {json_path}...[/]")
+                    json_count = await combo_db.import_from_json(json_path)
+                    console.print(f"[green]✓[/] Imported {json_count} combos from JSON")
+
+                final_count = await combo_db.get_combo_count()
+                console.print(f"[green]✓[/] Combo database has {final_count} combos")
+            finally:
+                await combo_db.close()
+
+        asyncio.run(_init_combos())
+
+    console.print("\n[bold green]Done![/] All databases are ready to use.")
+    console.print("\n[dim]Set environment variables if using a custom location:[/]")
+    console.print(f"  MTG_DB_PATH={output_dir_resolved}/AllPrintings.sqlite")
+    console.print(f"  SCRYFALL_DB_PATH={output_dir_resolved}/scryfall.sqlite")
 
 
 @app.command("create-indexes")
@@ -392,43 +483,83 @@ def create_indexes(
     console.print("\n[bold green]Done![/]")
 
 
-@app.command("download")
-def main(
-    output_dir: Annotated[
-        Path,
+@app.command("init-combos")
+def init_combos(
+    output_path: Annotated[
+        Path | None,
         typer.Option(
-            "--output-dir",
+            "--output",
             "-o",
-            help="Directory to save database files",
+            help="Path to combo database (default: ~/.mtg-spellbook/combos.sqlite)",
         ),
-    ] = Path("resources"),
-    skip_mtgjson: Annotated[
+    ] = None,
+    json_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--json",
+            "-j",
+            help="Path to additional combos JSON file to import",
+        ),
+    ] = None,
+    include_legacy: Annotated[
         bool,
-        typer.Option("--skip-mtgjson", help="Skip downloading MTGJson"),
-    ] = False,
-    skip_scryfall: Annotated[
-        bool,
-        typer.Option("--skip-scryfall", help="Skip downloading Scryfall"),
-    ] = False,
+        typer.Option(
+            "--include-legacy/--no-legacy",
+            help="Include hardcoded combos from KNOWN_COMBOS",
+        ),
+    ] = True,
 ) -> None:
-    """Download and create MTG database files."""
-    console.print("[bold]MTG Database Setup[/]\n")
+    """Initialize the combo database with known combos.
 
-    # Create output directory
-    output_dir = output_dir.expanduser().resolve()
-    output_dir.mkdir(parents=True, exist_ok=True)
-    console.print(f"Output directory: [cyan]{output_dir}[/]")
+    By default, imports combos from the hardcoded KNOWN_COMBOS list.
+    Optionally imports additional combos from a JSON file.
+    """
+    import asyncio
 
-    if not skip_mtgjson:
-        download_mtgjson(output_dir)
+    from ..config import get_settings
+    from ..data.database.combos import ComboDatabase
+    from ..tools.synergy.constants import KNOWN_COMBOS
 
-    if not skip_scryfall:
-        download_scryfall(output_dir)
+    async def _init_combos() -> None:
+        # Determine output path
+        db_path = output_path or get_settings().combo_db_path
+        db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    console.print("\n[bold green]Done![/] Databases are ready to use.")
-    console.print("\n[dim]Set environment variables if using a custom location:[/]")
-    console.print(f"  MTG_DB_PATH={output_dir}/AllPrintings.sqlite")
-    console.print(f"  SCRYFALL_DB_PATH={output_dir}/scryfall.sqlite")
+        console.print("[bold]Initializing Combo Database[/]")
+        console.print(f"Output: [cyan]{db_path}[/]\n")
+
+        # Connect to database
+        combo_db = ComboDatabase(db_path)
+        await combo_db.connect()
+
+        try:
+            total_imported = 0
+
+            # Import legacy combos
+            if include_legacy:
+                console.print("[dim]Importing hardcoded KNOWN_COMBOS...[/]")
+                count = await combo_db.import_from_legacy_format(KNOWN_COMBOS)
+                console.print(f"[green]✓[/] Imported {count} combos from KNOWN_COMBOS")
+                total_imported += count
+
+            # Import from JSON file
+            if json_path:
+                if json_path.exists():
+                    console.print(f"[dim]Importing from {json_path}...[/]")
+                    count = await combo_db.import_from_json(json_path)
+                    console.print(f"[green]✓[/] Imported {count} combos from JSON")
+                    total_imported += count
+                else:
+                    console.print(f"[yellow]Warning:[/] JSON file not found: {json_path}")
+
+            # Show final count
+            final_count = await combo_db.get_combo_count()
+            console.print(f"\n[bold green]Done![/] Combo database has {final_count} combos")
+
+        finally:
+            await combo_db.close()
+
+    asyncio.run(_init_combos())
 
 
 if __name__ == "__main__":
