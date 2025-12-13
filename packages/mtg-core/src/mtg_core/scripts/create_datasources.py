@@ -86,6 +86,41 @@ def download_file(url: str, dest: Path, description: str) -> None:
                     progress.update(task, advance=len(chunk))
 
 
+def create_mtgjson_indexes(db_path: Path) -> None:
+    """Create performance indexes on MTGJson database."""
+    console.print("[dim]Creating performance indexes...[/]")
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    indexes = [
+        ("idx_cards_name", "cards", "name"),
+        ("idx_cards_type", "cards", "type"),
+        ("idx_cards_types", "cards", "types"),
+        ("idx_cards_rarity", "cards", "rarity"),
+        ("idx_cards_colors", "cards", "colors"),
+        ("idx_cards_colorIdentity", "cards", "colorIdentity"),
+        ("idx_cards_setCode", "cards", "setCode"),
+        ("idx_cards_manaValue", "cards", "manaValue"),
+        ("idx_cards_subtypes", "cards", "subtypes"),
+        ("idx_cardLegalities_uuid", "cardLegalities", "uuid"),
+        ("idx_cardLegalities_format", "cardLegalities", "format"),
+        ("idx_cardRulings_uuid", "cardRulings", "uuid"),
+    ]
+
+    created = 0
+    for idx_name, table, column in indexes:
+        try:
+            cursor.execute(f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table}({column})")
+            created += 1
+        except sqlite3.OperationalError:
+            pass  # Index may already exist or column doesn't exist
+
+    conn.commit()
+    conn.close()
+    console.print(f"[green]✓[/] Created {created} indexes")
+
+
 def download_mtgjson(output_dir: Path) -> Path:
     """Download and extract MTGJson AllPrintings.sqlite."""
     console.print("\n[bold]Downloading MTGJson AllPrintings.sqlite...[/]")
@@ -106,6 +141,9 @@ def download_mtgjson(output_dir: Path) -> Path:
                 f_out.write(chunk)
     finally:
         tmp_path.unlink(missing_ok=True)
+
+    # Create indexes for better query performance
+    create_mtgjson_indexes(output_file)
 
     # Check file size
     size_mb = output_file.stat().st_size / (1024 * 1024)
@@ -191,6 +229,9 @@ def create_scryfall_db(json_path: Path, db_path: Path, updated_at: str) -> None:
             frame TEXT,
             full_art INTEGER,
 
+            -- Art priority for efficient unique artwork queries (0=borderless, 1=full_art, 2=regular)
+            art_priority INTEGER DEFAULT 2,
+
             -- Availability
             games TEXT,
             finishes TEXT
@@ -201,6 +242,8 @@ def create_scryfall_db(json_path: Path, db_path: Path, updated_at: str) -> None:
     cursor.execute("CREATE INDEX idx_cards_name ON cards(name)")
     cursor.execute("CREATE INDEX idx_cards_set_code ON cards(set_code)")
     cursor.execute("CREATE INDEX idx_cards_name_set ON cards(name, set_code)")
+    cursor.execute("CREATE INDEX idx_cards_illustration_priority ON cards(illustration_id, art_priority, set_code)")
+    cursor.execute("CREATE INDEX idx_cards_name_illustration ON cards(name, illustration_id)")
 
     cursor.execute("""
         CREATE TABLE meta (
@@ -257,6 +300,14 @@ def insert_card(cursor: sqlite3.Cursor, card: dict[str, Any]) -> None:
         except (ValueError, TypeError):
             return None
 
+    def calculate_art_priority(card_data: dict[str, Any]) -> int:
+        """Calculate art priority: 0=borderless, 1=full_art, 2=regular."""
+        if card_data.get("border_color") == "borderless":
+            return 0
+        if card_data.get("full_art"):
+            return 1
+        return 2
+
     # Get image URIs
     images = card.get("image_uris", {})
 
@@ -279,8 +330,8 @@ def insert_card(cursor: sqlite3.Cursor, card: dict[str, Any]) -> None:
             purchase_tcgplayer, purchase_cardmarket, purchase_cardhoarder,
             link_edhrec, link_gatherer,
             illustration_id, image_status, highres_image, border_color,
-            frame, full_art, games, finishes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            frame, full_art, art_priority, games, finishes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """,
         (
             card.get("id"),
@@ -309,6 +360,7 @@ def insert_card(cursor: sqlite3.Cursor, card: dict[str, Any]) -> None:
             card.get("border_color"),
             card.get("frame"),
             1 if card.get("full_art") else 0,
+            calculate_art_priority(card),
             json.dumps(card.get("games", [])),
             json.dumps(card.get("finishes", [])),
         ),
@@ -322,7 +374,25 @@ app = typer.Typer(
 )
 
 
-@app.command()
+@app.command("create-indexes")
+def create_indexes(
+    db_path: Annotated[
+        Path,
+        typer.Argument(help="Path to AllPrintings.sqlite"),
+    ],
+) -> None:
+    """Add performance indexes to an existing MTGJson database."""
+    console.print("[bold]Adding indexes to MTGJson database[/]\n")
+
+    if not db_path.exists():
+        console.print(f"[red]Error:[/] Database not found: {db_path}")
+        raise typer.Exit(1)
+
+    create_mtgjson_indexes(db_path)
+    console.print("\n[bold green]Done![/]")
+
+
+@app.command("download")
 def main(
     output_dir: Annotated[
         Path,

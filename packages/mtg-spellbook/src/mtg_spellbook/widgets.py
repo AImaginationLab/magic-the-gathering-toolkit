@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 from io import BytesIO
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import httpx
 from PIL import Image
+from textual import work
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import Vertical, VerticalScroll
+from textual.events import Key
 from textual.widgets import ListView, Static, TabbedContent, TabPane
 
 from mtg_core.exceptions import CardNotFoundError
@@ -66,6 +69,72 @@ class CardImageWidget(Static):
         self._image_widget = None
 
 
+class ArtNavigator(Vertical, can_focus=True):
+    """Focusable widget for navigating card art with arrow keys.
+
+    Press down to focus, then left/right to navigate between printings.
+    """
+
+    BINDINGS: ClassVar[list[Binding]] = [
+        Binding("left", "prev_art", "← Prev", show=False),
+        Binding("right", "next_art", "→ Next", show=False),
+        Binding("up", "release_focus", "↑ Back", show=False),
+    ]
+
+    def __init__(
+        self,
+        id_prefix: str,
+        *,
+        id: str | None = None,
+        classes: str | None = None,
+    ) -> None:
+        super().__init__(id=id, classes=classes)
+        self._id_prefix = id_prefix
+        self._panel: CardPanel | None = None
+
+    def compose(self) -> ComposeResult:
+        yield Static(
+            "[dim]Select a card to view art\n\n← → to navigate printings[/]",
+            id=f"{self._id_prefix}-art-info",
+            classes="-art-info",
+        )
+        if HAS_IMAGE_SUPPORT:
+            yield TImage(id=f"{self._id_prefix}-art-image", classes="-art-image")
+
+    def set_panel(self, panel: CardPanel) -> None:
+        """Set the parent panel reference after mount."""
+        self._panel = panel
+
+    def action_next_art(self) -> None:
+        """Navigate to next artwork."""
+        if self._panel:
+            self._load_next()
+
+    def action_prev_art(self) -> None:
+        """Navigate to previous artwork."""
+        if self._panel:
+            self._load_prev()
+
+    def action_release_focus(self) -> None:
+        """Release focus back to tab panel."""
+        if self._panel:
+            try:
+                tabs = self._panel.query_one(f"#{self._panel._id_prefix}-tabs", TabbedContent)
+                tabs.focus()
+            except Exception:
+                pass
+
+    @work
+    async def _load_next(self) -> None:
+        if self._panel:
+            await self._panel.load_next_art()
+
+    @work
+    async def _load_prev(self) -> None:
+        if self._panel:
+            await self._panel.load_prev_art()
+
+
 class CardPanel(Vertical):
     """Display card details with tabs for different views."""
 
@@ -83,11 +152,19 @@ class CardPanel(Vertical):
         """Generate a unique child widget ID based on panel's ID."""
         return f"{self._id_prefix}-{name}"
 
-    def get_child_id(self, name: str) -> str:
-        """Get the full ID for a child widget (for external queries).
+    def get_child_name(self, name: str) -> str:
+        """Get the child widget ID without selector (for setting active tabs, etc.).
 
         Available names: tabs, tab-card, tab-art, tab-rulings, tab-legal, tab-price,
                          card-text, art-info, art-image, rulings-text, legal-text, price-text
+        """
+        return self._child_id(name)
+
+    def get_child_id(self, name: str) -> str:
+        """Get the full CSS selector for a child widget (for queries).
+
+        Available names: tabs, tab-card, tab-art, tab-rulings, tab-legal, tab-price,
+                         card-text, art-navigator, art-info, art-image, rulings-text, legal-text, price-text
         """
         return f"#{self._child_id(name)}"
 
@@ -96,16 +173,38 @@ class CardPanel(Vertical):
             with TabPane("📖 Card", id=self._child_id("tab-card"), classes="-tab-card"):
                 yield Static("[dim]Select a card to view details[/]", id=self._child_id("card-text"), classes="-card-text")
             with TabPane("🖼️ Art", id=self._child_id("tab-art"), classes="-tab-art"):
-                # Yield directly instead of using a custom widget
-                yield Static("[dim]Select a card to view art[/]", id=self._child_id("art-info"), classes="-art-info")
-                if HAS_IMAGE_SUPPORT:
-                    yield TImage(id=self._child_id("art-image"), classes="-art-image")
+                yield ArtNavigator(self._id_prefix, id=self._child_id("art-navigator"), classes="-art-navigator")
             with TabPane("📜 Rulings", id=self._child_id("tab-rulings"), classes="-tab-rulings"):
                 yield VerticalScroll(Static("[dim]No rulings loaded[/]", id=self._child_id("rulings-text"), classes="-rulings-text"))
             with TabPane("⚖️ Legal", id=self._child_id("tab-legal"), classes="-tab-legal"):
                 yield Static("[dim]No legality data[/]", id=self._child_id("legal-text"), classes="-legal-text")
             with TabPane("💰 Price", id=self._child_id("tab-price"), classes="-tab-price"):
                 yield Static("[dim]No price data[/]", id=self._child_id("price-text"), classes="-price-text")
+
+    def on_mount(self) -> None:
+        """Set up panel reference in ArtNavigator after mount."""
+        try:
+            art_nav = self.query_one(f"#{self._child_id('art-navigator')}", ArtNavigator)
+            art_nav.set_panel(self)
+        except Exception:
+            pass
+
+    def on_key(self, event: Key) -> None:
+        """Handle key events - down arrow focuses art navigator when on art tab."""
+        if event.key == "down" and self.focus_art_navigator():
+            event.stop()
+
+    def focus_art_navigator(self) -> bool:
+        """Focus the art navigator if on the art tab. Returns True if focused."""
+        try:
+            tabs = self.query_one(f"#{self._child_id('tabs')}", TabbedContent)
+            if tabs.active == self._child_id("tab-art"):
+                art_nav = self.query_one(f"#{self._child_id('art-navigator')}", ArtNavigator)
+                art_nav.focus()
+                return True
+        except Exception:
+            pass
+        return False
 
     def update_card(self, card: CardDetail | None) -> None:
         """Update the displayed card."""

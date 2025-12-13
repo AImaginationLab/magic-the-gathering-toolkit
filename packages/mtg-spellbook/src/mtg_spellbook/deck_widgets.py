@@ -458,13 +458,20 @@ class ConfirmDeleteModal(ModalScreen[bool]):
         """Actually delete the deck."""
         # Delete via app's deck manager
         async def delete() -> None:
-            deck_manager = await self.app._ctx.get_deck_manager()  # type: ignore
-            if deck_manager:
-                await deck_manager.delete_deck(self.deck_id)
-                self.app.notify(f"Deleted deck: {self.deck_name}")
+            try:
+                deck_manager = await self.app._ctx.get_deck_manager()  # type: ignore
+                if deck_manager:
+                    await deck_manager.delete_deck(self.deck_id)
+                    self.app.notify(f"Deleted deck: {self.deck_name}")
+                    self.dismiss(True)
+                else:
+                    self.app.notify("Deck manager not available", severity="error")
+                    self.dismiss(False)
+            except Exception as e:
+                self.app.notify(f"Failed to delete deck: {e}", severity="error")
+                self.dismiss(False)
 
         self.app.call_later(delete)
-        self.dismiss(True)
 
 
 class AddToDeckModal(ModalScreen[tuple[int, int] | None]):

@@ -80,8 +80,6 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):
         Binding("escape", "focus_input", "Input"),
         Binding("tab", "next_tab", "Next Tab"),
         Binding("shift+tab", "prev_tab", "Prev Tab"),
-        Binding("left", "prev_art", "← Prev Art", show=False),
-        Binding("right", "next_art", "→ Next Art", show=False),
         # Quick actions for current card (ctrl+key to avoid conflicting with text input)
         Binding("ctrl+s", "synergy_current", "Synergy", show=True),
         Binding("ctrl+o", "combos_current", "Combos", show=True),
@@ -220,7 +218,7 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):
         """Handle result selection - switch to card tab."""
         panel = self.query_one("#card-panel", CardPanel)
         tabs = panel.query_one(panel.get_child_id("tabs"), TabbedContent)
-        tabs.active = panel._child_id("tab-card")
+        tabs.active = panel.get_child_name("tab-card")
 
     def action_focus_input(self) -> None:
         """Focus the search input."""
@@ -246,7 +244,7 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):
             panel = self.query_one("#card-panel", CardPanel)
             tabs = panel.query_one(panel.get_child_id("tabs"), TabbedContent)
             tab_names = ["tab-card", "tab-art", "tab-rulings", "tab-legal", "tab-price"]
-            tab_ids = [panel._child_id(name) for name in tab_names]
+            tab_ids = [panel.get_child_name(name) for name in tab_names]
             current = tabs.active
             if current in tab_ids:
                 idx = tab_ids.index(current)
@@ -260,35 +258,11 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):
             panel = self.query_one("#card-panel", CardPanel)
             tabs = panel.query_one(panel.get_child_id("tabs"), TabbedContent)
             tab_names = ["tab-card", "tab-art", "tab-rulings", "tab-legal", "tab-price"]
-            tab_ids = [panel._child_id(name) for name in tab_names]
+            tab_ids = [panel.get_child_name(name) for name in tab_names]
             current = tabs.active
             if current in tab_ids:
                 idx = tab_ids.index(current)
                 tabs.active = tab_ids[(idx - 1) % len(tab_ids)]
-        except Exception:
-            pass
-
-    @work
-    async def action_next_art(self) -> None:
-        """Navigate to next printing in art gallery."""
-        try:
-            panel = self.query_one("#card-panel", CardPanel)
-            tabs = panel.query_one(panel.get_child_id("tabs"), TabbedContent)
-            # Only navigate if on art tab
-            if tabs.active == panel._child_id("tab-art"):
-                await panel.load_next_art()
-        except Exception:
-            pass
-
-    @work
-    async def action_prev_art(self) -> None:
-        """Navigate to previous printing in art gallery."""
-        try:
-            panel = self.query_one("#card-panel", CardPanel)
-            tabs = panel.query_one(panel.get_child_id("tabs"), TabbedContent)
-            # Only navigate if on art tab
-            if tabs.active == panel._child_id("tab-art"):
-                await panel.load_prev_art()
         except Exception:
             pass
 

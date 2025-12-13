@@ -447,7 +447,7 @@ class CommandHandlersMixin:
         await panel.load_rulings(self._db, card_name)
 
         tabs = panel.query_one(panel.get_child_id("tabs"), TabbedContent)
-        tabs.active = panel._child_id("tab-rulings")
+        tabs.active = panel.get_child_name("tab-rulings")
 
     @work
     async def load_legalities(self, card_name: str) -> None:
@@ -459,7 +459,7 @@ class CommandHandlersMixin:
         await panel.load_legalities(self._db, card_name)
 
         tabs = panel.query_one(panel.get_child_id("tabs"), TabbedContent)
-        tabs.active = panel._child_id("tab-legal")
+        tabs.active = panel.get_child_name("tab-legal")
 
     @work
     async def show_price(self, card_name: str) -> None:
@@ -490,7 +490,7 @@ class CommandHandlersMixin:
             price_text.update("\n".join(lines))
 
             tabs = panel.query_one(panel.get_child_id("tabs"), TabbedContent)
-            tabs.active = panel._child_id("tab-price")
+            tabs.active = panel.get_child_name("tab-price")
 
         except Exception:
             self._show_message(f"[red]Could not get price for: {card_name}[/]")
@@ -507,7 +507,7 @@ class CommandHandlersMixin:
             await panel.load_printings(self._scryfall, card_name)
 
             tabs = panel.query_one(panel.get_child_id("tabs"), TabbedContent)
-            tabs.active = panel._child_id("tab-art")
+            tabs.active = panel.get_child_name("tab-art")
 
         except CardNotFoundError:
             self._show_message(f"[red]Card not found: {card_name}[/]")
@@ -556,7 +556,7 @@ class CommandHandlersMixin:
 [bold cyan]Navigation:[/]
   [yellow]↑↓[/]        Navigate results
   [yellow]Tab[/]       Switch tabs
-  [yellow]←→[/]        Navigate art printings
+  [yellow]←→[/]        Navigate art printings (on Art tab)
   [yellow]Esc[/]       Focus input
   [yellow]Ctrl+L[/]    Clear
   [yellow]Ctrl+C[/]    Quit

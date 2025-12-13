@@ -24,14 +24,24 @@ class TestCardPanelUniqueIds:
 
     @pytest.mark.asyncio
     async def test_child_id_generation(self) -> None:
-        """Test that _child_id generates unique IDs based on panel ID."""
+        """Test that _child_id generates unique IDs based on panel ID (internal format)."""
         panel1 = CardPanel(id="panel-a")
         panel2 = CardPanel(id="panel-b")
 
+        # Test internal _child_id format (no # prefix)
         assert panel1._child_id("card-text") == "panel-a-card-text"
         assert panel2._child_id("card-text") == "panel-b-card-text"
         assert panel1._child_id("art-image") == "panel-a-art-image"
         assert panel2._child_id("art-image") == "panel-b-art-image"
+
+    @pytest.mark.asyncio
+    async def test_get_child_name_returns_id_without_selector(self) -> None:
+        """Test that get_child_name returns the ID without # selector."""
+        panel = CardPanel(id="test-panel")
+
+        assert panel.get_child_name("card-text") == "test-panel-card-text"
+        assert panel.get_child_name("tabs") == "test-panel-tabs"
+        assert panel.get_child_name("art-image") == "test-panel-art-image"
 
     @pytest.mark.asyncio
     async def test_get_child_id_returns_selector(self) -> None:
@@ -52,14 +62,14 @@ class TestCardPanelUniqueIds:
             panel1 = app.query_one("#card-panel", CardPanel)
             panel2 = app.query_one("#source-card-panel", CardPanel)
 
-            # Verify they generate different child IDs
-            assert panel1._child_id("card-text") != panel2._child_id("card-text")
-            assert panel1._child_id("art-image") != panel2._child_id("art-image")
-            assert panel1._child_id("tabs") != panel2._child_id("tabs")
+            # Verify they generate different child IDs (using public API)
+            assert panel1.get_child_name("card-text") != panel2.get_child_name("card-text")
+            assert panel1.get_child_name("art-image") != panel2.get_child_name("art-image")
+            assert panel1.get_child_name("tabs") != panel2.get_child_name("tabs")
 
-            # Verify specific ID values
-            assert panel1._child_id("card-text") == "card-panel-card-text"
-            assert panel2._child_id("card-text") == "source-card-panel-card-text"
+            # Verify specific ID values (using public API)
+            assert panel1.get_child_name("card-text") == "card-panel-card-text"
+            assert panel2.get_child_name("card-text") == "source-card-panel-card-text"
 
     @pytest.mark.asyncio
     async def test_can_query_specific_panel_children(self) -> None:
@@ -104,7 +114,7 @@ class TestCardPanelUniqueIds:
 
         # Should use "card-panel" as default prefix
         assert panel._id_prefix == "card-panel"
-        assert panel._child_id("card-text") == "card-panel-card-text"
+        assert panel.get_child_name("card-text") == "card-panel-card-text"
 
 
 class TestCardPanelCompose:
@@ -118,10 +128,10 @@ class TestCardPanelCompose:
 
             panel1 = app.query_one("#card-panel", CardPanel)
 
-            # Check all expected tab IDs exist
+            # Check all expected tab IDs exist (using public API)
             expected_tabs = ["tab-card", "tab-art", "tab-rulings", "tab-legal", "tab-price"]
             for tab_name in expected_tabs:
-                full_id = panel1._child_id(tab_name)
+                full_id = panel1.get_child_name(tab_name)
                 assert full_id.startswith("card-panel-")
 
     @pytest.mark.asyncio
@@ -135,8 +145,8 @@ class TestCardPanelCompose:
 
             content_widgets = ["card-text", "art-info", "rulings-text", "legal-text", "price-text"]
             for widget_name in content_widgets:
-                id1 = panel1._child_id(widget_name)
-                id2 = panel2._child_id(widget_name)
+                id1 = panel1.get_child_name(widget_name)
+                id2 = panel2.get_child_name(widget_name)
                 assert id1 != id2
                 assert id1.startswith("card-panel-")
                 assert id2.startswith("source-card-panel-")

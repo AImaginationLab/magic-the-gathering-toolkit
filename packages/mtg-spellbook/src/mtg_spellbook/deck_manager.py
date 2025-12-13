@@ -365,9 +365,14 @@ class DeckManager:
 
     async def _load_card_data(self, rows: list[DeckCardRow]) -> list[DeckCardWithData]:
         """Load full card data for deck cards."""
+        from mtg_core.exceptions import CardNotFoundError
+
         result = []
         for row in rows:
-            card = await self.mtg.get_card_by_name(row.card_name)
+            try:
+                card = await self.mtg.get_card_by_name(row.card_name)
+            except CardNotFoundError:
+                card = None
             result.append(
                 DeckCardWithData(
                     card_name=row.card_name,

@@ -94,16 +94,41 @@ class ScryfallDatabase:
     async def get_unique_artworks(self, name: str) -> list[CardImage]:
         """Get all unique artworks for a card (one per illustration_id).
 
-        Uses a subquery to deterministically select the preferred printing
-        for each unique artwork: borderless > full-art > alphabetically first set.
+        Uses the pre-computed art_priority column (0=borderless, 1=full_art, 2=regular)
+        to efficiently select the preferred printing for each unique artwork.
+        Falls back to legacy CASE-based query for databases without art_priority.
         """
         images = []
+
+        # Try optimized query using art_priority column (new schema)
+        try:
+            async with self._db.execute(
+                """
+                SELECT c.* FROM cards c
+                INNER JOIN (
+                    SELECT illustration_id, MIN(art_priority || set_code || scryfall_id) AS best
+                    FROM cards
+                    WHERE name = ?
+                    GROUP BY illustration_id
+                ) ranked ON c.illustration_id = ranked.illustration_id
+                    AND (c.art_priority || c.set_code || c.scryfall_id) = ranked.best
+                WHERE c.name = ?
+                ORDER BY c.art_priority, c.set_code
+                """,
+                (name, name),
+            ) as cursor:
+                async for row in cursor:
+                    images.append(self._row_to_card_image(row))
+            return images
+        except Exception:
+            pass
+
+        # Fallback: legacy query for databases without art_priority column
         async with self._db.execute(
             """
             SELECT c.* FROM cards c
             INNER JOIN (
                 SELECT illustration_id, MIN(
-                    -- Priority: borderless=0, full_art=1, others=2, then set_code
                     CASE WHEN border_color = 'borderless' THEN '0'
                          WHEN full_art = 1 THEN '1'
                          ELSE '2'
