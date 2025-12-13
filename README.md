@@ -23,6 +23,10 @@ uv sync
 # Download databases (required)
 uv run create-datasources
 
+# Or skip specific steps
+uv run create-datasources --skip-mtgjson --skip-scryfall  # Only init combos
+uv run create-datasources --skip-combos                   # Only download databases
+
 # Launch the TUI
 uv run mtg-spellbook
 
