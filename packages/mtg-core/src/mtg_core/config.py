@@ -31,6 +31,11 @@ def _get_default_scryfall_path() -> Path:
     return workspace / "resources" / "scryfall.sqlite"
 
 
+def _get_default_user_db_path() -> Path:
+    """Get default path to user database."""
+    return Path.home() / ".mtg-spellbook" / "user_data.sqlite"
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
@@ -48,6 +53,10 @@ class Settings(BaseSettings):
     scryfall_db_path: Path = Field(
         default_factory=_get_default_scryfall_path,
         description="Path to Scryfall database",
+    )
+    user_db_path: Path = Field(
+        default_factory=_get_default_user_db_path,
+        description="Path to user database (decks, collections)",
     )
 
     # Logging
