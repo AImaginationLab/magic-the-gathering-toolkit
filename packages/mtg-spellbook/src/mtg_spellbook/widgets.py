@@ -119,7 +119,10 @@ class ArtNavigator(Vertical, can_focus=True):
         """Release focus back to tab panel."""
         if self._panel:
             try:
-                tabs = self._panel.query_one(f"#{self._panel._id_prefix}-tabs", TabbedContent)
+                from textual.widgets import Tabs
+                tabbed_content = self._panel.query_one(self._panel.get_child_id("tabs"), TabbedContent)
+                # Focus the internal Tabs widget, not TabbedContent itself
+                tabs = tabbed_content.query_one(Tabs)
                 tabs.focus()
             except Exception:
                 pass
