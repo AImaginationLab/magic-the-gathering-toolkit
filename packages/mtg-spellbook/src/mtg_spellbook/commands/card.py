@@ -10,6 +10,7 @@ from mtg_core.data.models.inputs import SearchCardsInput
 from mtg_core.exceptions import CardNotFoundError
 from mtg_core.tools import cards
 
+from ..pagination import PaginationState
 from ..search import parse_search_query
 
 if TYPE_CHECKING:
@@ -25,11 +26,13 @@ class CardCommandsMixin:
         _current_results: list[Any]
         _current_card: Any
         _synergy_mode: bool
+        _pagination: PaginationState | None
 
         def query_one(self, selector: str, expect_type: type[Any] = ...) -> Any: ...
         def _hide_synergy_panel(self) -> None: ...
         def _update_results(self, results: list[Any]) -> None: ...
         def _update_card_panel(self, card: Any) -> None: ...
+        def _update_pagination_header(self) -> None: ...
         def _show_message(self, message: str) -> None: ...
 
     @work
@@ -65,28 +68,49 @@ class CardCommandsMixin:
         self._hide_synergy_panel()
         self._synergy_mode = False
 
+        # Use max allowed page size to get more results for pagination
         filters = parse_search_query(query)
-        result = await cards.search_cards(self._db, self._scryfall, filters)
+        filters_dict = filters.model_dump()
+        filters_dict["page_size"] = 100  # Max allowed by SearchCardsInput
+        search_filters = SearchCardsInput(**filters_dict)
+
+        result = await cards.search_cards(self._db, self._scryfall, search_filters)
 
         if result.cards:
-            await self._load_search_results(result.cards)
+            await self._load_search_results(result.cards, query)
         else:
+            self._pagination = None
+            self._update_pagination_header()
             self._show_message(f"[yellow]No cards found for: {query}[/]")
 
-    async def _load_search_results(self, summaries: list[CardSummary]) -> None:
-        """Load full card details for search results."""
+    async def _load_search_results(self, summaries: list[CardSummary], query: str = "") -> None:
+        """Load full card details for search results with pagination."""
         if not self._db:
             return
-        self._current_results = []
 
-        for summary in summaries[:25]:
+        # Create pagination state
+        self._pagination = PaginationState.from_summaries(
+            summaries=summaries,
+            source_type="search",
+            source_query=query,
+            page_size=25,
+        )
+
+        # Load first page
+        self._current_results = []
+        for summary in self._pagination.current_page_items:
             try:
                 detail = await cards.get_card(self._db, self._scryfall, name=summary.name)
                 self._current_results.append(detail)
             except CardNotFoundError:
                 pass
 
+        # Cache first page
+        self._pagination.cache_details(1, self._current_results)
+
         self._update_results(self._current_results)
+        self._update_pagination_header()
+
         if self._current_results:
             self._current_card = self._current_results[0]
             self._update_card_panel(self._current_results[0])

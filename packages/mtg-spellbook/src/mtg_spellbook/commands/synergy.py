@@ -2,15 +2,26 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from textual import work
-from textual.widgets import Label, ListItem, Static
+from textual.widgets import Static
 
 from mtg_core.exceptions import CardNotFoundError
 from mtg_core.tools import cards, synergy
 
-from ..formatting import prettify_mana
+from ..pagination import PaginationState
+
+
+@dataclass
+class SynergyItem:
+    """Wrapper for synergy items to use with pagination."""
+
+    name: str
+    synergy_type: str
+    reason: str
+    score: float
 
 
 class SynergyCommandsMixin:
@@ -23,11 +34,12 @@ class SynergyCommandsMixin:
         _current_card: Any
         _synergy_mode: bool
         _synergy_info: dict[str, Any]
+        _pagination: PaginationState | None
 
         def query_one(self, selector: str, expect_type: type[Any] = ...) -> Any: ...
         def _show_synergy_panel(self) -> None: ...
         def _show_message(self, message: str) -> None: ...
-        def _update_results_header(self, text: str) -> None: ...
+        def _display_synergy_results(self) -> None: ...
 
     @work
     async def find_synergies(self, card_name: str) -> None:
@@ -45,79 +57,59 @@ class SynergyCommandsMixin:
             self._synergy_mode = False
             return
 
-        result = await synergy.find_synergies(self._db, card_name=card_name, max_results=50)
+        result = await synergy.find_synergies(self._db, card_name=card_name, max_results=100)
 
         if not result.synergies:
             self._show_message(f"[yellow]No synergies found for {card_name}[/]")
             self._synergy_mode = False
+            self._pagination = None
             return
 
+        # Build synergy info and items for pagination
+        synergy_items: list[SynergyItem] = []
         for syn in result.synergies:
             self._synergy_info[syn.name] = {
                 "type": syn.synergy_type,
                 "reason": syn.reason,
                 "score": syn.score,
             }
+            synergy_items.append(
+                SynergyItem(
+                    name=syn.name,
+                    synergy_type=syn.synergy_type,
+                    reason=syn.reason,
+                    score=syn.score,
+                )
+            )
 
+        # Create pagination state
+        self._pagination = PaginationState(
+            all_items=synergy_items,
+            current_page=1,
+            page_size=25,
+            source_type="synergy",
+            source_query=card_name,
+        )
+
+        # Load first page of card details
         self._current_results = []
-        for syn in result.synergies[:25]:
+        for item in self._pagination.current_page_items:
             try:
-                detail = await cards.get_card(self._db, self._scryfall, name=syn.name)
+                detail = await cards.get_card(self._db, self._scryfall, name=item.name)
                 self._current_results.append(detail)
             except CardNotFoundError:
                 pass
 
-        self._update_synergy_results(self._current_results, card_name, len(result.synergies))
+        # Cache first page
+        self._pagination.cache_details(1, self._current_results)
+
+        self._display_synergy_results()
         self._show_source_card(source_card)
 
         if self._current_results:
             self._current_card = self._current_results[0]
             self._update_card_panel_with_synergy(self._current_results[0])
             await self._load_card_extras(self._current_results[0])
-
-    def _update_synergy_results(
-        self, results: list[Any], source_card: str, total_found: int
-    ) -> None:
-        """Update results list with synergy cards and detailed info."""
-        from ..widgets import ResultsList
-
-        results_list = self.query_one("#results-list", ResultsList)
-        results_list.clear()
-
-        type_icons = {
-            "keyword": "🔑",
-            "tribal": "👥",
-            "ability": "✨",
-            "theme": "🎯",
-            "archetype": "🏛️",
-        }
-
-        for card in results:
-            info = self._synergy_info.get(card.name, {})
-            score = info.get("score", 0)
-            synergy_type = info.get("type", "")
-            reason = info.get("reason", "")
-            icon = type_icons.get(synergy_type, "•")
-
-            score_color = "green" if score >= 0.7 else "yellow" if score >= 0.4 else "dim"
-            score_bar = "●" * int(score * 5) + "○" * (5 - int(score * 5))
-            mana = prettify_mana(card.mana_cost) if card.mana_cost else ""
-
-            lines = []
-            line1 = f"[{score_color}]{score_bar}[/] {icon} [bold]{card.name}[/]"
-            if mana:
-                line1 += f"  {mana}"
-            lines.append(line1)
-            if reason:
-                lines.append(f"    [dim italic]{reason}[/]")
-
-            results_list.append(ListItem(Label("\n".join(lines))))
-
-        self._update_results_header(f"Synergies for {source_card} ({total_found})")
-
-        if results:
-            results_list.focus()
-            results_list.index = 0
 
     def _update_card_panel_with_synergy(self, card: Any) -> None:
         """Update card panel and show synergy reason."""

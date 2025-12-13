@@ -25,6 +25,7 @@ from .deck import (
     DeckSelected,
     NewDeckModal,
 )
+from .pagination import PaginationState
 from .styles import APP_CSS
 from .widgets import CardPanel, ResultsList
 
@@ -91,6 +92,14 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
         Binding("ctrl+d", "toggle_decks", "Decks", show=True),
         Binding("ctrl+n", "new_deck", "New Deck", show=False),
         Binding("ctrl+e", "add_to_deck", "Add to Deck", show=True),
+        # Pagination
+        Binding("n", "next_page", "Next Page", show=False),
+        Binding("p", "prev_page", "Prev Page", show=False),
+        Binding("pagedown", "next_page", "Next Page", show=False),
+        Binding("pageup", "prev_page", "Prev Page", show=False),
+        Binding("home", "first_page", "First Page", show=False),
+        Binding("end", "last_page", "Last Page", show=False),
+        Binding("g", "goto_page", "Go to Page", show=False),
     ]
 
     def __init__(self) -> None:
@@ -107,6 +116,7 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
         self._synergy_info: dict[str, dict[str, object]] = {}
         self._deck_panel_visible: bool = False
         self._viewing_deck_id: int | None = None  # Currently viewed deck
+        self._pagination: PaginationState | None = None  # Pagination state
 
     def compose(self) -> ComposeResult:
         # Header - Epic ASCII banner (enhanced styling)
