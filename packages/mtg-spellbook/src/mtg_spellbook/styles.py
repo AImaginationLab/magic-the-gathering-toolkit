@@ -166,12 +166,10 @@ Tab.-active {
     background: #1e1e2e;
     color: #e6c84a;
     text-style: bold;
-    border-top: solid #c9a227;
 }
 
 Tab:focus {
     text-style: bold;
-    border-top: heavy #c9a227;
 }
 
 Underline > .underline--bar {
