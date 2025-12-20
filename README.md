@@ -2,14 +2,14 @@
 
 A comprehensive toolkit for Magic: The Gathering players featuring a terminal UI deck builder, card collection manager, synergy finder, and MCP server for AI integration. Search 33,000+ cards, browse artwork and artist profiles, get deck recommendations based on your collection, and more.
 
+<img src="https://iili.io/f0va8kg.png" alt="Collection View" width="800"/>
+
 <details>
-  <summary>Screenshots</summary>
-  <p>Collection View</p>
-  <img src="https://iili.io/f0va8kg.png" alt="Dashboard with search and quick links" />
+  <summary>More Screenshots</summary>
   <p>Synergy Suggestions</p>
-  <img src="https://iili.io/f0vc49e.png" alt="Card search results" />
+  <img src="https://iili.io/f0vc49e.png" alt="Card search results"  width="800"/>
   <p>Deck Addition Recommendations</p>
-  <img src="https://iili.io/f0vltzG.png" alt="Card details with artwork" />
+  <img src="https://iili.io/f0vltzG.png" alt="Card details with artwork" width="800"/>
 </details>
 
 ## Features
