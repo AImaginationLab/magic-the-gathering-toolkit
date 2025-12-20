@@ -83,9 +83,9 @@ class ScryfallDatabase(BaseDatabase):
                 if row:
                     return self._row_to_card_image(row)
 
-        # Fall back to any printing
+        # Fall back to cheapest regular printing
         async with self._execute(
-            "SELECT * FROM cards WHERE name = ? ORDER BY scryfall_id DESC LIMIT 1",
+            "SELECT * FROM cards WHERE name = ? ORDER BY art_priority DESC, price_usd ASC NULLS LAST LIMIT 1",
             (name,),
         ) as cursor:
             row = await cursor.fetchone()
@@ -232,11 +232,13 @@ class ScryfallDatabase(BaseDatabase):
             return {}
 
         # Build parameterized IN query
+        # Order by art_priority DESC (2=regular first, 0=borderless last) then price
+        # This ensures we get the cheapest regular printing by default
         placeholders = ",".join("?" * len(names))
         query = f"""
             SELECT * FROM cards
             WHERE name IN ({placeholders})
-            ORDER BY name, scryfall_id DESC
+            ORDER BY name, art_priority DESC, price_usd ASC NULLS LAST
         """
 
         # Fetch all matching cards, group by name to get one per name

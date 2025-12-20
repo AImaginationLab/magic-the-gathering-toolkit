@@ -154,3 +154,97 @@ class TestSearchByPrice:
         names1 = {c.name for c in result1.cards}
         names2 = {c.name for c in result2.cards}
         assert names1 != names2
+
+
+class TestScryfallDatabaseIntegrity:
+    """Tests to ensure Scryfall database has all printings (not just unique_artwork)."""
+
+    async def test_database_has_all_printings(self, scryfall: ScryfallDatabase | None) -> None:
+        """Ensure database uses default_cards (~110k) not unique_artwork (~50k).
+
+        This is critical for accurate price lookups. The unique_artwork bulk type
+        only has one printing per unique art, missing many printings users may own.
+        """
+        if scryfall is None:
+            pytest.skip("Scryfall database not available")
+
+        stats = await scryfall.get_database_stats()
+        # default_cards has ~110k+ cards, unique_artwork has ~50k
+        assert stats["total_cards"] > 100000, (
+            f"Scryfall database only has {stats['total_cards']} cards. "
+            "Expected 100k+ (default_cards). Got unique_artwork (~50k) instead? "
+            "Run: uv run create-datasources --skip-mtgjson --skip-combos"
+        )
+
+    async def test_multiple_printings_exist_for_reprinted_card(
+        self, scryfall: ScryfallDatabase | None
+    ) -> None:
+        """Ensure cards with multiple printings have all of them available.
+
+        Thoughtseize in 2XM has both regular (#109) and borderless (#344) printings.
+        If only one exists, the database is using unique_artwork bulk type.
+        """
+        if scryfall is None:
+            pytest.skip("Scryfall database not available")
+
+        printings = await scryfall.get_all_printings("Thoughtseize")
+        set_2xm_printings = [p for p in printings if p.set_code and p.set_code.lower() == "2xm"]
+
+        assert len(set_2xm_printings) >= 2, (
+            f"Expected 2+ Thoughtseize printings in 2XM, got {len(set_2xm_printings)}. "
+            "Database may be using unique_artwork instead of default_cards."
+        )
+
+
+class TestSpecificPrintingPriceLookup:
+    """Tests for looking up prices by specific printing (set_code + collector_number)."""
+
+    async def test_lookup_specific_printing_by_collector_number(
+        self, scryfall: ScryfallDatabase | None
+    ) -> None:
+        """Test that we can look up a specific printing by collector number."""
+        if scryfall is None:
+            pytest.skip("Scryfall database not available")
+
+        # Look up regular Thoughtseize (cheaper)
+        regular = await scryfall.get_card_image("Thoughtseize", set_code="2xm", collector_number="109")
+        assert regular is not None, "Failed to find Thoughtseize 2xm #109"
+        assert regular.collector_number == "109"
+
+        # Look up borderless Thoughtseize (more expensive)
+        borderless = await scryfall.get_card_image("Thoughtseize", set_code="2xm", collector_number="344")
+        assert borderless is not None, "Failed to find Thoughtseize 2xm #344"
+        assert borderless.collector_number == "344"
+
+        # Prices should be different
+        regular_price = regular.get_price_usd()
+        borderless_price = borderless.get_price_usd()
+
+        if regular_price and borderless_price:
+            assert regular_price != borderless_price, (
+                "Regular and borderless printings should have different prices"
+            )
+
+    async def test_fallback_prefers_cheapest_regular_printing(
+        self, scryfall: ScryfallDatabase | None
+    ) -> None:
+        """When no specific printing is requested, prefer cheapest regular printing.
+
+        This prevents expensive special printings (borderless, full-art) from being
+        returned when looking up common cards like basic lands.
+        """
+        if scryfall is None:
+            pytest.skip("Scryfall database not available")
+
+        # Basic lands have HUGE price variation ($0.05 to $500+)
+        # The fallback should return a cheap regular printing, not an expensive one
+        swamp = await scryfall.get_card_image("Swamp")
+        assert swamp is not None
+
+        price = swamp.get_price_usd()
+        if price is not None:
+            # A regular Swamp should cost under $1, not $19+ for full-art or $500+ for promo
+            assert price < 1.0, (
+                f"Swamp fallback returned ${price:.2f}, expected under $1. "
+                "Fallback should prefer cheapest regular printing."
+            )

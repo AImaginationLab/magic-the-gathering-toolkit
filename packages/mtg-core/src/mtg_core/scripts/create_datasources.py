@@ -3,7 +3,7 @@
 
 Downloads:
 - MTGJson AllPrintings.sqlite (card data, rules, legalities)
-- Scryfall unique-artwork bulk data (images, prices) -> converts to SQLite
+- Scryfall default_cards bulk data (all printings with images, prices) -> converts to SQLite
 
 Usage:
     uv run create-datasources [--output-dir DIR]
@@ -44,7 +44,7 @@ MTGJSON_SQLITE_URL = "https://mtgjson.com/api/v5/AllPrintings.sqlite.gz"
 SCRYFALL_BULK_API = "https://api.scryfall.com/bulk-data"
 
 
-def get_scryfall_download_url(bulk_type: str = "unique_artwork") -> tuple[str, str]:
+def get_scryfall_download_url(bulk_type: str = "default_cards") -> tuple[str, str]:
     """Get the download URL for Scryfall bulk data."""
     console.print("[dim]Fetching Scryfall bulk data info...[/]")
 
@@ -641,6 +641,32 @@ def insert_card(cursor: sqlite3.Cursor, card: dict[str, Any]) -> None:
     )
 
 
+GITHUB_COMBOS_URL = (
+    "https://github.com/AImaginationLab/magic-the-gathering-toolkit"
+    "/releases/latest/download/combos.sqlite"
+)
+
+
+def download_combos(output_path: Path) -> Path:
+    """Download pre-built combo database from GitHub Releases.
+
+    The combo database contains 70k+ combos from Commander Spellbook,
+    pre-processed into SQLite format.
+    """
+    console.print("\n[bold]Downloading Commander Spellbook combos...[/]")
+
+    # Ensure parent directory exists
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Download directly to output path
+    download_file(GITHUB_COMBOS_URL, output_path, "Combos")
+
+    size_mb = output_path.stat().st_size / (1024 * 1024)
+    console.print(f"[green]✓[/] Saved combos.sqlite ({size_mb:.1f} MB)")
+
+    return output_path
+
+
 def _clear_all_caches() -> None:
     """Clear all cached data (images, printings, synergies, artists)."""
     from ..cache import clear_data_cache, get_data_cache_stats
@@ -726,19 +752,15 @@ def main_callback(
         ),
     ] = False,
 ) -> None:
-    """Download MTG databases and initialize combo data.
+    """Download MTG databases and combo data.
 
-    By default, downloads MTGJson, Scryfall data, and initializes the combo database.
+    By default, downloads MTGJson, Scryfall data, and the combo database from GitHub Releases.
     """
     # Only run if no subcommand was invoked
     if ctx.invoked_subcommand is not None:
         return
 
-    import asyncio
-
     from ..config import get_settings
-    from ..data.database.combos import ComboDatabase
-    from ..tools.synergy.constants import KNOWN_COMBOS
 
     console.print("[bold]MTG Database Setup[/]\n")
 
@@ -758,36 +780,8 @@ def main_callback(
         download_scryfall(output_dir_resolved)
 
     if not skip_combos:
-
-        async def _init_combos() -> None:
-            settings = get_settings()
-            db_path = settings.combo_db_path
-            db_path.parent.mkdir(parents=True, exist_ok=True)
-
-            console.print("\n[bold]Initializing Combo Database[/]")
-            console.print(f"Output: [cyan]{db_path}[/]\n")
-
-            combo_db = ComboDatabase(db_path)
-            await combo_db.connect()
-
-            try:
-                console.print("[dim]Importing hardcoded KNOWN_COMBOS...[/]")
-                count = await combo_db.import_from_legacy_format(KNOWN_COMBOS)
-                console.print(f"[green]✓[/] Imported {count} combos from KNOWN_COMBOS")
-
-                # Also import from new_combos_draft.json if it exists
-                json_path = Path("new_combos_draft.json")
-                if json_path.exists():
-                    console.print(f"[dim]Importing from {json_path}...[/]")
-                    json_count = await combo_db.import_from_json(json_path)
-                    console.print(f"[green]✓[/] Imported {json_count} combos from JSON")
-
-                final_count = await combo_db.get_combo_count()
-                console.print(f"[green]✓[/] Combo database has {final_count} combos")
-            finally:
-                await combo_db.close()
-
-        asyncio.run(_init_combos())
+        settings = get_settings()
+        download_combos(settings.combo_db_path)
 
     console.print("\n[bold green]Done![/] All databases are ready to use.")
     console.print("\n[dim]Set environment variables if using a custom location:[/]")
