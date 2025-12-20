@@ -75,9 +75,7 @@ class RecommendationDetailPanel(Vertical):
             id="rec-detail-empty",
         )
 
-    def show_recommendation(
-        self, rec: ScoredRecommendation, in_collection: bool = False
-    ) -> None:
+    def show_recommendation(self, rec: ScoredRecommendation, in_collection: bool = False) -> None:
         """Display recommendation detail."""
         self._recommendation = rec
         self._in_collection = in_collection
@@ -168,7 +166,7 @@ class RecommendationDetailPanel(Vertical):
         if insights:
             lines.append("[bold]Additional Insights:[/]")
             for insight in insights:
-                lines.append(f"  [{ui_colors.TEXT_DIM}]\u25B8[/] {insight}")
+                lines.append(f"  [{ui_colors.TEXT_DIM}]\u25b8[/] {insight}")
             lines.append("")
 
         # Combos it completes
@@ -293,13 +291,13 @@ class RecommendationDetailPanel(Vertical):
                     produces = combo.produces[:2] if combo.produces else []
                     produces_str = ", ".join(produces) if produces else "Value"
 
-                    lines.append(f"  [{ui_colors.GOLD}]\u26A1[/] {cards_str}")
+                    lines.append(f"  [{ui_colors.GOLD}]\u26a1[/] {cards_str}")
                     lines.append(f"     [{ui_colors.TEXT_DIM}]\u2192 {produces_str}[/]")
                 else:
-                    lines.append(f"  [{ui_colors.GOLD}]\u26A1[/] Combo {combo_id}")
+                    lines.append(f"  [{ui_colors.GOLD}]\u26a1[/] Combo {combo_id}")
         except ImportError:
             for combo_id in combo_ids:
-                lines.append(f"  [{ui_colors.GOLD}]\u26A1[/] {combo_id}")
+                lines.append(f"  [{ui_colors.GOLD}]\u26a1[/] {combo_id}")
         return lines
 
     def _render_score_breakdown(self) -> str:

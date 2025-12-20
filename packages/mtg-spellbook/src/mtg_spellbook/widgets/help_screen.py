@@ -428,10 +428,7 @@ class HelpScreen(ModalScreen[str | None]):
             with Horizontal(id="help-content"):
                 with Vertical(id="help-categories"):
                     yield ListView(
-                        *[
-                            HelpCategoryItem(cat, i)
-                            for i, cat in enumerate(HELP_CATEGORIES)
-                        ],
+                        *[HelpCategoryItem(cat, i) for i, cat in enumerate(HELP_CATEGORIES)],
                         id="help-list",
                     )
                 with Vertical(id="help-detail"):

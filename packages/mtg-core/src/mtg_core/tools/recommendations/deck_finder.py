@@ -50,6 +50,7 @@ class CardData:
             return 0
         cmc = 0
         import re
+
         # Count colored symbols
         cmc += len(re.findall(r"\{[WUBRG]\}", self.mana_cost))
         # Count hybrid (each counts as 1)
@@ -63,10 +64,19 @@ class CardData:
         """Get primary card type for categorization."""
         # Fallback for basic lands without type_line data
         if not self.type_line:
-            basic_lands = {"Plains", "Island", "Swamp", "Mountain", "Forest",
-                          "Snow-Covered Plains", "Snow-Covered Island",
-                          "Snow-Covered Swamp", "Snow-Covered Mountain",
-                          "Snow-Covered Forest", "Wastes"}
+            basic_lands = {
+                "Plains",
+                "Island",
+                "Swamp",
+                "Mountain",
+                "Forest",
+                "Snow-Covered Plains",
+                "Snow-Covered Island",
+                "Snow-Covered Swamp",
+                "Snow-Covered Mountain",
+                "Snow-Covered Forest",
+                "Wastes",
+            }
             if self.name in basic_lands:
                 return "land"
             return "unknown"
@@ -214,6 +224,7 @@ class DeckFinder:
         # Bonus for removal/interaction
         removal_keywords = ["destroy", "exile", "counter target", "deal.*damage"]
         import re
+
         for keyword in removal_keywords:
             if re.search(keyword, card_text):
                 score += 1.0
@@ -224,7 +235,9 @@ class DeckFinder:
             score += 1.0
 
         # Bonus for ramp
-        if "add" in card_text and any(c in card_text for c in ["{w}", "{u}", "{b}", "{r}", "{g}", "mana"]):
+        if "add" in card_text and any(
+            c in card_text for c in ["{w}", "{u}", "{b}", "{r}", "{g}", "mana"]
+        ):
             score += 0.8
 
         # Legendary creatures get a small boost (potential sub-commanders)
@@ -312,8 +325,11 @@ class DeckFinder:
 
             # Map colors to basic lands
             color_to_basic = {
-                "W": "Plains", "U": "Island", "B": "Swamp",
-                "R": "Mountain", "G": "Forest"
+                "W": "Plains",
+                "U": "Island",
+                "B": "Swamp",
+                "R": "Mountain",
+                "G": "Forest",
             }
 
             # Add basic lands evenly distributed across colors

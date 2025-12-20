@@ -65,7 +65,7 @@ class RecommendationCardItem(ListItem):
         lines: list[str] = []
 
         # Line 1: Owned indicator + Name + Mana cost
-        owned_icon = "[green]\u2713[/]" if self.in_collection else "[dim]\u25CB[/]"
+        owned_icon = "[green]\u2713[/]" if self.in_collection else "[dim]\u25cb[/]"
         mana = prettify_mana(rec.mana_cost) if rec.mana_cost else ""
         name_line = f"{owned_icon} [{ui_colors.GOLD}]{rec.name}[/] {mana}"
         lines.append(name_line)

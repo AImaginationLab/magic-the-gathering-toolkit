@@ -931,14 +931,16 @@ class FullCollectionScreen(Screen[None]):
         for card_data in self._cards:
             card = card_data.card
             if card:
-                card_info_list.append(CollectionCardInfo(
-                    name=card_data.card_name,
-                    type_line=card.type,
-                    colors=card.colors,
-                    mana_cost=card.mana_cost,
-                    text=card.text,
-                    color_identity=card.color_identity,
-                ))
+                card_info_list.append(
+                    CollectionCardInfo(
+                        name=card_data.card_name,
+                        type_line=card.type,
+                        colors=card.colors,
+                        mana_cost=card.mana_cost,
+                        text=card.text,
+                        color_identity=card.color_identity,
+                    )
+                )
             else:
                 # Card without full data - include name only
                 card_info_list.append(CollectionCardInfo(name=card_data.card_name))
@@ -999,6 +1001,7 @@ class FullCollectionScreen(Screen[None]):
             if result.cards_missing:
                 # Count duplicates in missing cards
                 from collections import Counter
+
                 missing_counts = Counter(result.cards_missing)
                 for card_name, qty in missing_counts.items():
                     try:

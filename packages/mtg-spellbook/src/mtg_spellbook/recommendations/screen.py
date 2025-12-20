@@ -161,7 +161,7 @@ class RecommendationScreen(Screen[None]):
     def compose(self) -> ComposeResult:
         deck_name = self._deck.name if self._deck else "Unknown"
         yield Static(
-            f"[bold {ui_colors.GOLD}]{chr(0x2728)} RECOMMENDATIONS FOR[/] \"{deck_name}\"",
+            f'[bold {ui_colors.GOLD}]{chr(0x2728)} RECOMMENDATIONS FOR[/] "{deck_name}"',
             id="rec-header",
         )
 
@@ -196,15 +196,15 @@ class RecommendationScreen(Screen[None]):
         deck_cards = []
         if self._deck:
             for card in self._deck.mainboard:
-                deck_cards.append({
-                    "name": card.card_name,
-                    "quantity": card.quantity,
-                })
+                deck_cards.append(
+                    {
+                        "name": card.card_name,
+                        "quantity": card.quantity,
+                    }
+                )
 
         # Get recommendations (this is blocking but fast)
-        recommendations = self._recommender.recommend_for_deck(
-            deck_cards, n=100, explain=True
-        )
+        recommendations = self._recommender.recommend_for_deck(deck_cards, n=100, explain=True)
 
         self._on_recommendations_loaded(recommendations)
 
@@ -244,10 +244,7 @@ class RecommendationScreen(Screen[None]):
         elif self._active_filter == FilterType.COMBOS:
             filtered = [r for r in filtered if r.completes_combos]
         elif self._active_filter == FilterType.TOP_TIER:
-            filtered = [
-                r for r in filtered
-                if r.total_score >= 0.7 or r.limited_tier in ("S", "A")
-            ]
+            filtered = [r for r in filtered if r.total_score >= 0.7 or r.limited_tier in ("S", "A")]
 
         # Apply sort
         if self._active_sort == SortOrder.SCORE:
@@ -290,11 +287,14 @@ class RecommendationScreen(Screen[None]):
         try:
             panel = self.query_one("#rec-filter-panel", RecommendationFilterPanel)
             all_count = len(self._all_recommendations)
-            owned_count = sum(1 for r in self._all_recommendations if r.name in self._collection_cards)
+            owned_count = sum(
+                1 for r in self._all_recommendations if r.name in self._collection_cards
+            )
             need_count = all_count - owned_count
             combos_count = sum(1 for r in self._all_recommendations if r.completes_combos)
             top_count = sum(
-                1 for r in self._all_recommendations
+                1
+                for r in self._all_recommendations
                 if r.total_score >= 0.7 or r.limited_tier in ("S", "A")
             )
             panel.set_counts(all_count, owned_count, need_count, combos_count, top_count)

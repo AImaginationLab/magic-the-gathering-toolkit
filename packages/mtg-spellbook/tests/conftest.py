@@ -2,14 +2,41 @@
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     from mtg_core.data.database import MTGDatabase, ScryfallDatabase
     from mtg_spellbook.deck_manager import DeckManager
+
+
+@pytest.fixture(autouse=True)
+async def cleanup_http_client() -> AsyncIterator[None]:
+    """Clean up the global HTTP client before and after each test.
+
+    This prevents "Event loop is closed" errors when pytest closes the event loop
+    before the global HTTP client is properly cleaned up.
+    """
+    import mtg_spellbook.widgets.art_navigator.image_loader as image_loader
+
+    # Clear any existing client before test
+    if image_loader._http_client is not None:
+        with contextlib.suppress(Exception):
+            await image_loader._http_client.aclose()
+        image_loader._http_client = None
+
+    yield
+
+    # Clear client after test (before event loop closes)
+    if image_loader._http_client is not None:
+        with contextlib.suppress(Exception):
+            await image_loader._http_client.aclose()
+        image_loader._http_client = None
 
 
 @pytest.fixture

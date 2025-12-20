@@ -308,6 +308,7 @@ class DeckSuggestionsScreen(Screen[CreateDeckResult | None]):
             lines.append(f"  [bold yellow]⚠ NEEDED ({missing_count})[/]")
             # Count duplicates in missing cards
             from collections import Counter
+
             missing_counts = Counter(s.key_cards_missing)
             for card, qty in list(missing_counts.items())[:5]:
                 qty_str = f" x{qty}" if qty > 1 else ""

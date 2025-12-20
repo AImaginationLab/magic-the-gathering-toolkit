@@ -163,7 +163,9 @@ class RecommendationDetailView(Vertical, can_focus=False):
             lines.append("[bold]Completes Combos:[/]")
             lines.extend(self._render_combos(rec.completes_combos[:5]))
             if len(rec.completes_combos) > 5:
-                lines.append(f"  [{ui_colors.TEXT_DIM}]...and {len(rec.completes_combos) - 5} more[/]")
+                lines.append(
+                    f"  [{ui_colors.TEXT_DIM}]...and {len(rec.completes_combos) - 5} more[/]"
+                )
             lines.append("")
 
         # 17lands data
@@ -200,12 +202,8 @@ class RecommendationDetailView(Vertical, can_focus=False):
                     produces = combo.produces[:2] if combo.produces else []
                     produces_str = ", ".join(produces) if produces else "Value"
 
-                    lines.append(
-                        f"  [{ui_colors.GOLD}]⚡[/] {cards_str}"
-                    )
-                    lines.append(
-                        f"     [{ui_colors.TEXT_DIM}]→ {produces_str}[/]"
-                    )
+                    lines.append(f"  [{ui_colors.GOLD}]⚡[/] {cards_str}")
+                    lines.append(f"     [{ui_colors.TEXT_DIM}]→ {produces_str}[/]")
                 else:
                     lines.append(f"  [{ui_colors.GOLD}]⚡[/] Combo {combo_id}")
         except ImportError:
@@ -249,7 +247,9 @@ class RecommendationDetailView(Vertical, can_focus=False):
             bar = "█" * bar_width + "░" * (15 - bar_width)
             score_pct = int(score * 100)
             padded_label = label.ljust(max_label_len)
-            lines.append(f"  {padded_label} [{color}]{bar}[/] [{ui_colors.TEXT_DIM}]{score_pct}%[/]")
+            lines.append(
+                f"  {padded_label} [{color}]{bar}[/] [{ui_colors.TEXT_DIM}]{score_pct}%[/]"
+            )
 
         return "\n".join(lines)
 

@@ -267,7 +267,10 @@ class SynergyScorer:
             return 1.0, f"Same tribe: {dominant}"
 
         # Check if candidate is a tribal lord
-        if "tribal_lord" in candidate.synergy_themes or "tribal_synergy" in candidate.synergy_themes:
+        if (
+            "tribal_lord" in candidate.synergy_themes
+            or "tribal_synergy" in candidate.synergy_themes
+        ):
             return 0.8, f"Tribal support for {dominant}"
 
         return 0.0, None
@@ -336,7 +339,9 @@ class SynergyScorer:
                 return 0.8, "Deck needs more creatures"
             elif current_creature_ratio > ideal_creature_ratio + 0.1:
                 return 0.3, None
-        elif (candidate.is_instant or candidate.is_sorcery) and current_spell_ratio < ideal_spell_ratio - 0.1:
+        elif (
+            candidate.is_instant or candidate.is_sorcery
+        ) and current_spell_ratio < ideal_spell_ratio - 0.1:
             return 0.8, "Deck needs more spells"
 
         return 0.5, None
@@ -379,7 +384,9 @@ class HybridRecommender:
     _tfidf: CardRecommender | None = field(default=None, repr=False)
     _scorer: SynergyScorer = field(default_factory=SynergyScorer, repr=False)
     _combo_detector: ComboPieceDetector | None = field(default=None, repr=False)  # Legacy fallback
-    _spellbook_detector: SpellbookComboDetector | None = field(default=None, repr=False)  # 73K+ combos
+    _spellbook_detector: SpellbookComboDetector | None = field(
+        default=None, repr=False
+    )  # 73K+ combos
     _limited_stats: Any = field(default=None, repr=False)  # LimitedStatsDB
     _card_encoder: CardEncoder = field(default_factory=CardEncoder, repr=False)
     _deck_encoder: DeckEncoder = field(default_factory=DeckEncoder, repr=False)
@@ -404,6 +411,7 @@ class HybridRecommender:
 
         # Initialize TF-IDF
         from .tfidf import CardRecommender
+
         self._tfidf = CardRecommender()
         await self._tfidf.initialize(db)
 
@@ -414,9 +422,13 @@ class HybridRecommender:
         try:
             self._spellbook_detector = get_spellbook_detector()
             if self._spellbook_detector.is_available:
-                logger.info(f"Loaded {self._spellbook_detector.combo_count:,} combos from Commander Spellbook")
+                logger.info(
+                    f"Loaded {self._spellbook_detector.combo_count:,} combos from Commander Spellbook"
+                )
             else:
-                logger.info("Commander Spellbook database not available, falling back to legacy combos")
+                logger.info(
+                    "Commander Spellbook database not available, falling back to legacy combos"
+                )
                 self._spellbook_detector = None
         except Exception as e:
             logger.warning(f"Could not load Spellbook detector: {e}")
@@ -434,6 +446,7 @@ class HybridRecommender:
         # Initialize 17lands limited stats (optional)
         try:
             from .limited_stats import LimitedStatsDB
+
             self._limited_stats = LimitedStatsDB()
             if self._limited_stats.is_available:
                 self._limited_stats.connect()
@@ -485,13 +498,17 @@ class HybridRecommender:
         combo_meta: dict[str, dict[str, Any]] = {}  # combo_id -> metadata for scoring
 
         if self._spellbook_detector:
-            spellbook_matches, missing_card_to_combos = self._spellbook_detector.find_missing_pieces(
-                list(deck_card_names), max_missing=2
+            spellbook_matches, missing_card_to_combos = (
+                self._spellbook_detector.find_missing_pieces(list(deck_card_names), max_missing=2)
             )
             # Build meta for scoring
             for match in spellbook_matches:
                 combo_meta[match.combo.id] = {
-                    "type": "win" if any("win" in f.lower() or "infinite" in f.lower() for f in match.combo.produces) else "value",
+                    "type": "win"
+                    if any(
+                        "win" in f.lower() or "infinite" in f.lower() for f in match.combo.produces
+                    )
+                    else "value",
                     "bracket": match.combo.bracket_tag,
                     "popularity": match.combo.popularity,
                 }
@@ -529,9 +546,7 @@ class HybridRecommender:
                 continue  # Skip cards with incompatible color identity
 
             # Get synergy score
-            synergy_score, reasons = self._scorer.score_candidate(
-                candidate_features, deck_features
-            )
+            synergy_score, reasons = self._scorer.score_candidate(candidate_features, deck_features)
 
             # Get popularity score from EDHRec rank
             edhrec_rank = card_data.get("edhrecRank")
@@ -640,7 +655,9 @@ class HybridRecommender:
             return [
                 ComboMatch(
                     combo_id=m.combo.id,
-                    combo_type="win" if any("win" in f.lower() or "infinite" in f.lower() for f in m.combo.produces) else "value",
+                    combo_type="win"
+                    if any("win" in f.lower() or "infinite" in f.lower() for f in m.combo.produces)
+                    else "value",
                     description=m.combo.description,
                     present_cards=m.present_cards,
                     missing_cards=m.missing_cards,

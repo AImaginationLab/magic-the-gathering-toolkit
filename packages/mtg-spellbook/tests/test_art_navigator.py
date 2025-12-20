@@ -11,6 +11,7 @@ from mtg_spellbook.widgets.art_navigator.enhanced import EnhancedArtNavigator
 from mtg_spellbook.widgets.art_navigator.focus import FocusView
 from mtg_spellbook.widgets.art_navigator.grid import PrintingsGrid
 from mtg_spellbook.widgets.art_navigator.preview import PreviewPanel
+from mtg_spellbook.widgets.art_navigator.shop_card import ShopCard
 from mtg_spellbook.widgets.art_navigator.thumbnail import ThumbnailCard
 from mtg_spellbook.widgets.art_navigator.view_toggle import ViewMode, ViewModeToggle
 
@@ -253,15 +254,16 @@ class TestPrintingsGrid:
     async def test_load_printings_creates_correct_number_of_thumbnails(
         self, sample_printings: list[PrintingInfo]
     ) -> None:
-        """Test that load_printings creates correct number of thumbnails."""
+        """Test that load_printings creates correct number of shop cards."""
         grid = PrintingsGrid()
 
         async with App().run_test() as pilot:
             await pilot.app.mount(grid)
             await grid.load_printings("Test Card", sample_printings)
 
-            thumbnails = list(grid.query(ThumbnailCard))
-            assert len(thumbnails) == len(sample_printings)
+            # Grid uses ShopCard widgets now
+            cards = list(grid.query(ShopCard))
+            assert len(cards) == len(sample_printings)
 
     @pytest.mark.asyncio
     async def test_thumbnail_ids_are_unique(self, sample_printings: list[PrintingInfo]) -> None:
@@ -318,9 +320,9 @@ class TestPrintingsGrid:
             assert grid._selected_index == 0
 
     @pytest.mark.asyncio
-    async def test_navigation_up_down_moves_selection(self) -> None:
-        """Test that up/down navigation moves selection correctly."""
-        # Create more printings to test grid navigation
+    async def test_navigation_up_down_returns_false_for_filmstrip(self) -> None:
+        """Test that up/down navigation returns False (filmstrip is horizontal only)."""
+        # Create printings to test navigation
         many_printings = [
             PrintingInfo(uuid=f"uuid-{i}", set_code=f"set{i}", price_usd=float(i))
             for i in range(20)
@@ -335,30 +337,20 @@ class TestPrintingsGrid:
             # Start at index 0
             assert grid._selected_index == 0
 
-            # Move down (6 items per row)
+            # Up/down navigation returns False for filmstrip layout
+            # (it's a horizontal strip, not a grid)
             moved = grid.navigate("down")
-            assert moved is True
-            assert grid._selected_index == 6
-
-            # Move down again
-            moved = grid.navigate("down")
-            assert moved is True
-            assert grid._selected_index == 12
-
-            # Move up
-            moved = grid.navigate("up")
-            assert moved is True
-            assert grid._selected_index == 6
-
-            # Move up again
-            moved = grid.navigate("up")
-            assert moved is True
+            assert moved is False
             assert grid._selected_index == 0
 
-            # Try to move up at start (should not move)
             moved = grid.navigate("up")
             assert moved is False
             assert grid._selected_index == 0
+
+            # Left/right navigation still works
+            moved = grid.navigate("right")
+            assert moved is True
+            assert grid._selected_index == 1
 
     @pytest.mark.asyncio
     async def test_sorting_price_orders_high_to_low(
@@ -373,10 +365,11 @@ class TestPrintingsGrid:
 
             # Prices in sample_printings: 100, 5, 25, 2.50
             # After sorting by price (high to low): 100, 25, 5, 2.50
-            assert grid._printings[0].price_usd == 100.00
-            assert grid._printings[1].price_usd == 25.00
-            assert grid._printings[2].price_usd == 5.00
-            assert grid._printings[3].price_usd == 2.50
+            # _filtered_printings contains the sorted list
+            assert grid._filtered_printings[0].price_usd == 100.00
+            assert grid._filtered_printings[1].price_usd == 25.00
+            assert grid._filtered_printings[2].price_usd == 5.00
+            assert grid._filtered_printings[3].price_usd == 2.50
 
     @pytest.mark.asyncio
     async def test_sorting_set_orders_alphabetically(
@@ -391,10 +384,11 @@ class TestPrintingsGrid:
 
             # Set codes: khm, znr, eld, m21
             # After sorting: eld, khm, m21, znr
-            assert grid._printings[0].set_code == "eld"
-            assert grid._printings[1].set_code == "khm"
-            assert grid._printings[2].set_code == "m21"
-            assert grid._printings[3].set_code == "znr"
+            # _filtered_printings contains the sorted list
+            assert grid._filtered_printings[0].set_code == "eld"
+            assert grid._filtered_printings[1].set_code == "khm"
+            assert grid._filtered_printings[2].set_code == "m21"
+            assert grid._filtered_printings[3].set_code == "znr"
 
     @pytest.mark.asyncio
     async def test_cycle_sort_toggles_between_modes(
@@ -408,7 +402,8 @@ class TestPrintingsGrid:
 
             # Start with price sort
             await grid.load_printings("Test Card", sample_printings, sort_order="price")
-            assert grid._printings[0].price_usd == 100.00
+            # _filtered_printings contains the sorted list
+            assert grid._filtered_printings[0].price_usd == 100.00
 
             # Cycle to set sort
             grid.cycle_sort()
@@ -474,9 +469,7 @@ class TestPreviewPanel:
             assert preview.art_crop_enabled is False
 
     @pytest.mark.asyncio
-    async def test_set_art_crop_mode_updates_state(
-        self, sample_printing: PrintingInfo
-    ) -> None:
+    async def test_set_art_crop_mode_updates_state(self, sample_printing: PrintingInfo) -> None:
         """Test that set_art_crop_mode updates the state."""
         preview = PreviewPanel()
 
@@ -491,9 +484,7 @@ class TestPreviewPanel:
             assert preview.art_crop_enabled is False
 
     @pytest.mark.asyncio
-    async def test_handles_printing_without_image(
-        self, minimal_printing: PrintingInfo
-    ) -> None:
+    async def test_handles_printing_without_image(self, minimal_printing: PrintingInfo) -> None:
         """Test that PreviewPanel handles printing without image gracefully."""
         preview = PreviewPanel()
 

@@ -47,10 +47,14 @@ async def _get_http_client() -> httpx.AsyncClient:
 async def close_http_client() -> None:
     """Close the shared HTTP client (call on app shutdown)."""
     global _http_client
-    async with _http_client_lock:
-        if _http_client is not None:
-            await _http_client.aclose()
-            _http_client = None
+    try:
+        async with _http_client_lock:
+            if _http_client is not None:
+                await _http_client.aclose()
+                _http_client = None
+    except RuntimeError:
+        # Event loop already closed during test teardown - safe to ignore
+        _http_client = None
 
 
 def _get_cache_dir() -> Path:

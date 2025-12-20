@@ -223,9 +223,7 @@ class DeckAnalysisPanel(VerticalScroll):
         tier_counts, top_cards = self._get_17lands_stats(deck)
 
         # Collection coverage
-        owned_count = sum(
-            1 for c in deck.mainboard if c.card_name in collection_cards
-        )
+        owned_count = sum(1 for c in deck.mainboard if c.card_name in collection_cards)
         needed_count = card_count - owned_count if collection_cards else 0
 
         # Price
@@ -316,7 +314,17 @@ class DeckAnalysisPanel(VerticalScroll):
         # Deck score
         score = self._calc_score(a, deck)
         score_color = "#7ec850" if score >= 80 else "#e6c84a" if score >= 60 else "#e86a58"
-        grade = "S" if score >= 90 else "A" if score >= 80 else "B" if score >= 65 else "C" if score >= 50 else "D"
+        grade = (
+            "S"
+            if score >= 90
+            else "A"
+            if score >= 80
+            else "B"
+            if score >= 65
+            else "C"
+            if score >= 50
+            else "D"
+        )
 
         # Format check
         fmt = deck.format or "casual"
@@ -331,7 +339,7 @@ class DeckAnalysisPanel(VerticalScroll):
         content = f"""[bold {ui_colors.GOLD}]{deck.name}[/]{commander_line}
 [{a.archetype}] [{ui_colors.GOLD_DIM}]{a.archetype_confidence}% conf[/]
 
-[{score_color}]{grade}[/] [{score_color}]{score}[/]/100 {'[green]✓[/]' if count_ok else '[red]✗[/]'} {a.card_count}/{expected} cards"""
+[{score_color}]{grade}[/] [{score_color}]{score}[/]/100 {"[green]✓[/]" if count_ok else "[red]✗[/]"} {a.card_count}/{expected} cards"""
 
         section = Vertical()
         section.compose_add_child(
@@ -401,9 +409,7 @@ class DeckAnalysisPanel(VerticalScroll):
         lines.append(f"\n[dim]Identity:[/] {id_display}")
 
         section = Vertical()
-        section.compose_add_child(
-            Static(f"[{ui_colors.GOLD}]COLORS[/]", classes="section-header")
-        )
+        section.compose_add_child(Static(f"[{ui_colors.GOLD}]COLORS[/]", classes="section-header"))
         section.compose_add_child(Static("\n".join(lines), classes="section-content"))
         return section
 
@@ -421,7 +427,7 @@ class DeckAnalysisPanel(VerticalScroll):
                 combo = match.combo
                 # What it produces
                 produces = ", ".join(combo.produces[:2]) if combo.produces else "combo"
-                lines.append(f"  [bold]{combo.card_names[0]}[/] +{len(combo.card_names)-1}")
+                lines.append(f"  [bold]{combo.card_names[0]}[/] +{len(combo.card_names) - 1}")
                 lines.append(f"  [dim]→ {produces}[/]")
 
         if partial:
@@ -430,7 +436,9 @@ class DeckAnalysisPanel(VerticalScroll):
                 combo = match.combo
                 missing = ", ".join(match.missing_cards[:2])
                 pct = int(match.completion_ratio * 100)
-                lines.append(f"  [{ui_colors.GOLD_DIM}]{pct}%[/] {combo.card_names[0]} +{len(combo.card_names)-1}")
+                lines.append(
+                    f"  [{ui_colors.GOLD_DIM}]{pct}%[/] {combo.card_names[0]} +{len(combo.card_names) - 1}"
+                )
                 lines.append(f"  [dim]Need: {missing}[/]")
 
         section = Vertical()
@@ -580,7 +588,9 @@ class DeckAnalysisPanel(VerticalScroll):
 
     def _build_price_section(self, a: DeckAnalysis) -> Vertical:
         """Build price analysis section."""
-        price_color = "#7ec850" if a.total_price < 50 else "#e6c84a" if a.total_price < 200 else "#e86a58"
+        price_color = (
+            "#7ec850" if a.total_price < 50 else "#e6c84a" if a.total_price < 200 else "#e86a58"
+        )
 
         lines = [f"[{price_color}]${a.total_price:.0f}[/] total"]
 
@@ -591,9 +601,7 @@ class DeckAnalysisPanel(VerticalScroll):
                 lines.append(f"  {short} [dim]${price:.0f}[/]")
 
         section = Vertical()
-        section.compose_add_child(
-            Static(f"[{ui_colors.GOLD}]PRICE[/]", classes="section-header")
-        )
+        section.compose_add_child(Static(f"[{ui_colors.GOLD}]PRICE[/]", classes="section-header"))
         section.compose_add_child(Static("\n".join(lines), classes="section-content"))
         return section
 
@@ -623,13 +631,23 @@ class DeckAnalysisPanel(VerticalScroll):
         for card in deck.mainboard:
             if card.card and card.card.mana_cost:
                 for c in "WUBRG":
-                    colors[c] = colors.get(c, 0) + card.card.mana_cost.count(f"{{{c}}}") * card.quantity
+                    colors[c] = (
+                        colors.get(c, 0) + card.card.mana_cost.count(f"{{{c}}}") * card.quantity
+                    )
         return colors
 
     def _calc_types(self, deck: DeckWithCards) -> dict[str, int]:
         """Calculate type distribution."""
         types: dict[str, int] = {}
-        priority = ["Creature", "Instant", "Sorcery", "Artifact", "Enchantment", "Planeswalker", "Land"]
+        priority = [
+            "Creature",
+            "Instant",
+            "Sorcery",
+            "Artifact",
+            "Enchantment",
+            "Planeswalker",
+            "Land",
+        ]
         for card in deck.mainboard:
             if card.card and card.card.type:
                 for t in priority:
@@ -786,9 +804,7 @@ class DeckAnalysisPanel(VerticalScroll):
             card_names = [c.card_name for c in deck.mainboard]
             # find_missing_pieces returns (matches, missing_card_to_combos)
             # We want combos with >= 60% completion (max_missing varies by combo size)
-            matches, _ = detector.find_missing_pieces(
-                card_names, max_missing=3, min_present=2
-            )
+            matches, _ = detector.find_missing_pieces(card_names, max_missing=3, min_present=2)
 
             # Filter to min 60% completion and sort by completion ratio
             filtered = [m for m in matches if m.completion_ratio >= 0.6]

@@ -46,21 +46,21 @@ GAME_DATA_PATTERN = "{base}/game_data/game_data_public.{set_code}.{event_type}.c
 
 # Recent sets with good 17lands data coverage
 RECENT_SETS = [
-    "FDN",   # Foundations (2024)
-    "DSK",   # Duskmourn (2024)
-    "BLB",   # Bloomburrow (2024)
-    "MH3",   # Modern Horizons 3 (2024)
-    "OTJ",   # Outlaws of Thunder Junction (2024)
-    "MKM",   # Murders at Karlov Manor (2024)
-    "LCI",   # Lost Caverns of Ixalan (2023)
-    "WOE",   # Wilds of Eldraine (2023)
-    "LTR",   # Lord of the Rings (2023)
-    "MOM",   # March of the Machine (2023)
-    "ONE",   # Phyrexia: All Will Be One (2023)
-    "BRO",   # Brothers' War (2022)
-    "DMU",   # Dominaria United (2022)
-    "SNC",   # Streets of New Capenna (2022)
-    "NEO",   # Kamigawa: Neon Dynasty (2022)
+    "FDN",  # Foundations (2024)
+    "DSK",  # Duskmourn (2024)
+    "BLB",  # Bloomburrow (2024)
+    "MH3",  # Modern Horizons 3 (2024)
+    "OTJ",  # Outlaws of Thunder Junction (2024)
+    "MKM",  # Murders at Karlov Manor (2024)
+    "LCI",  # Lost Caverns of Ixalan (2023)
+    "WOE",  # Wilds of Eldraine (2023)
+    "LTR",  # Lord of the Rings (2023)
+    "MOM",  # March of the Machine (2023)
+    "ONE",  # Phyrexia: All Will Be One (2023)
+    "BRO",  # Brothers' War (2022)
+    "DMU",  # Dominaria United (2022)
+    "SNC",  # Streets of New Capenna (2022)
+    "NEO",  # Kamigawa: Neon Dynasty (2022)
 ]
 
 # Event types to download (Premier has most data)
@@ -269,7 +269,9 @@ def process_game_data(data: bytes, set_code: str) -> SetAggregator:
             if i % 10000 == 0:
                 progress.update(task, description=f"{set_code} games ({i:,} processed)")
 
-        progress.update(task, description=f"{set_code} complete ({aggregator.games_processed:,} games)")
+        progress.update(
+            task, description=f"{set_code} complete ({aggregator.games_processed:,} games)"
+        )
 
     return aggregator
 
@@ -352,24 +354,27 @@ def save_stats(db_path: Path, aggregator: SetAggregator) -> int:
         if stats.games_in_hand < 100:
             continue
 
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR REPLACE INTO card_stats
             (card_name, set_code, games_in_hand, games_in_opening_hand, games_not_drawn,
              gih_wr, oh_wr, gnd_wr, iwd, ata, tier, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        """, (
-            stats.card_name,
-            stats.set_code,
-            stats.games_in_hand,
-            stats.games_in_opening_hand,
-            stats.games_not_drawn,
-            stats.gih_wr,
-            stats.oh_wr,
-            stats.gnd_wr,
-            stats.iwd,
-            stats.ata,
-            stats.tier,
-        ))
+        """,
+            (
+                stats.card_name,
+                stats.set_code,
+                stats.games_in_hand,
+                stats.games_in_opening_hand,
+                stats.games_not_drawn,
+                stats.gih_wr,
+                stats.oh_wr,
+                stats.gnd_wr,
+                stats.iwd,
+                stats.ata,
+                stats.tier,
+            ),
+        )
         saved += 1
 
     conn.commit()
@@ -381,8 +386,7 @@ def show_top_cards(aggregator: SetAggregator, n: int = 10) -> None:
     """Display top cards by GIH WR."""
     # Sort cards by GIH WR
     valid_cards = [
-        (name, stats) for name, stats in aggregator.cards.items()
-        if stats.gih_wr is not None
+        (name, stats) for name, stats in aggregator.cards.items() if stats.gih_wr is not None
     ]
     valid_cards.sort(key=lambda x: x[1].gih_wr or 0, reverse=True)
 
@@ -418,19 +422,17 @@ def show_top_cards(aggregator: SetAggregator, n: int = 10) -> None:
 def download(
     sets: Annotated[
         str | None,
-        typer.Option("--sets", "-s", help="Comma-separated set codes (e.g., BLB,OTJ,MKM)")
+        typer.Option("--sets", "-s", help="Comma-separated set codes (e.g., BLB,OTJ,MKM)"),
     ] = None,
     output_dir: Annotated[
-        Path,
-        typer.Option("--output-dir", "-o", help="Output directory for database")
+        Path, typer.Option("--output-dir", "-o", help="Output directory for database")
     ] = Path("resources"),
     delay: Annotated[
         float,
-        typer.Option("--delay", "-d", help="Delay between downloads in seconds (rate limiting)")
+        typer.Option("--delay", "-d", help="Delay between downloads in seconds (rate limiting)"),
     ] = 2.0,
     show_stats: Annotated[
-        bool,
-        typer.Option("--show-stats", help="Show top cards after processing each set")
+        bool, typer.Option("--show-stats", help="Show top cards after processing each set")
     ] = True,
 ) -> None:
     """Download and process 17lands data for Limited card ratings."""
@@ -456,7 +458,7 @@ def download(
     total_games = 0
 
     for i, set_code in enumerate(set_list):
-        console.print(f"\n[bold cyan]Processing {set_code} ({i+1}/{len(set_list)})[/]")
+        console.print(f"\n[bold cyan]Processing {set_code} ({i + 1}/{len(set_list)})[/]")
 
         set_aggregator = SetAggregator(set_code=set_code)
 
@@ -503,7 +505,9 @@ def download(
             saved = save_stats(db_path, set_aggregator)
             total_cards += saved
             total_games += set_aggregator.games_processed
-            console.print(f"[green]  Saved {saved} cards from {set_aggregator.games_processed:,} games[/]")
+            console.print(
+                f"[green]  Saved {saved} cards from {set_aggregator.games_processed:,} games[/]"
+            )
 
             if show_stats:
                 show_top_cards(set_aggregator)
@@ -523,22 +527,14 @@ def download(
 
 @app.command()
 def show(
-    db_path: Annotated[
-        Path,
-        typer.Argument(help="Path to limited_stats.sqlite")
-    ] = Path("resources/limited_stats.sqlite"),
-    set_code: Annotated[
-        str | None,
-        typer.Option("--set", "-s", help="Filter by set code")
-    ] = None,
+    db_path: Annotated[Path, typer.Argument(help="Path to limited_stats.sqlite")] = Path(
+        "resources/limited_stats.sqlite"
+    ),
+    set_code: Annotated[str | None, typer.Option("--set", "-s", help="Filter by set code")] = None,
     tier: Annotated[
-        str | None,
-        typer.Option("--tier", "-t", help="Filter by tier (S/A/B/C/D/F)")
+        str | None, typer.Option("--tier", "-t", help="Filter by tier (S/A/B/C/D/F)")
     ] = None,
-    limit: Annotated[
-        int,
-        typer.Option("--limit", "-n", help="Number of cards to show")
-    ] = 20,
+    limit: Annotated[int, typer.Option("--limit", "-n", help="Number of cards to show")] = 20,
 ) -> None:
     """Show card statistics from the database."""
     if not db_path.exists():

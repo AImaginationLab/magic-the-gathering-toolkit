@@ -360,12 +360,15 @@ class SplashScreen(App[bool]):
 
         download_url = None
         for item in data["data"]:
-            if item["type"] == "unique_artwork":
+            # MUST use default_cards to get ALL printings for accurate price lookups
+            # unique_artwork only has ~50k cards (one per art), missing many printings
+            # default_cards has ~110k cards with every printing variant
+            if item["type"] == "default_cards":
                 download_url = item["download_uri"]
                 break
 
         if not download_url:
-            raise ValueError("Could not find Scryfall download URL")
+            raise ValueError("Could not find Scryfall default_cards download URL")
 
         # Download JSON
         self._update_status("Downloading Scryfall image database...")

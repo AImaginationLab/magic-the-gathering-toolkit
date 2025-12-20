@@ -144,13 +144,14 @@ class TestSortOrder:
 
     def test_sort_order_values(self) -> None:
         """Test SortOrder enum has expected values."""
+        assert SortOrder.OWNED_FIRST.value == "owned"
         assert SortOrder.SCORE_DESC.value == "score"
         assert SortOrder.CMC_ASC.value == "cmc"
         assert SortOrder.NAME_ASC.value == "name"
 
     def test_sort_order_count(self) -> None:
         """Test correct number of sort options."""
-        assert len(SortOrder) == 3
+        assert len(SortOrder) == 4
 
 
 class TestEnhancedSynergyPanel:

@@ -102,9 +102,7 @@ class EnhancedDeckStats(Vertical):
         self.remove_children()
 
         if deck is None or deck.mainboard_count == 0:
-            self.mount(
-                Static("[dim]Select a deck to view statistics[/]")
-            )
+            self.mount(Static("[dim]Select a deck to view statistics[/]"))
             return
 
         # Build all stat cards
@@ -196,7 +194,11 @@ class EnhancedDeckStats(Vertical):
 
         # Build metrics grid
         metrics = [
-            ("Cards", f"{total_cards}/{expected}", "#7ec850" if total_cards >= expected else "#e6c84a"),
+            (
+                "Cards",
+                f"{total_cards}/{expected}",
+                "#7ec850" if total_cards >= expected else "#e6c84a",
+            ),
             ("Avg CMC", f"{avg_cmc:.2f}", self._cmc_color(avg_cmc)),
             ("Lands", f"{land_count}", self._land_color(land_count, total_cards)),
             ("Mana", f"{mana_sources}", "#7ec850" if mana_sources >= land_count else "#e6c84a"),
@@ -279,16 +281,19 @@ class EnhancedDeckStats(Vertical):
             card.compose_add_child(
                 Static(f"[bold {ui_colors.GOLD}]COLORS[/]", classes="stat-card-header")
             )
-            card.compose_add_child(Static("[dim]No colored mana costs[/]", classes="stat-card-content"))
+            card.compose_add_child(
+                Static("[dim]No colored mana costs[/]", classes="stat-card-content")
+            )
             return card
 
         lines = []
 
         # Color identity summary
         identity = "".join(c for c in ["W", "U", "B", "R", "G"] if colors.get(c, 0) > 0)
-        identity_display = " ".join(
-            f"[{MANA_CONFIG[c]['color']}]{{{c}}}[/]" for c in identity
-        ) or "[dim]Colorless[/]"
+        identity_display = (
+            " ".join(f"[{MANA_CONFIG[c]['color']}]{{{c}}}[/]" for c in identity)
+            or "[dim]Colorless[/]"
+        )
         lines.append(f"Identity: {identity_display}")
         lines.append("")
 
@@ -531,7 +536,15 @@ class EnhancedDeckStats(Vertical):
     def _calculate_types(self, deck: DeckWithCards) -> dict[str, int]:
         """Calculate card type distribution."""
         types: dict[str, int] = {}
-        type_priority = ["Creature", "Instant", "Sorcery", "Artifact", "Enchantment", "Planeswalker", "Land"]
+        type_priority = [
+            "Creature",
+            "Instant",
+            "Sorcery",
+            "Artifact",
+            "Enchantment",
+            "Planeswalker",
+            "Land",
+        ]
 
         for card in deck.mainboard:
             if card.card and card.card.type:
@@ -608,7 +621,10 @@ class EnhancedDeckStats(Vertical):
                 category = "Shock"
             elif "enters tapped unless" in text:
                 category = "Check"
-            elif len([c for c in ["W", "U", "B", "R", "G"] if f"{{{c}}}" in text or c in type_line]) >= 2:
+            elif (
+                len([c for c in ["W", "U", "B", "R", "G"] if f"{{{c}}}" in text or c in type_line])
+                >= 2
+            ):
                 category = "Dual"
             elif "{T}:" in (card.card.text or "") and "add" not in text:
                 category = "Utility"
@@ -627,7 +643,7 @@ class EnhancedDeckStats(Vertical):
             if not card.card or not card.card.type or "Land" not in card.card.type:
                 continue
 
-            text = (card.card.text or "")
+            text = card.card.text or ""
             for color in colors:
                 if f"{{{color}}}" in text:
                     colors[color] += card.quantity

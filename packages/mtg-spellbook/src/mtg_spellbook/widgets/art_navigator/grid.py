@@ -52,7 +52,12 @@ class PrintingsGrid(HorizontalScroll, can_focus=True):
         self._on_select = callback
 
     async def load_printings(
-        self, card_name: str, printings: list[PrintingInfo], sort_order: str = "price", *, reset_filters: bool = True
+        self,
+        card_name: str,
+        printings: list[PrintingInfo],
+        sort_order: str = "price",
+        *,
+        reset_filters: bool = True,
     ) -> None:
         """Load and display printings in filmstrip."""
         self._load_generation += 1
@@ -161,7 +166,9 @@ class PrintingsGrid(HorizontalScroll, can_focus=True):
         """Set filter and reload display."""
         self._filter_set = set_code
         self._filter_rarity = rarity
-        await self.load_printings(self._card_name, self._printings, self._current_sort, reset_filters=False)
+        await self.load_printings(
+            self._card_name, self._printings, self._current_sort, reset_filters=False
+        )
 
     def navigate(self, direction: str) -> bool:
         """Navigate filmstrip left/right. Returns True if moved."""

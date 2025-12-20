@@ -66,9 +66,7 @@ class DeckCardAdapter:
     quantity: int
     is_owned: bool | None
 
-    def __init__(
-        self, card_data: DeckCardWithData, is_owned: bool | None = None
-    ) -> None:
+    def __init__(self, card_data: DeckCardWithData, is_owned: bool | None = None) -> None:
         card = card_data.card
         self.name = card_data.card_name
         self.mana_cost = card.mana_cost if card else None
@@ -650,9 +648,13 @@ class FullDeckScreen(Screen[None]):
 
                 # Populate with owned first, then needed
                 for card in owned_main:
-                    mainboard.append(self._create_card_item(card, is_sideboard=False, is_owned=True))
+                    mainboard.append(
+                        self._create_card_item(card, is_sideboard=False, is_owned=True)
+                    )
                 for card in needed_main:
-                    mainboard.append(self._create_card_item(card, is_sideboard=False, is_owned=False))
+                    mainboard.append(
+                        self._create_card_item(card, is_sideboard=False, is_owned=False)
+                    )
             else:
                 # No collection data - show all without ownership info
                 for card in sorted_main:
@@ -664,7 +666,9 @@ class FullDeckScreen(Screen[None]):
             )
             sorted_side = self._sort_cards(deck.sideboard)
             for card in sorted_side:
-                is_owned = card.card_name in self._collection_cards if self._collection_cards else None
+                is_owned = (
+                    card.card_name in self._collection_cards if self._collection_cards else None
+                )
                 sideboard.append(self._create_card_item(card, is_sideboard=True, is_owned=is_owned))
 
             # Update stats with prices
@@ -758,7 +762,10 @@ class FullDeckScreen(Screen[None]):
         return list(cards)
 
     def _create_card_item(
-        self, card: DeckCardWithData, is_sideboard: bool, is_owned: bool | None = None  # noqa: ARG002
+        self,
+        card: DeckCardWithData,
+        is_sideboard: bool,  # noqa: ARG002
+        is_owned: bool | None = None,
     ) -> DeckCardResultItem:
         """Create a DeckCardResultItem from card data."""
         adapter = DeckCardAdapter(card, is_owned=is_owned)
@@ -831,9 +838,7 @@ class FullDeckScreen(Screen[None]):
             pass
 
     @work(exclusive=True, group="preview")
-    async def _load_search_card_preview(
-        self, card_name: str, set_code: str | None
-    ) -> None:
+    async def _load_search_card_preview(self, card_name: str, set_code: str | None) -> None:
         """Load search result card into CollectionCardPreview."""
         try:
             preview = self.query_one("#deck-card-preview", CollectionCardPreview)
@@ -908,9 +913,7 @@ class FullDeckScreen(Screen[None]):
             rec = self._recommendation_details.get(card_name)
             if rec:
                 try:
-                    detail_view = self.query_one(
-                        "#recommendation-detail", RecommendationDetailView
-                    )
+                    detail_view = self.query_one("#recommendation-detail", RecommendationDetailView)
                     detail_view.show_recommendation(rec)
                 except NoMatches:
                     pass
@@ -1167,9 +1170,7 @@ class FullDeckScreen(Screen[None]):
         """Add a card from the recommendation screen."""
         if not self._current_deck:
             return
-        result = await self._deck_manager.add_card(
-            self._current_deck.id, card_name, quantity
-        )
+        result = await self._deck_manager.add_card(self._current_deck.id, card_name, quantity)
         if result.success:
             # Reload the current deck to reflect the change
             self._load_deck(self._current_deck.id)
@@ -1258,9 +1259,7 @@ class FullDeckScreen(Screen[None]):
         except NoMatches:
             pass
 
-    def _update_recommendations_display(
-        self, recommendations: list[ScoredRecommendation]
-    ) -> None:
+    def _update_recommendations_display(self, recommendations: list[ScoredRecommendation]) -> None:
         """Update search results to show recommendations with synergy reasons."""
         try:
             results_list = self.query_one("#search-results-list", ListView)
@@ -1274,9 +1273,7 @@ class FullDeckScreen(Screen[None]):
             # Show dominant themes if we have deck analysis
             if self._recommender and self._current_deck:
                 deck_dicts = [
-                    dc.card.model_dump(by_alias=True)
-                    for dc in self._current_deck.cards
-                    if dc.card
+                    dc.card.model_dump(by_alias=True) for dc in self._current_deck.cards if dc.card
                 ]
                 if deck_dicts:
                     analysis = self._recommender.analyze_deck(deck_dicts)
@@ -1469,9 +1466,7 @@ class FullDeckScreen(Screen[None]):
             card_name = highlighted.card.name
             rec = self._recommendation_details.get(card_name)
             if rec:
-                detail_view = self.query_one(
-                    "#recommendation-detail", RecommendationDetailView
-                )
+                detail_view = self.query_one("#recommendation-detail", RecommendationDetailView)
                 detail_view.show_recommendation(rec)
         except NoMatches:
             pass
@@ -1522,9 +1517,7 @@ class FullDeckScreen(Screen[None]):
             card_name = highlighted.card.name
             rec = self._recommendation_details.get(card_name)
             if rec:
-                detail_view = self.query_one(
-                    "#recommendation-detail", RecommendationDetailView
-                )
+                detail_view = self.query_one("#recommendation-detail", RecommendationDetailView)
                 detail_view.show_recommendation(rec)
             else:
                 self.notify(f"No details for {card_name}", timeout=1)
@@ -1532,9 +1525,7 @@ class FullDeckScreen(Screen[None]):
             self.notify(f"Widget not found: {e}", timeout=1)
 
     @on(RecommendationDetailCollapse)
-    def on_recommendation_detail_collapse(
-        self, _event: RecommendationDetailCollapse
-    ) -> None:
+    def on_recommendation_detail_collapse(self, _event: RecommendationDetailCollapse) -> None:
         """Handle recommendation detail collapse - refocus the list."""
         try:
             results_list = self.query_one("#search-results-list", ListView)

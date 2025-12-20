@@ -252,9 +252,9 @@ def download(
         # Get stats
         cursor = conn.cursor()
         combo_count = cursor.execute("SELECT COUNT(*) FROM combos").fetchone()[0]
-        card_count = cursor.execute(
-            "SELECT COUNT(DISTINCT card_name) FROM combo_cards"
-        ).fetchone()[0]
+        card_count = cursor.execute("SELECT COUNT(DISTINCT card_name) FROM combo_cards").fetchone()[
+            0
+        ]
         feature_count = cursor.execute("SELECT COUNT(*) FROM features").fetchone()[0]
 
         # Show bracket distribution
@@ -292,9 +292,7 @@ def download(
 
         for bracket, count in bracket_dist:
             if bracket:
-                table.add_row(
-                    bracket, f"{count:,}", bracket_names.get(bracket, "Unknown")
-                )
+                table.add_row(bracket, f"{count:,}", bracket_names.get(bracket, "Unknown"))
 
         console.print(table)
 

@@ -50,9 +50,22 @@ SYNERGY_KEYWORDS = {
 
 # Common keyword abilities to track
 KEYWORD_ABILITIES = [
-    "flying", "first strike", "double strike", "deathtouch", "hexproof",
-    "indestructible", "lifelink", "menace", "reach", "trample", "vigilance",
-    "flash", "haste", "defender", "ward", "protection",
+    "flying",
+    "first strike",
+    "double strike",
+    "deathtouch",
+    "hexproof",
+    "indestructible",
+    "lifelink",
+    "menace",
+    "reach",
+    "trample",
+    "vigilance",
+    "flash",
+    "haste",
+    "defender",
+    "ward",
+    "protection",
 ]
 
 

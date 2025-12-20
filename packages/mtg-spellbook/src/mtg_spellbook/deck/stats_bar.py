@@ -314,7 +314,17 @@ class DeckStatsBar(Vertical):
         # Deck score
         score = self._calc_score(deck)
         score_color = "#7ec850" if score >= 80 else "#e6c84a" if score >= 60 else "#e86a58"
-        grade = "S" if score >= 90 else "A" if score >= 80 else "B" if score >= 65 else "C" if score >= 50 else "D"
+        grade = (
+            "S"
+            if score >= 90
+            else "A"
+            if score >= 80
+            else "B"
+            if score >= 65
+            else "C"
+            if score >= 50
+            else "D"
+        )
 
         # Land ratio
         land_pct = int((lands / total) * 100) if total > 0 else 0
@@ -355,7 +365,9 @@ class DeckStatsBar(Vertical):
 
         lines = []
         if total_price > 0:
-            price_color = "#7ec850" if total_price < 50 else "#e6c84a" if total_price < 200 else "#e86a58"
+            price_color = (
+                "#7ec850" if total_price < 50 else "#e6c84a" if total_price < 200 else "#e86a58"
+            )
             lines.append(f"[{price_color}]${total_price:.0f}[/] total")
             lines.append("[dim]Top cards:[/]")
             for name, price in expensive_cards[:3]:
@@ -394,13 +406,23 @@ class DeckStatsBar(Vertical):
         for card in deck.mainboard:
             if card.card and card.card.mana_cost:
                 for c in "WUBRG":
-                    colors[c] = colors.get(c, 0) + card.card.mana_cost.count(f"{{{c}}}") * card.quantity
+                    colors[c] = (
+                        colors.get(c, 0) + card.card.mana_cost.count(f"{{{c}}}") * card.quantity
+                    )
         return colors
 
     def _calc_types(self, deck: DeckWithCards) -> dict[str, int]:
         """Calculate type distribution."""
         types: dict[str, int] = {}
-        priority = ["Creature", "Instant", "Sorcery", "Artifact", "Enchantment", "Planeswalker", "Land"]
+        priority = [
+            "Creature",
+            "Instant",
+            "Sorcery",
+            "Artifact",
+            "Enchantment",
+            "Planeswalker",
+            "Land",
+        ]
         for card in deck.mainboard:
             if card.card and card.card.type:
                 for t in priority:
@@ -434,7 +456,9 @@ class DeckStatsBar(Vertical):
         for card in deck.mainboard:
             if card.card and card.card.text:
                 text = card.card.text.lower()
-                if any(p in text for p in literal_patterns) or any(r.search(text) for r in regex_patterns):
+                if any(p in text for p in literal_patterns) or any(
+                    r.search(text) for r in regex_patterns
+                ):
                     count += card.quantity
         return count
 
@@ -463,7 +487,9 @@ class DeckStatsBar(Vertical):
         for card in deck.mainboard:
             if card.card and card.card.type and "Land" not in card.card.type and card.card.text:
                 text = card.card.text.lower()
-                if any(p in text for p in literal_patterns) or any(r.search(text) for r in regex_patterns):
+                if any(p in text for p in literal_patterns) or any(
+                    r.search(text) for r in regex_patterns
+                ):
                     count += card.quantity
         return count
 

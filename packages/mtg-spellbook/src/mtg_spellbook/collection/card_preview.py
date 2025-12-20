@@ -227,7 +227,9 @@ class CollectionCardPreview(Vertical):
         # Artist
         artist_widget = self.query_one("#ccp-artist", Static)
         if card and card.artist:
-            artist_widget.update(f"[dim]🎨[/] [{ui_colors.GOLD}]{card.artist}[/] [dim](Enter to explore)[/]")
+            artist_widget.update(
+                f"[dim]🎨[/] [{ui_colors.GOLD}]{card.artist}[/] [dim](Enter to explore)[/]"
+            )
         else:
             artist_widget.update("")
 

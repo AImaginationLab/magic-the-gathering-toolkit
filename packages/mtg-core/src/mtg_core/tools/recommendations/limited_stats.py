@@ -105,7 +105,9 @@ class LimitedStatsDB:
             self._conn.close()
             self._conn = None
 
-    def get_card_stats(self, card_name: str, set_code: str | None = None) -> LimitedCardStats | None:
+    def get_card_stats(
+        self, card_name: str, set_code: str | None = None
+    ) -> LimitedCardStats | None:
         """Get limited stats for a card.
 
         Args:
