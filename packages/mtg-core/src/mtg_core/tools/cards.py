@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from mtg_core.data.models import (
     Card,
     CardDetail,
+    CardImage,
     CardSummary,
     LegalitiesResponse,
     RulingEntry,
@@ -49,7 +50,7 @@ async def search_cards(
     if scryfall:
 
         async def _enrich_with_scryfall(summary: CardSummary, card: Card) -> None:
-            image = await scryfall.get_card_image(card.name, card.set_code)
+            image = await scryfall.get_card_image(card.name, card.set_code, card.number)
             if image:
                 summary.image = image.image_normal
                 summary.image_small = image.image_small
@@ -88,7 +89,14 @@ async def get_card(
     detail = _card_to_detail(card)
 
     if scryfall:
-        image = await scryfall.get_card_image(card.name, card.set_code)
+        # Try exact printing match first (name + set + number)
+        image = await scryfall.get_card_image(card.name, card.set_code, card.number)
+
+        # Check if we got the right printing (same set) or if Scryfall fell back
+        if image and image.set_code and image.set_code.upper() != (card.set_code or "").upper():
+            # Scryfall didn't have our exact set - find another printing by same artist
+            image = await _find_image_by_artist(db, scryfall, card)
+
         if image:
             detail.images = image.to_image_urls()
             detail.prices = image.to_prices()
@@ -96,6 +104,37 @@ async def get_card(
             detail.related_links = image.to_related_links()
 
     return detail
+
+
+async def _find_image_by_artist(
+    db: MTGDatabase,
+    scryfall: ScryfallDatabase,
+    card: Card,
+) -> CardImage | None:
+    """Find a Scryfall image matching the card's artist.
+
+    When Scryfall doesn't have the exact printing, find another printing
+    by the same artist that Scryfall does have.
+    """
+    if not card.artist:
+        return None
+
+    # Get all printings from MTGJson
+    printings = await db.get_all_printings(card.name)
+
+    # Find printings by the same artist
+    same_artist_printings = [p for p in printings if p.artist == card.artist]
+
+    # Try each printing until we find one Scryfall has
+    for printing in same_artist_printings:
+        if printing.set_code == card.set_code:
+            continue  # Skip the one we already tried
+
+        image = await scryfall.get_card_image(printing.name, printing.set_code, printing.number)
+        if image and image.set_code and image.set_code.upper() == (printing.set_code or "").upper():
+            return image
+
+    return None
 
 
 async def get_card_rulings(
@@ -163,7 +202,9 @@ async def get_random_card(
 def _card_to_summary(card: Card) -> CardSummary:
     """Convert a Card to a summary response."""
     return CardSummary(
+        uuid=card.uuid,
         name=card.name,
+        flavor_name=card.flavor_name,
         mana_cost=card.mana_cost,
         cmc=card.cmc,
         type=card.type,
@@ -171,6 +212,7 @@ def _card_to_summary(card: Card) -> CardSummary:
         color_identity=card.color_identity or [],
         rarity=card.rarity,
         set_code=card.set_code,
+        collector_number=card.number,
         keywords=card.keywords or [],
         power=card.power,
         toughness=card.toughness,
@@ -181,6 +223,7 @@ def _card_to_detail(card: Card) -> CardDetail:
     """Convert a Card to a detailed response."""
     return CardDetail(
         name=card.name,
+        flavor_name=card.flavor_name,
         uuid=card.uuid,
         mana_cost=card.mana_cost,
         cmc=card.cmc,

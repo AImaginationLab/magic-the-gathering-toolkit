@@ -17,7 +17,9 @@ IssueType = Literal[
 class CardSummary(BaseModel):
     """Card summary for search results."""
 
+    uuid: str | None = None  # For looking up exact printing
     name: str
+    flavor_name: str | None = None  # Alternate name (SpongeBob, Walking Dead, etc.)
     mana_cost: str | None = None
     cmc: float | None = None
     type: str | None = None
@@ -25,6 +27,7 @@ class CardSummary(BaseModel):
     color_identity: list[str] = Field(default_factory=list)
     rarity: str | None = None
     set_code: str | None = None
+    collector_number: str | None = None  # For preserving exact printing
     keywords: list[str] = Field(default_factory=list)
     power: str | None = None
     toughness: str | None = None
@@ -74,6 +77,7 @@ class CardDetail(BaseModel):
     """Detailed card information."""
 
     name: str
+    flavor_name: str | None = None  # Alternate name (SpongeBob, Walking Dead, etc.)
     uuid: str | None = None
     mana_cost: str | None = None
     cmc: float | None = None
@@ -212,12 +216,27 @@ class CardImageResponse(BaseModel):
 
 
 class PrintingInfo(BaseModel):
-    """Single printing info."""
+    """Single printing info with card data for display."""
 
+    uuid: str | None = None
     set_code: str | None = None
     collector_number: str | None = None
     image: str | None = None
+    art_crop: str | None = None
     price_usd: float | None = None
+    price_eur: float | None = None
+    artist: str | None = None
+    flavor_text: str | None = None
+    rarity: str | None = None
+    release_date: str | None = None
+    illustration_id: str | None = None
+    # Card data (same for all printings, included for display convenience)
+    mana_cost: str | None = None
+    type_line: str | None = None
+    oracle_text: str | None = None
+    power: str | None = None
+    toughness: str | None = None
+    loyalty: str | None = None
 
 
 class PrintingsResponse(BaseModel):
@@ -442,3 +461,71 @@ class SuggestCardsResult(BaseModel):
     suggestions: list[SuggestedCard] = Field(default_factory=list)
     detected_themes: list[str] = Field(default_factory=list)
     deck_colors: list[str] = Field(default_factory=list)
+
+
+# =============================================================================
+# Artist Discovery Response Models
+# =============================================================================
+
+
+class ArtistSummary(BaseModel):
+    """Summary of an artist for browser views."""
+
+    name: str
+    card_count: int
+    sets_count: int
+    first_card_year: int | None = None
+    most_recent_year: int | None = None
+
+
+class ArtistStats(BaseModel):
+    """Detailed artist statistics."""
+
+    name: str
+    total_cards: int
+    sets_featured: list[str] = Field(default_factory=list)
+    first_card_date: str | None = None
+    most_recent_date: str | None = None
+    format_distribution: dict[str, int] = Field(default_factory=dict)
+
+
+class ArtistPortfolio(BaseModel):
+    """Complete artist portfolio for display."""
+
+    artist: ArtistSummary
+    stats: ArtistStats
+    cards: list[CardSummary] = Field(default_factory=list)
+
+
+class ArtistCardsResult(BaseModel):
+    """Cached result of artist cards query (for disk cache)."""
+
+    artist_name: str
+    cards: list[CardSummary] = Field(default_factory=list)
+
+
+# =============================================================================
+# Set Exploration Response Models
+# =============================================================================
+
+
+class SetStats(BaseModel):
+    """Set statistics for display."""
+
+    set_code: str
+    total_cards: int
+    rarity_distribution: dict[str, int] = Field(default_factory=dict)
+    color_distribution: dict[str, int] = Field(default_factory=dict)
+    mechanics: list[str] = Field(default_factory=list)
+    avg_cmc: float | None = None
+
+
+class BlockSummary(BaseModel):
+    """Summary of a block for browser views."""
+
+    name: str
+    set_count: int
+    total_cards: int
+    first_release: str | None = None
+    last_release: str | None = None
+    sets: list[SetSummary] = Field(default_factory=list)

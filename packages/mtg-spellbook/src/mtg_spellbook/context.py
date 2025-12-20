@@ -12,6 +12,7 @@ from mtg_core.data.database import DatabaseManager, MTGDatabase, ScryfallDatabas
 if TYPE_CHECKING:
     from types import TracebackType
 
+    from mtg_spellbook.collection_manager import CollectionManager
     from mtg_spellbook.deck_manager import DeckManager
 
 
@@ -30,6 +31,7 @@ class DatabaseContext:
         self._scryfall: ScryfallDatabase | None = None
         self._user: UserDatabase | None = None
         self._deck_manager: DeckManager | None = None
+        self._collection_manager: CollectionManager | None = None
         self._keywords: set[str] | None = None
 
     async def __aenter__(self) -> DatabaseContext:
@@ -78,6 +80,17 @@ class DatabaseContext:
 
                 self._deck_manager = DeckManager(user, db, self._scryfall)
         return self._deck_manager
+
+    async def get_collection_manager(self) -> CollectionManager | None:
+        """Get CollectionManager, connecting if needed."""
+        if self._collection_manager is None:
+            db = await self.get_db()
+            user = await self.get_user_db()
+            if user is not None:
+                from mtg_spellbook.collection_manager import CollectionManager
+
+                self._collection_manager = CollectionManager(user, db, self._scryfall)
+        return self._collection_manager
 
     async def get_keywords(self) -> set[str]:
         """Get all MTG keywords from database, cached after first load."""

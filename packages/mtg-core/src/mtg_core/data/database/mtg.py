@@ -2,31 +2,49 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import random
-import time
-from collections.abc import AsyncIterator, Sequence
-from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
 import aiosqlite
 
-from ...config import get_settings
 from ...exceptions import CardNotFoundError, SetNotFoundError
 from ..models import Card, CardLegality, CardRuling, Set
+from ..models.responses import (
+    ArtistStats,
+    ArtistSummary,
+    BlockSummary,
+    SetStats,
+    SetSummary,
+)
+from .base import BaseDatabase
 from .cache import CardCache
-from .constants import CARD_COLUMNS, EXCLUDE_EXTRAS, EXCLUDE_PROMOS, VALID_FORMATS
+from .constants import (
+    CARD_COLUMNS,
+    CARD_COLUMNS_PLAIN,
+    EXCLUDE_EXTRAS,
+    EXCLUDE_PROMOS,
+    VALID_FORMATS,
+)
 from .fts import check_fts_available, search_cards_fts
+from .migrations import (
+    get_cached_artist_for_spotlight,
+    is_artist_cache_populated,
+)
+from .migrations import (
+    refresh_artist_stats_cache as _refresh_artist_stats_cache,
+)
 from .query import QueryBuilder
 
 if TYPE_CHECKING:
     from ..models.inputs import SearchCardsInput
+    from ..models.responses import CardSummary
+    from .scryfall import ScryfallDatabase
 
 logger = logging.getLogger(__name__)
 
 
-class MTGDatabase:
+class MTGDatabase(BaseDatabase):
     """Direct database access to MTGJson AllPrintings SQLite database."""
 
     def __init__(
@@ -35,10 +53,11 @@ class MTGDatabase:
         cache: CardCache | None = None,
         max_connections: int = 5,
     ):
-        self._db = db
+        super().__init__(db, max_connections)
         self._cache = cache or CardCache()
-        self._semaphore = asyncio.Semaphore(max_connections)
         self._fts_available: bool | None = None
+        self._artists_cache: list[ArtistSummary] | None = None
+        self._artists_cache_min_cards: int = 0
 
     async def is_fts_available(self) -> bool:
         """Check if FTS5 table exists and is available."""
@@ -70,23 +89,6 @@ class MTGDatabase:
             return []
         return await search_cards_fts(self._db, query, limit, search_name, search_type, search_text)
 
-    @asynccontextmanager
-    async def _execute(
-        self, query: str, params: Sequence[Any] = ()
-    ) -> AsyncIterator[aiosqlite.Cursor]:
-        """Execute a query with concurrency limiting and optional slow query logging."""
-        settings = get_settings()
-        async with self._semaphore:
-            start = time.perf_counter()
-            try:
-                async with self._db.execute(query, params) as cursor:
-                    yield cursor
-            finally:
-                if settings.log_slow_queries:
-                    duration_ms = (time.perf_counter() - start) * 1000
-                    if duration_ms > settings.slow_query_threshold_ms:
-                        logger.warning("Slow query (%.1fms): %s", duration_ms, query[:100])
-
     @staticmethod
     def _parse_list(value: str | None) -> list[str] | None:
         """Parse comma-separated string into list."""
@@ -100,6 +102,7 @@ class MTGDatabase:
             {
                 "uuid": row["uuid"],
                 "name": row["name"],
+                "flavorName": row["flavorName"],
                 "manaCost": row["manaCost"],
                 "manaValue": row["manaValue"],
                 "colors": self._parse_list(row["colors"]),
@@ -156,7 +159,12 @@ class MTGDatabase:
             return cached
 
         async with self._execute(
-            f"SELECT {CARD_COLUMNS} FROM cards c WHERE uuid = ?",
+            f"""
+            SELECT {CARD_COLUMNS}
+            FROM cards c
+            JOIN sets s ON c.setCode = s.code
+            WHERE c.uuid = ?
+            """,
             (uuid,),
         ) as cursor:
             row = await cursor.fetchone()
@@ -182,7 +190,7 @@ class MTGDatabase:
             SELECT {CARD_COLUMNS}
             FROM cards c
             JOIN sets s ON c.setCode = s.code
-            WHERE c.name = ? AND {EXCLUDE_PROMOS}
+            WHERE c.name COLLATE NOCASE = ? AND {EXCLUDE_PROMOS}
             ORDER BY s.releaseDate DESC
             LIMIT 1
             """,
@@ -198,6 +206,120 @@ class MTGDatabase:
                 return card
         raise CardNotFoundError(name)
 
+    async def get_all_printings(self, name: str) -> list[Card]:
+        """Get all printings of a card by name (across all sets)."""
+        printings: list[Card] = []
+        async with self._execute(
+            f"""
+            SELECT {CARD_COLUMNS}
+            FROM cards c
+            JOIN sets s ON c.setCode = s.code
+            WHERE c.name COLLATE NOCASE = ?
+            ORDER BY s.releaseDate DESC, c.setCode
+            """,
+            (name,),
+        ) as cursor:
+            async for row in cursor:
+                printings.append(self._row_to_card(row))
+        return printings
+
+    async def get_card_by_set_and_number(self, set_code: str, collector_number: str) -> Card | None:
+        """Look up a card by set code and collector number.
+
+        Args:
+            set_code: The set code (e.g., "FIN", "M21")
+            collector_number: The collector number (e.g., "12", "0012", "123a")
+
+        Returns:
+            The card if found, None otherwise.
+        """
+        # Normalize collector number - remove leading zeros for comparison
+        # but also try exact match since some cards have leading zeros
+        normalized_number = collector_number.lstrip("0") or "0"
+
+        async with self._execute(
+            f"""
+            SELECT {CARD_COLUMNS}
+            FROM cards c
+            JOIN sets s ON c.setCode = s.code
+            WHERE c.setCode COLLATE NOCASE = ?
+            AND (c.number = ? OR c.number = ? OR CAST(c.number AS TEXT) = ?)
+            AND {EXCLUDE_PROMOS}
+            LIMIT 1
+            """,
+            (set_code, collector_number, normalized_number, normalized_number),
+        ) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return self._row_to_card(row)
+        return None
+
+    async def get_token_by_set_and_number(
+        self, set_code: str, collector_number: str
+    ) -> Card | None:
+        """Look up a token by set code and collector number.
+
+        Args:
+            set_code: The set code (e.g., "TDOM", "TM21", "AFIN")
+            collector_number: The collector number
+
+        Returns:
+            Token as a Card object if found, None otherwise.
+            Also supports art series cards which are stored in the tokens table.
+        """
+        normalized_number = collector_number.lstrip("0") or "0"
+
+        # Token columns - use NULL for columns that don't exist in tokens table
+        # (manaValue, loyalty, defense, rarity, edhrecRank are not in tokens)
+        async with self._execute(
+            """
+            SELECT
+                t.uuid, t.name, t.flavorName, t.manaCost, NULL as manaValue,
+                t.colors, t.colorIdentity, t.type, t.supertypes, t.types, t.subtypes,
+                t.text, t.flavorText, t.power, t.toughness, NULL as loyalty, NULL as defense,
+                t.setCode, 'special' as rarity, t.number, t.artist, t.layout,
+                t.keywords, NULL as edhrecRank
+            FROM tokens t
+            JOIN sets s ON t.setCode = s.code
+            WHERE t.setCode COLLATE NOCASE = ?
+            AND (t.number = ? OR t.number = ? OR CAST(t.number AS TEXT) = ?)
+            LIMIT 1
+            """,
+            (set_code, collector_number, normalized_number, normalized_number),
+        ) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return self._row_to_card(row)
+        return None
+
+    async def get_token_by_name(self, name: str) -> Card | None:
+        """Get a token by name. Returns most recent printing.
+
+        Also supports art series cards which are stored in the tokens table.
+        """
+        # Token columns - use NULL for columns that don't exist in tokens table
+        # (manaValue, loyalty, defense, rarity, edhrecRank are not in tokens)
+        async with self._execute(
+            """
+            SELECT
+                t.uuid, t.name, t.flavorName, t.manaCost, NULL as manaValue,
+                t.colors, t.colorIdentity, t.type, t.supertypes, t.types, t.subtypes,
+                t.text, t.flavorText, t.power, t.toughness, NULL as loyalty, NULL as defense,
+                t.setCode, 'special' as rarity, t.number, t.artist, t.layout,
+                t.keywords, NULL as edhrecRank
+            FROM tokens t
+            JOIN sets s ON t.setCode = s.code
+            WHERE t.name COLLATE NOCASE = ?
+            ORDER BY s.releaseDate DESC
+            LIMIT 1
+            """,
+            (name,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return self._row_to_card(row)
+        return None
+
     async def search_cards(self, filters: SearchCardsInput) -> tuple[list[Card], int]:
         """Search for cards matching the given filters.
 
@@ -208,11 +330,14 @@ class MTGDatabase:
         where_clause = qb.build_where()
 
         # First, get the total count (without LIMIT/OFFSET)
+        # Count distinct name+flavorName combinations to treat flavor variants as separate
         count_query = f"""
-            SELECT COUNT(DISTINCT c.name)
-            FROM cards c
-            JOIN sets s ON c.setCode = s.code
-            WHERE {where_clause} AND {EXCLUDE_EXTRAS}
+            SELECT COUNT(*) FROM (
+                SELECT DISTINCT c.name, COALESCE(c.flavorName, '')
+                FROM cards c
+                JOIN sets s ON c.setCode = s.code
+                WHERE {where_clause} AND {EXCLUDE_EXTRAS}
+            )
         """
         async with self._execute(count_query, qb.params) as cursor:
             row = await cursor.fetchone()
@@ -231,12 +356,13 @@ class MTGDatabase:
         order_clause = f"ORDER BY {sort_column} {order_direction}"
 
         # Then get the paginated results
+        # Group by name+flavorName to treat flavor variants (SpongeBob, Walking Dead) as separate
         query = f"""
             SELECT DISTINCT {CARD_COLUMNS}
             FROM cards c
             JOIN sets s ON c.setCode = s.code
             WHERE {where_clause} AND {EXCLUDE_EXTRAS}
-            GROUP BY c.name
+            GROUP BY c.name, COALESCE(c.flavorName, '')
             {order_clause}
             LIMIT ? OFFSET ?
         """
@@ -277,7 +403,7 @@ class MTGDatabase:
             if fts_uuids:
                 # Build query that uses the FTS results as a filter
                 qb = QueryBuilder()
-                qb.add_like("c.name", filters.name)
+                qb.add_name_search(filters.name)
                 qb.add_colors(filters.colors)
                 qb.add_color_identity(filters.color_identity)
                 qb.add_like("c.type", filters.type)
@@ -300,12 +426,14 @@ class MTGDatabase:
 
                 where_clause = qb.build_where()
 
-                # Get count
+                # Get count (distinct name+flavorName combinations)
                 count_query = f"""
-                    SELECT COUNT(DISTINCT c.name)
-                    FROM cards c
-                    JOIN sets s ON c.setCode = s.code
-                    WHERE {where_clause} AND {EXCLUDE_EXTRAS}
+                    SELECT COUNT(*) FROM (
+                        SELECT DISTINCT c.name, COALESCE(c.flavorName, '')
+                        FROM cards c
+                        JOIN sets s ON c.setCode = s.code
+                        WHERE {where_clause} AND {EXCLUDE_EXTRAS}
+                    )
                 """
                 async with self._execute(count_query, qb.params) as cursor:
                     row = await cursor.fetchone()
@@ -329,7 +457,7 @@ class MTGDatabase:
                     FROM cards c
                     JOIN sets s ON c.setCode = s.code
                     WHERE {where_clause} AND {EXCLUDE_EXTRAS}
-                    GROUP BY c.name
+                    GROUP BY c.name, COALESCE(c.flavorName, '')
                     {order_clause}
                     LIMIT ? OFFSET ?
                 """
@@ -516,6 +644,7 @@ class MTGDatabase:
                 f"""
                 SELECT {CARD_COLUMNS}
                 FROM cards c
+                JOIN sets s ON c.setCode = s.code
                 WHERE c.rowid >= ? AND {EXCLUDE_EXTRAS}
                 LIMIT 1
                 """,
@@ -533,6 +662,7 @@ class MTGDatabase:
             f"""
             SELECT {CARD_COLUMNS}
             FROM cards c
+            JOIN sets s ON c.setCode = s.code
             WHERE {EXCLUDE_EXTRAS}
             LIMIT 1
             """,
@@ -598,7 +728,7 @@ class MTGDatabase:
         # Build parameterized query for remaining names
         placeholders = ",".join("?" * len(names_to_fetch))
         query = f"""
-            SELECT {CARD_COLUMNS}, s.releaseDate
+            SELECT {CARD_COLUMNS}
             FROM cards c
             JOIN sets s ON c.setCode = s.code
             WHERE c.name IN ({placeholders}) AND {EXCLUDE_PROMOS}
@@ -657,7 +787,12 @@ class MTGDatabase:
 
         if uuids_to_fetch:
             placeholders = ",".join("?" * len(uuids_to_fetch))
-            query = f"SELECT {CARD_COLUMNS} FROM cards c WHERE uuid IN ({placeholders})"
+            query = f"""
+                SELECT {CARD_COLUMNS}
+                FROM cards c
+                JOIN sets s ON c.setCode = s.code
+                WHERE c.uuid IN ({placeholders})
+            """
 
             async with self._execute(query, uuids_to_fetch) as cursor:
                 async for row in cursor:
@@ -671,3 +806,801 @@ class MTGDatabase:
 
         # Return in original order, skipping missing
         return [results[uuid] for uuid in uuids if uuid in results]
+
+    async def enrich_cards_batch(
+        self,
+        cards: list[CardSummary],
+        scryfall_db: ScryfallDatabase | None = None,
+    ) -> list[CardSummary]:
+        """Enrich multiple CardSummary objects with Scryfall data in a single batch query.
+
+        This eliminates N+1 queries by fetching all Scryfall data in one query
+        instead of fetching each card's data individually.
+
+        Args:
+            cards: List of CardSummary objects to enrich
+            scryfall_db: ScryfallDatabase instance for fetching images/prices.
+                         If None, cards are returned unchanged.
+
+        Returns:
+            List of CardSummary objects with image, image_small, price_usd,
+            and purchase_link fields populated from Scryfall data.
+        """
+        if not cards or scryfall_db is None:
+            return cards
+
+        # Extract unique card names for batch query
+        names = list({card.name for card in cards})
+
+        # Batch fetch all Scryfall data in one query
+        scryfall_data = await scryfall_db.get_card_images_batch(names)
+
+        # Enrich each card with Scryfall data
+        for card in cards:
+            image_data = scryfall_data.get(card.name.lower())
+            if image_data:
+                card.image = image_data.image_normal
+                card.image_small = image_data.image_small
+                card.price_usd = image_data.get_price_usd()
+                card.purchase_link = image_data.purchase_tcgplayer
+
+        return cards
+
+    # -------------------------------------------------------------------------
+    # Artist Methods
+    # -------------------------------------------------------------------------
+
+    async def get_cards_by_artist(self, artist: str) -> list[Card]:
+        """Get unique cards illustrated by a specific artist.
+
+        Returns one card per unique name (the newest printing), deduped in SQL
+        using ROW_NUMBER() window function for efficiency.
+
+        Includes collaborative works where the artist appears with others
+        (e.g., "Artist A & Artist B" format).
+
+        Args:
+            artist: The artist name to search for.
+
+        Returns:
+            List of unique cards by this artist, sorted by release date (newest first).
+        """
+        cards: list[Card] = []
+        # Match exact name, or collaborative works in any position (case-insensitive):
+        # - "Artist & Other" (first)
+        # - "Other & Artist" (last)
+        # - "Other & Artist & Another" (middle)
+        artist_lower = artist.lower()
+        artist_first = f"{artist_lower} & %"
+        artist_last = f"% & {artist_lower}"
+        artist_middle = f"% & {artist_lower} & %"
+        async with self._execute(
+            f"""
+            WITH artist_cards AS (
+                SELECT {CARD_COLUMNS},
+                    ROW_NUMBER() OVER (
+                        PARTITION BY c.name, COALESCE(c.flavorName, '')
+                        ORDER BY s.releaseDate DESC
+                    ) as rn
+                FROM cards c
+                JOIN sets s ON c.setCode = s.code
+                WHERE (LOWER(c.artist) = ? OR LOWER(c.artist) LIKE ? OR LOWER(c.artist) LIKE ? OR LOWER(c.artist) LIKE ?)
+                    AND {EXCLUDE_EXTRAS}
+            )
+            SELECT {CARD_COLUMNS_PLAIN}
+            FROM artist_cards
+            WHERE rn = 1
+            ORDER BY releaseDate DESC, name
+            """,
+            (artist_lower, artist_first, artist_last, artist_middle),
+        ) as cursor:
+            async for row in cursor:
+                cards.append(self._row_to_card(row))
+        return cards
+
+    async def get_artist_stats(self, artist: str) -> ArtistStats:
+        """Get statistics for an artist.
+
+        Includes collaborative works where the artist appears with others.
+        Search is case-insensitive.
+
+        Args:
+            artist: The artist name.
+
+        Returns:
+            ArtistStats with card count, sets featured, date range, and format distribution.
+        """
+        # Match exact name, or collaborative works in any position (case-insensitive)
+        artist_lower = artist.lower()
+        artist_first = f"{artist_lower} & %"
+        artist_last = f"% & {artist_lower}"
+        artist_middle = f"% & {artist_lower} & %"
+
+        # Get basic stats: total cards, sets, date range
+        async with self._execute(
+            f"""
+            SELECT
+                COUNT(*) as total_cards,
+                COUNT(DISTINCT c.setCode) as sets_count,
+                MIN(s.releaseDate) as first_card,
+                MAX(s.releaseDate) as most_recent,
+                GROUP_CONCAT(DISTINCT c.setCode) as set_codes
+            FROM cards c
+            JOIN sets s ON c.setCode = s.code
+            WHERE (LOWER(c.artist) = ? OR LOWER(c.artist) LIKE ? OR LOWER(c.artist) LIKE ? OR LOWER(c.artist) LIKE ?)
+                AND {EXCLUDE_EXTRAS}
+            """,
+            (artist_lower, artist_first, artist_last, artist_middle),
+        ) as cursor:
+            row = await cursor.fetchone()
+            if not row or row["total_cards"] == 0:
+                return ArtistStats(
+                    name=artist,
+                    total_cards=0,
+                    sets_featured=[],
+                    first_card_date=None,
+                    most_recent_date=None,
+                    format_distribution={},
+                )
+
+            total_cards = row["total_cards"]
+            first_card_date = row["first_card"]
+            most_recent_date = row["most_recent"]
+            set_codes_str = row["set_codes"]
+            sets_featured = set_codes_str.split(",") if set_codes_str else []
+
+        # Get format distribution using SQL aggregation for top formats only
+        # This is much faster than fetching all rows and counting in Python
+        format_distribution: dict[str, int] = {}
+        top_formats = ["commander", "modern", "legacy", "vintage", "standard", "pioneer", "pauper"]
+        format_cols = ", ".join(
+            f"SUM(CASE WHEN l.{fmt} = 'Legal' THEN 1 ELSE 0 END) as {fmt}_count"
+            for fmt in top_formats
+        )
+        async with self._execute(
+            f"""
+            SELECT {format_cols}
+            FROM cards c
+            JOIN cardLegalities l ON c.uuid = l.uuid
+            WHERE (LOWER(c.artist) = ? OR LOWER(c.artist) LIKE ? OR LOWER(c.artist) LIKE ? OR LOWER(c.artist) LIKE ?)
+                AND {EXCLUDE_EXTRAS}
+            """,
+            (artist_lower, artist_first, artist_last, artist_middle),
+        ) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                for fmt in top_formats:
+                    count = row[f"{fmt}_count"]
+                    if count and count > 0:
+                        format_distribution[fmt] = count
+
+        return ArtistStats(
+            name=artist,
+            total_cards=total_cards,
+            sets_featured=sets_featured,
+            first_card_date=first_card_date,
+            most_recent_date=most_recent_date,
+            format_distribution=format_distribution,
+        )
+
+    async def get_all_artists(self, min_cards: int = 1) -> list[ArtistSummary]:
+        """Get all artists with card counts.
+
+        Uses in-memory caching since artist list changes infrequently but is
+        expensive to compute (GROUP BY on 90k+ rows).
+
+        Args:
+            min_cards: Minimum number of cards to include an artist (default: 1).
+
+        Returns:
+            List of ArtistSummary, sorted by card count descending.
+        """
+        # Use cached results if available and compatible min_cards filter
+        if self._artists_cache is not None and self._artists_cache_min_cards <= min_cards:
+            if self._artists_cache_min_cards == min_cards:
+                return self._artists_cache
+            # Filter cached results for higher min_cards threshold
+            return [a for a in self._artists_cache if a.card_count >= min_cards]
+
+        artists: list[ArtistSummary] = []
+        async with self._execute(
+            f"""
+            SELECT
+                c.artist as name,
+                COUNT(DISTINCT c.name) as card_count,
+                COUNT(DISTINCT c.setCode) as sets_count,
+                MIN(CAST(SUBSTR(s.releaseDate, 1, 4) AS INTEGER)) as first_year,
+                MAX(CAST(SUBSTR(s.releaseDate, 1, 4) AS INTEGER)) as most_recent_year
+            FROM cards c
+            JOIN sets s ON c.setCode = s.code
+            WHERE c.artist IS NOT NULL AND c.artist != '' AND {EXCLUDE_EXTRAS}
+            GROUP BY c.artist
+            HAVING COUNT(DISTINCT c.name) >= ?
+            ORDER BY card_count DESC, c.artist
+            """,
+            (min_cards,),
+        ) as cursor:
+            async for row in cursor:
+                artists.append(
+                    ArtistSummary(
+                        name=row["name"],
+                        card_count=row["card_count"],
+                        sets_count=row["sets_count"],
+                        first_card_year=row["first_year"],
+                        most_recent_year=row["most_recent_year"],
+                    )
+                )
+
+        # Cache results for future calls
+        self._artists_cache = artists
+        self._artists_cache_min_cards = min_cards
+        return artists
+
+    # -------------------------------------------------------------------------
+    # Set Extended Methods
+    # -------------------------------------------------------------------------
+
+    async def get_cards_in_set(self, set_code: str) -> list[Card]:
+        """Get all cards in a set, sorted by collector number.
+
+        Args:
+            set_code: The set code (e.g., 'MKM', 'SNC').
+
+        Returns:
+            List of cards in the set, sorted by collector number.
+        """
+        cards: list[Card] = []
+        async with self._execute(
+            f"""
+            SELECT {CARD_COLUMNS}
+            FROM cards c
+            JOIN sets s ON c.setCode = s.code
+            WHERE LOWER(c.setCode) = LOWER(?) AND {EXCLUDE_EXTRAS}
+            ORDER BY
+                CAST(
+                    CASE
+                        WHEN c.number GLOB '[0-9]*'
+                        THEN SUBSTR(c.number, 1, LENGTH(c.number) - LENGTH(LTRIM(c.number, '0123456789')))
+                        ELSE '999999'
+                    END AS INTEGER
+                ),
+                c.number
+            """,
+            (set_code,),
+        ) as cursor:
+            async for row in cursor:
+                cards.append(self._row_to_card(row))
+        return cards
+
+    async def get_set_stats(self, set_code: str) -> SetStats:
+        """Get statistics for a set.
+
+        Args:
+            set_code: The set code (e.g., 'MKM', 'SNC').
+
+        Returns:
+            SetStats with total cards, rarity/color distribution, mechanics, and avg CMC.
+        """
+        # Get total cards
+        async with self._execute(
+            f"""
+            SELECT COUNT(*) as total
+            FROM cards c
+            WHERE LOWER(c.setCode) = LOWER(?) AND {EXCLUDE_EXTRAS}
+            """,
+            (set_code,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            total_cards = row["total"] if row else 0
+
+        if total_cards == 0:
+            return SetStats(
+                set_code=set_code,
+                total_cards=0,
+                rarity_distribution={},
+                color_distribution={},
+                mechanics=[],
+                avg_cmc=None,
+            )
+
+        # Get rarity distribution
+        rarity_distribution: dict[str, int] = {}
+        async with self._execute(
+            f"""
+            SELECT c.rarity, COUNT(*) as count
+            FROM cards c
+            WHERE LOWER(c.setCode) = LOWER(?) AND {EXCLUDE_EXTRAS} AND c.rarity IS NOT NULL
+            GROUP BY c.rarity
+            """,
+            (set_code,),
+        ) as cursor:
+            async for row in cursor:
+                rarity_distribution[row["rarity"]] = row["count"]
+
+        # Get color distribution (count cards containing each color)
+        color_distribution: dict[str, int] = {}
+        async with self._execute(
+            f"""
+            SELECT c.colors
+            FROM cards c
+            WHERE LOWER(c.setCode) = LOWER(?) AND {EXCLUDE_EXTRAS} AND c.colors IS NOT NULL
+            """,
+            (set_code,),
+        ) as cursor:
+            async for row in cursor:
+                colors = self._parse_list(row["colors"])
+                if colors:
+                    for color in colors:
+                        color_distribution[color] = color_distribution.get(color, 0) + 1
+
+        # Get unique mechanics/keywords
+        mechanics: list[str] = []
+        async with self._execute(
+            f"""
+            SELECT DISTINCT c.keywords
+            FROM cards c
+            WHERE LOWER(c.setCode) = LOWER(?) AND {EXCLUDE_EXTRAS}
+                AND c.keywords IS NOT NULL AND c.keywords != ''
+            """,
+            (set_code,),
+        ) as cursor:
+            keywords_set: set[str] = set()
+            async for row in cursor:
+                keyword_list = self._parse_list(row["keywords"])
+                if keyword_list:
+                    keywords_set.update(keyword_list)
+            mechanics = sorted(keywords_set)
+
+        # Get average CMC (excluding lands)
+        async with self._execute(
+            f"""
+            SELECT AVG(c.manaValue) as avg_cmc
+            FROM cards c
+            WHERE LOWER(c.setCode) = LOWER(?) AND {EXCLUDE_EXTRAS}
+                AND c.manaValue IS NOT NULL
+                AND c.type NOT LIKE '%Land%'
+            """,
+            (set_code,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            avg_cmc = round(row["avg_cmc"], 2) if row and row["avg_cmc"] else None
+
+        return SetStats(
+            set_code=set_code,
+            total_cards=total_cards,
+            rarity_distribution=rarity_distribution,
+            color_distribution=color_distribution,
+            mechanics=mechanics,
+            avg_cmc=avg_cmc,
+        )
+
+    # -------------------------------------------------------------------------
+    # Dashboard Methods (Landing Page)
+    # -------------------------------------------------------------------------
+
+    async def get_random_artist_for_spotlight(self, min_cards: int = 20) -> ArtistSummary | None:
+        """Get a random artist for the dashboard spotlight.
+
+        Uses a deterministic daily seed so the same artist appears all day.
+        First checks the artist_stats_cache table (if populated), then falls back
+        to in-memory cache, then to live database query.
+
+        Args:
+            min_cards: Minimum number of cards an artist must have to be eligible.
+
+        Returns:
+            ArtistSummary for the selected artist, or None if no eligible artists.
+        """
+        import hashlib
+        from datetime import date
+
+        # Get deterministic seed for today
+        today = date.today().isoformat()
+        seed = int(hashlib.md5(today.encode()).hexdigest()[:8], 16)
+
+        # Try the artist_stats_cache table first (fastest if populated)
+        if await is_artist_cache_populated(self._db):
+            cached = await get_cached_artist_for_spotlight(self._db, min_cards)
+            if cached:
+                artist, card_count, sets_count, first_year, last_year = cached
+                return ArtistSummary(
+                    name=artist,
+                    card_count=card_count,
+                    sets_count=sets_count,
+                    first_card_year=first_year,
+                    most_recent_year=last_year,
+                )
+
+        # Use in-memory cached artists if available (instant lookup)
+        if self._artists_cache is not None and self._artists_cache_min_cards <= min_cards:
+            eligible = [a for a in self._artists_cache if a.card_count >= min_cards]
+            if eligible:
+                return eligible[seed % len(eligible)]
+            return None
+
+        # Fallback: query database directly
+        async with self._execute(
+            f"""
+            SELECT c.artist as name, COUNT(DISTINCT c.name) as card_count
+            FROM cards c
+            WHERE c.artist IS NOT NULL AND c.artist != '' AND {EXCLUDE_EXTRAS}
+            GROUP BY c.artist
+            HAVING COUNT(DISTINCT c.name) >= ?
+            ORDER BY c.artist
+            LIMIT 100
+            """,
+            (min_cards,),
+        ) as cursor:
+            candidates = []
+            async for row in cursor:
+                candidates.append((row["name"], row["card_count"]))
+
+        if not candidates:
+            return None
+
+        # Select artist deterministically based on seed
+        selected_name, card_count = candidates[seed % len(candidates)]
+
+        # Get full details for selected artist only
+        async with self._execute(
+            f"""
+            SELECT
+                COUNT(DISTINCT c.setCode) as sets_count,
+                MIN(CAST(SUBSTR(s.releaseDate, 1, 4) AS INTEGER)) as first_year,
+                MAX(CAST(SUBSTR(s.releaseDate, 1, 4) AS INTEGER)) as most_recent_year
+            FROM cards c
+            JOIN sets s ON c.setCode = s.code
+            WHERE c.artist = ? AND {EXCLUDE_EXTRAS}
+            """,
+            (selected_name,),
+        ) as cursor:
+            detail_row = await cursor.fetchone()
+            if detail_row is not None:
+                return ArtistSummary(
+                    name=selected_name,
+                    card_count=card_count,
+                    sets_count=detail_row["sets_count"],
+                    first_card_year=detail_row["first_year"],
+                    most_recent_year=detail_row["most_recent_year"],
+                )
+
+        # Fallback if details query fails
+        return ArtistSummary(
+            name=selected_name,
+            card_count=card_count,
+            sets_count=0,
+            first_card_year=None,
+            most_recent_year=None,
+        )
+
+    async def refresh_artist_stats_cache(self) -> int:
+        """Refresh the artist stats cache table.
+
+        This pre-computes artist statistics and stores them in the
+        artist_stats_cache table for fast dashboard queries.
+
+        Returns:
+            Number of artists cached.
+        """
+        return await _refresh_artist_stats_cache(self._db)
+
+    async def get_featured_cards_for_artist(self, artist_name: str, limit: int = 4) -> list[Card]:
+        """Get featured cards for an artist (prioritizing rare/mythic).
+
+        Args:
+            artist_name: The artist's name.
+            limit: Maximum number of cards to return.
+
+        Returns:
+            List of featured cards, prioritized by rarity.
+        """
+        cards: list[Card] = []
+        async with self._execute(
+            f"""
+            SELECT {CARD_COLUMNS}
+            FROM cards c
+            JOIN sets s ON c.setCode = s.code
+            WHERE c.artist = ? AND {EXCLUDE_EXTRAS}
+            ORDER BY
+                CASE c.rarity
+                    WHEN 'mythic' THEN 1
+                    WHEN 'rare' THEN 2
+                    WHEN 'uncommon' THEN 3
+                    ELSE 4
+                END,
+                s.releaseDate DESC
+            LIMIT ?
+            """,
+            (artist_name, limit),
+        ) as cursor:
+            async for row in cursor:
+                cards.append(self._row_to_card(row))
+        return cards
+
+    async def get_latest_sets(self, limit: int = 3) -> list[Set]:
+        """Get the most recently released sets.
+
+        Args:
+            limit: Maximum number of sets to return.
+
+        Returns:
+            List of sets sorted by release date (newest first).
+        """
+        sets: list[Set] = []
+        async with self._execute(
+            """
+            SELECT code, name, type, releaseDate, block, baseSetSize,
+                   totalSetSize, isOnlineOnly, isFoilOnly, keyruneCode
+            FROM sets
+            WHERE releaseDate <= date('now')
+              AND type IN ('expansion', 'core', 'masters', 'draft_innovation')
+              AND (isOnlineOnly IS NULL OR isOnlineOnly = 0)
+            ORDER BY releaseDate DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ) as cursor:
+            async for row in cursor:
+                sets.append(self._row_to_set(row))
+        return sets
+
+    async def get_random_card_of_day(self) -> Card:
+        """Get a deterministic 'card of the day' (same card all day).
+
+        Uses date-based seed with efficient rowid-based selection to avoid
+        expensive COUNT + OFFSET queries.
+
+        Returns:
+            A Card object for the card of the day.
+
+        Raises:
+            CardNotFoundError: If no eligible cards exist.
+        """
+        import hashlib
+        from datetime import date
+
+        # Get deterministic seed for today (different from artist seed)
+        today = f"card:{date.today().isoformat()}"
+        seed = int(hashlib.md5(today.encode()).hexdigest()[:8], 16)
+
+        # Get max rowid for efficient random selection
+        async with self._execute("SELECT MAX(rowid) FROM cards") as cursor:
+            row = await cursor.fetchone()
+            max_rowid = row[0] if row and row[0] else 0
+
+        if max_rowid == 0:
+            raise CardNotFoundError("card_of_day")
+
+        # Try multiple rowid offsets to find a valid rare/mythic card
+        # This is much faster than COUNT + OFFSET on full table
+        for attempt in range(20):
+            # Use seed + attempt to generate different rowids
+            random_rowid = ((seed + attempt * 7919) % max_rowid) + 1
+
+            async with self._execute(
+                f"""
+                SELECT {CARD_COLUMNS}
+                FROM cards c
+                JOIN sets s ON c.setCode = s.code
+                WHERE c.rowid >= ?
+                  AND {EXCLUDE_EXTRAS}
+                  AND c.rarity IN ('rare', 'mythic')
+                  AND c.type NOT LIKE '%Basic%'
+                LIMIT 1
+                """,
+                (random_rowid,),
+            ) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    card = self._row_to_card(row)
+                    # Skip legalities for dashboard - not needed for preview
+                    return card
+
+        # Fallback: get any rare/mythic card
+        async with self._execute(
+            f"""
+            SELECT {CARD_COLUMNS}
+            FROM cards c
+            JOIN sets s ON c.setCode = s.code
+            WHERE {EXCLUDE_EXTRAS}
+              AND c.rarity IN ('rare', 'mythic')
+              AND c.type NOT LIKE '%Basic%'
+            LIMIT 1
+            """,
+        ) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return self._row_to_card(row)
+
+        raise CardNotFoundError("card_of_day")
+
+    # -------------------------------------------------------------------------
+    # Block Browsing Methods
+    # -------------------------------------------------------------------------
+
+    async def get_all_blocks(self) -> list[BlockSummary]:
+        """Get all blocks with their sets grouped by storyline.
+
+        Returns:
+            List of BlockSummary objects sorted by most recent release.
+        """
+        blocks: dict[str, BlockSummary] = {}
+
+        # Query all sets that have a block, grouped by block name
+        async with self._execute(
+            """
+            SELECT
+                s.block,
+                s.code,
+                s.name,
+                s.type,
+                s.releaseDate,
+                s.totalSetSize
+            FROM sets s
+            WHERE s.block IS NOT NULL AND s.block != ''
+            ORDER BY s.block, s.releaseDate
+            """,
+        ) as cursor:
+            async for row in cursor:
+                block_name = row["block"]
+
+                if block_name not in blocks:
+                    blocks[block_name] = BlockSummary(
+                        name=block_name,
+                        set_count=0,
+                        total_cards=0,
+                        first_release=row["releaseDate"],
+                        last_release=row["releaseDate"],
+                        sets=[],
+                    )
+
+                block = blocks[block_name]
+                block.sets.append(
+                    SetSummary(
+                        code=row["code"],
+                        name=row["name"],
+                        type=row["type"],
+                        release_date=row["releaseDate"],
+                    )
+                )
+                block.set_count += 1
+                block.total_cards += row["totalSetSize"] or 0
+
+                # Update date range
+                if row["releaseDate"]:
+                    if not block.first_release or row["releaseDate"] < block.first_release:
+                        block.first_release = row["releaseDate"]
+                    if not block.last_release or row["releaseDate"] > block.last_release:
+                        block.last_release = row["releaseDate"]
+
+        # Sort blocks by most recent release date (newest first)
+        sorted_blocks = sorted(
+            blocks.values(),
+            key=lambda b: b.last_release or "",
+            reverse=True,
+        )
+
+        return sorted_blocks
+
+    async def get_sets_by_block(self, block_name: str) -> list[Set]:
+        """Get all sets in a specific block.
+
+        Args:
+            block_name: The block name to search for.
+
+        Returns:
+            List of Set objects in the block, sorted by release date.
+        """
+        sets_list: list[Set] = []
+        async with self._execute(
+            """
+            SELECT code, name, type, releaseDate, block, baseSetSize,
+                   totalSetSize, isOnlineOnly, isFoilOnly, keyruneCode
+            FROM sets
+            WHERE LOWER(block) = LOWER(?)
+            ORDER BY releaseDate
+            """,
+            (block_name,),
+        ) as cursor:
+            async for row in cursor:
+                sets_list.append(self._row_to_set(row))
+        return sets_list
+
+    async def get_recent_sets(
+        self,
+        limit: int = 10,
+        include_upcoming: bool = False,
+        set_types: list[str] | None = None,
+    ) -> list[Set]:
+        """Get recent and optionally upcoming sets.
+
+        Args:
+            limit: Maximum number of sets to return.
+            include_upcoming: If True, include sets with future release dates.
+            set_types: Optional list of set types to filter by.
+
+        Returns:
+            List of sets sorted by release date (newest first).
+        """
+        conditions = ["(isOnlineOnly IS NULL OR isOnlineOnly = 0)"]
+        params: list[Any] = []
+
+        if not include_upcoming:
+            conditions.append("releaseDate <= date('now')")
+
+        if set_types:
+            placeholders = ",".join("?" * len(set_types))
+            conditions.append(f"LOWER(type) IN ({placeholders})")
+            params.extend([t.lower() for t in set_types])
+
+        where_clause = " AND ".join(conditions)
+
+        recent_sets: list[Set] = []
+        async with self._execute(
+            f"""
+            SELECT code, name, type, releaseDate, block, baseSetSize,
+                   totalSetSize, isOnlineOnly, isFoilOnly, keyruneCode
+            FROM sets
+            WHERE {where_clause}
+            ORDER BY releaseDate DESC
+            LIMIT ?
+            """,
+            (*params, limit),
+        ) as cursor:
+            async for row in cursor:
+                recent_sets.append(self._row_to_set(row))
+        return recent_sets
+
+    async def search_artists(self, query: str, min_cards: int = 1) -> list[ArtistSummary]:
+        """Search artists by name.
+
+        Uses cached artist list if available for instant filtering,
+        otherwise falls back to database query.
+
+        Args:
+            query: Search query (partial name match).
+            min_cards: Minimum number of cards to include an artist.
+
+        Returns:
+            List of matching ArtistSummary objects, sorted by card count.
+        """
+        # Use cached results if available - much faster for search
+        if self._artists_cache is not None and self._artists_cache_min_cards <= min_cards:
+            query_lower = query.lower()
+            return [
+                a
+                for a in self._artists_cache
+                if query_lower in a.name.lower() and a.card_count >= min_cards
+            ][:100]
+
+        # Fallback to database query
+        artists: list[ArtistSummary] = []
+        async with self._execute(
+            f"""
+            SELECT
+                c.artist as name,
+                COUNT(DISTINCT c.name) as card_count,
+                COUNT(DISTINCT c.setCode) as sets_count,
+                MIN(CAST(SUBSTR(s.releaseDate, 1, 4) AS INTEGER)) as first_year,
+                MAX(CAST(SUBSTR(s.releaseDate, 1, 4) AS INTEGER)) as most_recent_year
+            FROM cards c
+            JOIN sets s ON c.setCode = s.code
+            WHERE c.artist LIKE ? AND c.artist IS NOT NULL AND {EXCLUDE_EXTRAS}
+            GROUP BY c.artist
+            HAVING COUNT(DISTINCT c.name) >= ?
+            ORDER BY card_count DESC, c.artist
+            LIMIT 100
+            """,
+            (f"%{query}%", min_cards),
+        ) as cursor:
+            async for row in cursor:
+                artists.append(
+                    ArtistSummary(
+                        name=row["name"],
+                        card_count=row["card_count"],
+                        sets_count=row["sets_count"],
+                        first_card_year=row["first_year"],
+                        most_recent_year=row["most_recent_year"],
+                    )
+                )
+        return artists

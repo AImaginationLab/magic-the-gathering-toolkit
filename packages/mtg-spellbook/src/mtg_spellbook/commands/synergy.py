@@ -28,6 +28,8 @@ class SynergyCommandsMixin:
     """Mixin providing synergy and combo commands."""
 
     if TYPE_CHECKING:
+        from ..collection_manager import CollectionManager
+
         _db: Any
         _scryfall: Any
         _current_results: list[Any]
@@ -35,17 +37,21 @@ class SynergyCommandsMixin:
         _synergy_mode: bool
         _synergy_info: dict[str, Any]
         _pagination: PaginationState | None
+        _collection_manager: CollectionManager | None
 
         def query_one(self, selector: str, expect_type: type[Any] = ...) -> Any: ...
         def _show_synergy_panel(self) -> None: ...
         def _show_message(self, message: str) -> None: ...
         def _display_synergy_results(self) -> None: ...
+        def run_worker(self, coro: Any) -> Any: ...
 
     @work
     async def find_synergies(self, card_name: str) -> None:
-        """Find synergistic cards and show in results list."""
+        """Find synergistic cards and show in enhanced synergy panel."""
         if not self._db:
             return
+
+        from ..widgets import EnhancedSynergyPanel
 
         self._synergy_mode = True
         self._synergy_info = {}
@@ -62,54 +68,40 @@ class SynergyCommandsMixin:
         if not result.synergies:
             self._show_message(f"[yellow]No synergies found for {card_name}[/]")
             self._synergy_mode = False
-            self._pagination = None
             return
 
-        # Build synergy info and items for pagination
-        synergy_items: list[SynergyItem] = []
+        # Build synergy info for card panel display
         for syn in result.synergies:
             self._synergy_info[syn.name] = {
                 "type": syn.synergy_type,
                 "reason": syn.reason,
                 "score": syn.score,
             }
-            synergy_items.append(
-                SynergyItem(
-                    name=syn.name,
-                    synergy_type=syn.synergy_type,
-                    reason=syn.reason,
-                    score=syn.score,
-                )
-            )
 
-        # Create pagination state
-        self._pagination = PaginationState(
-            all_items=synergy_items,
-            current_page=1,
-            page_size=25,
-            source_type="synergy",
-            source_query=card_name,
-        )
+        # Hide dashboard, show synergy layout (synergy list on top, cards side-by-side)
+        self.query_one("#dashboard").add_class("hidden")
+        self.query_one("#results-container").add_class("hidden")  # Hide normal results
+        self.query_one("#detail-container").remove_class("hidden")
+        # Enable synergy layout mode (stacks synergy panel on top, cards below)
+        self.query_one("#main-container").add_class("synergy-layout")
 
-        # Load first page of card details
-        self._current_results = []
-        for item in self._pagination.current_page_items:
-            try:
-                detail = await cards.get_card(self._db, self._scryfall, name=item.name)
-                self._current_results.append(detail)
-            except CardNotFoundError:
-                pass
+        # Show enhanced synergy panel
+        synergy_panel = self.query_one("#synergy-panel", EnhancedSynergyPanel)
+        synergy_panel.remove_class("hidden")
 
-        # Cache first page
-        self._pagination.cache_details(1, self._current_results)
+        # Get collection card names for owned-first sorting
+        collection_cards: set[str] = set()
+        if self._collection_manager:
+            collection_cards = await self._collection_manager.get_collection_card_names()
 
-        self._display_synergy_results()
+        # Load synergies into the enhanced panel
+        await synergy_panel.load_synergies(result, source_card, collection_cards)
+
+        # Show source card in the right panel
         self._show_source_card(source_card)
 
-        if self._current_results:
-            self._current_card = self._current_results[0]
-            self._update_card_panel_with_synergy(self._current_results[0])
-            await self._load_card_extras(self._current_results[0])
+        # Focus the synergy panel
+        synergy_panel.focus()
 
     def _update_card_panel_with_synergy(self, card: Any) -> None:
         """Update card panel and show synergy reason."""

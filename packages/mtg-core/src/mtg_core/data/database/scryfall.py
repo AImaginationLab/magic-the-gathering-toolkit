@@ -2,44 +2,22 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import time
-from collections.abc import AsyncIterator, Sequence
-from contextlib import asynccontextmanager
 from typing import Any
 
 import aiosqlite
 
-from ...config import get_settings
 from ..models import CardImage
+from .base import BaseDatabase
 
 logger = logging.getLogger(__name__)
 
 
-class ScryfallDatabase:
+class ScryfallDatabase(BaseDatabase):
     """Database access to Scryfall data (images, prices, links)."""
 
     def __init__(self, db: aiosqlite.Connection, max_connections: int = 5):
-        self._db = db
-        self._semaphore = asyncio.Semaphore(max_connections)
-
-    @asynccontextmanager
-    async def _execute(
-        self, query: str, params: Sequence[Any] = ()
-    ) -> AsyncIterator[aiosqlite.Cursor]:
-        """Execute a query with concurrency limiting and optional slow query logging."""
-        settings = get_settings()
-        async with self._semaphore:
-            start = time.perf_counter()
-            try:
-                async with self._db.execute(query, params) as cursor:
-                    yield cursor
-            finally:
-                if settings.log_slow_queries:
-                    duration_ms = (time.perf_counter() - start) * 1000
-                    if duration_ms > settings.slow_query_threshold_ms:
-                        logger.warning("Slow query (%.1fms): %s", duration_ms, query[:100])
+        super().__init__(db, max_connections)
 
     def _row_to_card_image(self, row: aiosqlite.Row) -> CardImage:
         """Convert a database row to a CardImage model."""
@@ -72,13 +50,34 @@ class ScryfallDatabase:
             finishes=row["finishes"],
         )
 
-    async def get_card_image(self, name: str, set_code: str | None = None) -> CardImage | None:
-        """Get image and price data for a card by name."""
-        # Try with set code first if provided
+    async def get_card_image(
+        self,
+        name: str,
+        set_code: str | None = None,
+        collector_number: str | None = None,
+    ) -> CardImage | None:
+        """Get image and price data for a card by name.
+
+        Args:
+            name: Card name
+            set_code: Optional set code to filter by
+            collector_number: Optional collector number for exact printing match
+        """
+        # Try with set code + collector number for exact printing match
+        if set_code and collector_number:
+            async with self._execute(
+                "SELECT * FROM cards WHERE name = ? AND LOWER(set_code) = LOWER(?) AND collector_number = ? LIMIT 1",
+                (name, set_code, collector_number),
+            ) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return self._row_to_card_image(row)
+
+        # Try with just set code
         if set_code:
             async with self._execute(
-                "SELECT * FROM cards WHERE name = ? AND set_code = ? LIMIT 1",
-                (name, set_code.upper()),
+                "SELECT * FROM cards WHERE name = ? AND LOWER(set_code) = LOWER(?) LIMIT 1",
+                (name, set_code),
             ) as cursor:
                 row = await cursor.fetchone()
                 if row:
@@ -216,6 +215,40 @@ class ScryfallDatabase:
             async for row in cursor:
                 images.append(self._row_to_card_image(row))
         return images
+
+    async def get_card_images_batch(
+        self,
+        names: list[str],
+    ) -> dict[str, CardImage]:
+        """Get image and price data for multiple cards by name in a single query.
+
+        Args:
+            names: List of card names to fetch
+
+        Returns:
+            Dict mapping card name (lowercase) to CardImage. Missing cards are omitted.
+        """
+        if not names:
+            return {}
+
+        # Build parameterized IN query
+        placeholders = ",".join("?" * len(names))
+        query = f"""
+            SELECT * FROM cards
+            WHERE name IN ({placeholders})
+            ORDER BY name, scryfall_id DESC
+        """
+
+        # Fetch all matching cards, group by name to get one per name
+        name_to_image: dict[str, CardImage] = {}
+        async with self._execute(query, names) as cursor:
+            async for row in cursor:
+                name_lower = row["name"].lower()
+                # Keep only first per name (most recent due to ORDER BY)
+                if name_lower not in name_to_image:
+                    name_to_image[name_lower] = self._row_to_card_image(row)
+
+        return name_to_image
 
     async def get_database_stats(self) -> dict[str, Any]:
         """Get Scryfall database statistics."""

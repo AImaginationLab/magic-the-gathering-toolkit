@@ -11,17 +11,24 @@ from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Footer, Input, Label, ListItem, ListView, Static, TabbedContent
+from textual.widgets import Footer, Input, Label, ListItem, ListView, Static
 
 from mtg_core.exceptions import CardNotFoundError
 from mtg_spellbook.context import DatabaseContext
 
+from .collection import (
+    AddToCollectionModal,
+    CollectionCardSelected,
+    CollectionListPanel,
+    FullCollectionScreen,
+)
 from .commands import CommandHandlersMixin
 from .deck import (
     AddToDeckModal,
     AddToDeckRequested,
     CardAddedToDeck,
     DeckCreated,
+    DeckEditorPanel,
     DeckListPanel,
     DeckSelected,
     NewDeckModal,
@@ -29,7 +36,21 @@ from .deck import (
 from .pagination import PaginationState
 from .styles import APP_CSS
 from .ui.theme import ui_colors
-from .widgets import CardPanel, ResultsList
+from .widgets import (
+    CardPanel,
+    ClosePortfolio,
+    Dashboard,
+    EnhancedSynergyPanel,
+    ResultsList,
+    SetDetailClosed,
+    SynergyPanelClosed,
+    SynergySelected,
+    ViewArtwork,
+)
+from .widgets.art_navigator.image_loader import close_http_client
+from .widgets.art_navigator.messages import ArtistSelected as ArtNavigatorArtistSelected
+from .widgets.artist_browser import ArtistBrowserClosed, ArtistSelected
+from .widgets.dashboard import QuickLinkActivated, SearchResultSelected, SearchSubmitted
 
 
 def _reset_terminal_mouse() -> None:
@@ -65,6 +86,7 @@ if TYPE_CHECKING:
     from mtg_core.data.database import MTGDatabase, ScryfallDatabase
     from mtg_core.data.models.responses import CardDetail
 
+    from .collection_manager import CollectionManager
     from .deck_manager import DeckManager, DeckWithCards
 
 
@@ -79,21 +101,29 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
     BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
         Binding("ctrl+c", "quit", "Quit", show=True, priority=True),
         Binding("ctrl+q", "quit", "Quit"),
-        Binding("ctrl+l", "clear", "Clear", show=True),
+        Binding("ctrl+l", "clear", "Clear"),
         Binding("ctrl+h", "help", "Help", show=True),
         Binding("escape", "focus_input", "Input"),
         Binding("tab", "next_tab", "Next Tab"),
         Binding("shift+tab", "prev_tab", "Prev Tab"),
+        # Dashboard quick actions - work from ANYWHERE (app-level)
+        Binding("a", "browse_artists", "Artists", show=True),
+        Binding("s", "browse_sets", "Sets", show=True),
+        Binding("d", "browse_decks", "Decks", show=True),
+        Binding("c", "browse_collection", "Collection", show=True),
+        Binding("r", "random_card", "Random", show=True),
         # Quick actions for current card (ctrl+key to avoid conflicting with text input)
-        Binding("ctrl+s", "synergy_current", "Synergy", show=True),
-        Binding("ctrl+o", "combos_current", "Combos", show=True),
-        Binding("ctrl+a", "art_current", "Art", show=True),
-        Binding("ctrl+p", "price_current", "Price", show=True),
-        Binding("ctrl+r", "random_card", "Random", show=True),
+        Binding("ctrl+s", "synergy_current", "Synergy"),
+        Binding("ctrl+o", "combos_current", "Combos"),
+        Binding("ctrl+a", "art_current", "Art"),
+        Binding("ctrl+p", "price_current", "Price"),
         # Deck management
         Binding("ctrl+d", "toggle_decks", "Decks", show=True),
-        Binding("ctrl+n", "new_deck", "New Deck", show=False),
-        Binding("ctrl+e", "add_to_deck", "Add to Deck", show=True),
+        Binding("ctrl+b", "full_deck_builder", "Decks", show=False),
+        Binding("ctrl+n", "new_deck", "New Deck"),
+        Binding("ctrl+e", "add_to_deck", "Add to Deck"),
+        # Collection management
+        Binding("ctrl+shift+e", "add_to_collection", "Add to Collection"),
         # Pagination
         Binding("n", "next_page", "Next Page", show=False),
         Binding("p", "prev_page", "Prev Page", show=False),
@@ -110,15 +140,21 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
         self._db: MTGDatabase | None = None
         self._scryfall: ScryfallDatabase | None = None
         self._deck_manager: DeckManager | None = None
+        self._collection_manager: CollectionManager | None = None
         self._card_count = 0
         self._set_count = 0
         self._current_results: list[CardDetail] = []
         self._current_card: CardDetail | None = None
         self._synergy_mode: bool = False
         self._synergy_info: dict[str, dict[str, object]] = {}
+        self._artist_mode: bool = False
+        self._artist_name: str = ""
         self._deck_panel_visible: bool = False
+        self._collection_panel_visible: bool = False
         self._viewing_deck_id: int | None = None  # Currently viewed deck
+        self._deck_editor_visible: bool = False  # Is deck editor open?
         self._pagination: PaginationState | None = None  # Pagination state
+        self._dashboard_visible: bool = True  # Show dashboard on launch
 
     def compose(self) -> ComposeResult:
         # Header - Epic ASCII banner (enhanced styling)
@@ -132,25 +168,33 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
             id="header-content",
         )
 
-        # Main content area - results + details + optional deck panel
+        # Main content area - dashboard (on launch) OR results + details
         with Horizontal(id="main-container"):
+            # Dashboard (shown on launch, hidden after first search)
+            yield Dashboard(id="dashboard", classes="dashboard-view")
+
             # Deck panel (hidden by default)
             yield DeckListPanel(id="deck-panel")
-            with Vertical(id="results-container"):
-                yield Static("Search Results", id="results-header")
+            # Collection panel (hidden by default)
+            yield CollectionListPanel(id="collection-panel")
+            with Vertical(id="results-container", classes="hidden"):
+                # Search input integrated into results pane
+                yield Input(
+                    placeholder="Search: name or t:type c:colors set:code artist:name",
+                    id="search-input",
+                )
+                yield Static("Results", id="results-header")
                 yield ResultsList(id="results-list")
-            with Vertical(id="detail-container"), Horizontal(id="card-comparison-container"):
-                # Side-by-side card comparison: synergy on left, source on right
-                yield CardPanel(id="card-panel")
-                yield CardPanel(id="source-card-panel")
-
-        # Input bar at bottom
-        with Horizontal(id="input-bar"):
-            yield Label("⚡")
-            yield Input(
-                placeholder="Card name, 'search t:creature c:red', or 'help'",
-                id="search-input",
-            )
+            # Enhanced synergy panel (hidden by default)
+            yield EnhancedSynergyPanel(id="synergy-panel", classes="hidden")
+            with Vertical(id="detail-container", classes="hidden"):
+                with Horizontal(id="card-comparison-container"):
+                    # Side-by-side: source on left, selected on right
+                    yield CardPanel(id="source-card-panel")
+                    yield CardPanel(id="card-panel")
+                # Deck editor (hidden by default, replaces detail view when active)
+                with Vertical(id="deck-editor-container"):
+                    yield DeckEditorPanel(id="deck-editor")
 
         yield Footer()
 
@@ -162,11 +206,22 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
         self._db = await self._ctx.get_db()
         self._scryfall = await self._ctx.get_scryfall()
         self._deck_manager = await self._ctx.get_deck_manager()
+        self._collection_manager = await self._ctx.get_collection_manager()
 
         # Load keywords from database and set on card panels
         keywords = await self._ctx.get_keywords()
         for panel in self.query(CardPanel):
             panel.set_keywords(keywords)
+
+        # Initialize deck editor with deck manager
+        if self._deck_manager:
+            deck_editor = self.query_one("#deck-editor", DeckEditorPanel)
+            deck_editor.set_deck_manager(self._deck_manager)
+
+        # Initialize collection panel with collection manager
+        if self._collection_manager:
+            collection_panel = self.query_one("#collection-panel", CollectionListPanel)
+            collection_panel.set_manager(self._collection_manager)
 
         # Get stats
         stats = await self._db.get_database_stats()
@@ -186,12 +241,21 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
             f"[#555]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/]"
         )
 
-        # Focus input
-        self.query_one("#search-input", Input).focus()
+        # Load dashboard with database (background data)
+        dashboard = self.query_one("#dashboard", Dashboard)
+        if self._db:
+            dashboard.set_database(self._db)
+            if self._scryfall:
+                dashboard.set_scryfall(self._scryfall)
+            dashboard.load_dashboard()
+
+        # Focus the search input after app initialization
+        dashboard.focus_search()
 
     async def on_unmount(self) -> None:
-        """Clean up database connections on exit."""
+        """Clean up database connections and HTTP client on exit."""
         await self._ctx.close()
+        await close_http_client()
         # Terminal mouse reset is handled by atexit handler
 
     async def action_quit(self) -> None:
@@ -207,6 +271,12 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
 
         # Clear input
         event.input.value = ""
+
+        # Close artist browser if open (user is searching)
+        self._close_artist_browser()
+
+        # Hide dashboard when user starts searching
+        self._hide_dashboard()
 
         # Delegate to command handler
         self.handle_command(query)
@@ -240,10 +310,8 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
 
     @on(ListView.Selected, "#results-list")
     def on_result_selected(self, _event: ListView.Selected) -> None:
-        """Handle result selection - switch to card tab."""
-        panel = self.query_one("#card-panel", CardPanel)
-        tabs = panel.query_one(panel.get_child_id("tabs"), TabbedContent)
-        tabs.active = panel.get_child_name("tab-card")
+        """Handle result selection - card panel auto-updates via highlight."""
+        pass  # Card panel updates via ListView.Highlighted event
 
     def action_focus_input(self) -> None:
         """Focus the search input."""
@@ -263,31 +331,52 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
         """Show help."""
         self.show_help()
 
+    def _on_help_action(self, action: str | None) -> None:
+        """Handle action from help screen."""
+        if action is None:
+            return
+
+        # Execute the requested action
+        if action == "focus_search":
+            self.action_focus_input()
+        elif action == "random":
+            self.lookup_random()
+        elif action == "sets":
+            self.list_sets()
+        elif action == "toggle_deck":
+            self.action_toggle_decks()
+        elif action == "collection":
+            self.action_browse_collection()
+
     def action_next_tab(self) -> None:
-        """Switch to next tab."""
+        """Cycle to next view mode (focus -> gallery -> compare)."""
         try:
+            from .widgets.art_navigator import EnhancedArtNavigator
+            from .widgets.art_navigator.view_toggle import ViewMode
+
             panel = self.query_one("#card-panel", CardPanel)
-            tabs = panel.query_one(panel.get_child_id("tabs"), TabbedContent)
-            tab_names = ["tab-card", "tab-art", "tab-rulings", "tab-legal", "tab-price"]
-            tab_ids = [panel.get_child_name(name) for name in tab_names]
-            current = tabs.active
-            if current in tab_ids:
-                idx = tab_ids.index(current)
-                tabs.active = tab_ids[(idx + 1) % len(tab_ids)]
+            art_nav = panel.query_one(panel.get_child_id("art-navigator"), EnhancedArtNavigator)
+            modes = [ViewMode.FOCUS, ViewMode.GALLERY, ViewMode.COMPARE]
+            current = art_nav.current_view
+            if current in modes:
+                idx = modes.index(current)
+                art_nav.current_view = modes[(idx + 1) % len(modes)]
         except (LookupError, ValueError):
             pass
 
     def action_prev_tab(self) -> None:
-        """Switch to previous tab."""
+        """Cycle to previous view mode (focus <- gallery <- compare)."""
         try:
+            from .widgets.art_navigator import EnhancedArtNavigator
+            from .widgets.art_navigator.view_toggle import ViewMode
+
             panel = self.query_one("#card-panel", CardPanel)
-            tabs = panel.query_one(panel.get_child_id("tabs"), TabbedContent)
-            tab_names = ["tab-card", "tab-art", "tab-rulings", "tab-legal", "tab-price"]
-            tab_ids = [panel.get_child_name(name) for name in tab_names]
-            current = tabs.active
-            if current in tab_ids:
-                idx = tab_ids.index(current)
-                tabs.active = tab_ids[(idx - 1) % len(tab_ids)]
+            art_nav = panel.query_one(panel.get_child_id("art-navigator"), EnhancedArtNavigator)
+            modes = [ViewMode.FOCUS, ViewMode.GALLERY, ViewMode.COMPARE]
+            current = art_nav.current_view
+            if current in modes:
+                idx = modes.index(current)
+                art_nav.current_view = modes[(idx - 1) % len(modes)]
         except (LookupError, ValueError):
             pass
 
@@ -321,25 +410,123 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
 
     def action_random_card(self) -> None:
         """Get a random card."""
+        self._hide_dashboard()
         self.lookup_random()
+
+    def action_browse_artists(self) -> None:
+        """Browse all artists - hides dashboard automatically."""
+        self._hide_dashboard()
+        self.browse_artists()
+
+    def action_browse_sets(self) -> None:
+        """Browse all sets - hides dashboard automatically."""
+        self._hide_dashboard()
+        self.browse_sets("")
+
+    def action_browse_decks(self) -> None:
+        """Browse decks - hides dashboard automatically."""
+        self._hide_dashboard()
+        self.action_toggle_decks()
+
+    def action_browse_collection(self) -> None:
+        """Open the full collection screen."""
+        if self._collection_manager and self._db:
+            self.push_screen(
+                FullCollectionScreen(self._collection_manager, self._db, self._scryfall)
+            )
+
+    @on(CollectionCardSelected)
+    def on_collection_card_selected(self, event: CollectionCardSelected) -> None:
+        """Handle card selection from collection - show in card panel with correct printing."""
+        self.lookup_card(
+            event.card_name,
+            target_set=event.set_code,
+            target_number=event.collector_number,
+        )
+
+    def action_add_to_collection(self) -> None:
+        """Add the current card to the collection."""
+        if not self._current_card:
+            self._show_message("[yellow]Select a card first (↑↓ to navigate)[/]")
+            return
+
+        self.push_screen(
+            AddToCollectionModal(card_name=self._current_card.name),
+            callback=self._on_add_to_collection_result,
+        )
+
+    def _on_add_to_collection_result(self, result: tuple[str, int, bool] | None) -> None:
+        """Handle add to collection modal result."""
+        if result is not None and self._collection_manager:
+            card_name, quantity, foil = result
+            self._do_add_to_collection(card_name, quantity, foil)
+
+    @work
+    async def _do_add_to_collection(self, card_name: str, quantity: int, foil: bool) -> None:
+        """Actually add the card to the collection."""
+        if not self._collection_manager:
+            return
+
+        result = await self._collection_manager.add_card(card_name, quantity, foil)
+        if result.success:
+            self.notify(f"Added {quantity}x {card_name} to collection")
+            # Refresh collection panel if visible
+            if self._collection_panel_visible:
+                collection_panel = self.query_one("#collection-panel", CollectionListPanel)
+                collection_panel.refresh_collection()
+        else:
+            self.notify(result.error or "Failed to add card", severity="error")
+
+    def list_sets(self) -> None:
+        """List available sets (not yet implemented)."""
+        self.notify("Set browser not yet implemented", severity="warning")
 
     # ─────────────────────────────────────────────────────────────────────────
     # Deck Management
     # ─────────────────────────────────────────────────────────────────────────
 
-    @work
-    async def action_toggle_decks(self) -> None:
-        """Toggle the deck panel visibility."""
-        deck_panel = self.query_one("#deck-panel", DeckListPanel)
-        self._deck_panel_visible = not self._deck_panel_visible
+    def action_toggle_decks(self) -> None:
+        """Open full-screen deck manager."""
+        self._open_deck_screen()
 
-        if self._deck_panel_visible:
-            deck_panel.add_class("visible")
-            # Refresh deck list
-            if self._deck_manager:
-                await deck_panel.refresh_decks(self._deck_manager)
-        else:
-            deck_panel.remove_class("visible")
+    def action_full_deck_builder(self) -> None:
+        """Open full-screen deck manager (alias for toggle_decks)."""
+        self._open_deck_screen()
+
+    def _open_deck_screen(self) -> None:
+        """Open the full deck management screen."""
+        if not self._deck_manager:
+            self.notify("Deck manager not available", severity="error")
+            return
+
+        from .deck import FullDeckScreen
+
+        self.push_screen(
+            FullDeckScreen(
+                self._deck_manager,
+                self._db,
+                self._scryfall,
+                self._collection_manager,
+            )
+        )
+
+    def open_deck(self, deck_id: int) -> None:
+        """Open the deck screen with a specific deck selected."""
+        if not self._deck_manager:
+            self.notify("Deck manager not available", severity="error")
+            return
+
+        from .deck import FullDeckScreen
+
+        screen = FullDeckScreen(
+            self._deck_manager,
+            self._db,
+            self._scryfall,
+            self._collection_manager,
+        )
+        # Set deck_id before pushing to avoid race condition during screen mount
+        screen.current_deck_id = deck_id
+        self.push_screen(screen)
 
     def action_new_deck(self) -> None:
         """Create a new deck."""
@@ -370,17 +557,74 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
 
         # Get list of decks
         decks = await self._deck_manager.list_decks()
-        self.push_screen(AddToDeckModal(self._current_card.name, decks))
+        self.push_screen(
+            AddToDeckModal(
+                self._current_card.name,
+                decks,
+                set_code=self._current_card.set_code,
+                collector_number=self._current_card.number,
+            )
+        )
 
     @on(DeckSelected)
     def on_deck_selected(self, event: DeckSelected) -> None:
         """Handle deck selection from deck panel."""
         if event.deck_id == -1:
-            # Refresh signal
+            # Back to list / close editor signal
+            self._close_deck_editor()
             self._refresh_deck_list()
         else:
-            # Load and display the deck's cards in the results pane
-            self._load_deck_cards(event.deck_id)
+            # Open deck in editor
+            self._open_deck_in_editor(event.deck_id)
+
+    @work
+    async def _open_deck_in_editor(self, deck_id: int) -> None:
+        """Open a deck in the editor panel."""
+        if not self._deck_manager:
+            return
+
+        deck = await self._deck_manager.get_deck(deck_id)
+        if not deck:
+            self.notify("Deck not found", severity="error")
+            return
+
+        self._viewing_deck_id = deck_id
+        self._deck_editor_visible = True
+
+        # Update deck list to highlight active deck
+        deck_panel = self.query_one("#deck-panel", DeckListPanel)
+        deck_panel.set_active_deck(deck_id)
+        await deck_panel.refresh_decks(self._deck_manager, deck_id)
+
+        # Show editor, hide card panels
+        editor_container = self.query_one("#deck-editor-container")
+        card_container = self.query_one("#card-comparison-container")
+        editor_container.add_class("visible")
+        card_container.add_class("hidden")
+
+        # Load deck into editor
+        deck_editor = self.query_one("#deck-editor", DeckEditorPanel)
+        deck_editor.update_deck(deck)
+        deck_editor.focus()
+
+    def _close_deck_editor(self) -> None:
+        """Close the deck editor and return to card view."""
+        self._deck_editor_visible = False
+        self._viewing_deck_id = None
+
+        # Hide editor, show card panels
+        editor_container = self.query_one("#deck-editor-container")
+        card_container = self.query_one("#card-comparison-container")
+        editor_container.remove_class("visible")
+        card_container.remove_class("hidden")
+
+        # Clear active deck highlight
+        deck_panel = self.query_one("#deck-panel", DeckListPanel)
+        deck_panel.set_active_deck(None)
+
+        # Clear editor
+        deck_editor = self.query_one("#deck-editor", DeckEditorPanel)
+        deck_editor.update_deck(None)
 
     @work
     async def _load_deck_cards(self, deck_id: int) -> None:
@@ -491,9 +735,187 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
             return
 
         decks = await self._deck_manager.list_decks()
-        self.push_screen(AddToDeckModal(event.card_name, decks))
+        self.push_screen(
+            AddToDeckModal(
+                event.card_name,
+                decks,
+                set_code=event.set_code,
+                collector_number=event.collector_number,
+            )
+        )
 
     @on(CardAddedToDeck)
     def on_card_added_to_deck(self, _event: CardAddedToDeck) -> None:
         """Handle card added to deck."""
         self._refresh_deck_list()
+
+    @on(QuickLinkActivated)
+    def on_quick_link_activated(self, event: QuickLinkActivated) -> None:
+        """Handle quick link activation from dashboard."""
+        self._hide_dashboard()
+        match event.action:
+            case "artists":
+                self.action_browse_artists()
+            case "sets":
+                self.action_browse_sets()
+            case "decks":
+                self.action_browse_decks()
+            case "collection":
+                self.action_browse_collection()
+            case "random":
+                self.action_random_card()
+
+    @on(SearchResultSelected)
+    def on_search_result_selected(self, event: SearchResultSelected) -> None:
+        """Handle search result selection from dashboard dropdown."""
+        self._hide_dashboard()
+        # Use uuid for exact printing (e.g., SpongeBob vs regular Jodah)
+        self.lookup_card(event.card.name, uuid=event.card.uuid)
+
+    @on(SearchSubmitted)
+    def on_search_submitted(self, event: SearchSubmitted) -> None:
+        """Handle search submission from dashboard."""
+        self._hide_dashboard()
+        self.handle_command(event.query)
+
+    def _hide_dashboard(self) -> None:
+        """Hide dashboard and show search results view."""
+        if self._dashboard_visible:
+            self._dashboard_visible = False
+            dashboard = self.query_one("#dashboard", Dashboard)
+            results = self.query_one("#results-container")
+            detail = self.query_one("#detail-container")
+
+            dashboard.add_class("hidden")
+            results.remove_class("hidden")
+            detail.remove_class("hidden")
+
+    def _show_dashboard(self) -> None:
+        """Show dashboard and hide search results view."""
+        if not self._dashboard_visible:
+            self._dashboard_visible = True
+            dashboard = self.query_one("#dashboard", Dashboard)
+            results = self.query_one("#results-container")
+            detail = self.query_one("#detail-container")
+
+            dashboard.remove_class("hidden")
+            results.add_class("hidden")
+            detail.add_class("hidden")
+
+            # Reload dashboard content
+            if self._db:
+                dashboard.set_database(self._db)
+                if self._scryfall:
+                    dashboard.set_scryfall(self._scryfall)
+                dashboard.load_dashboard()
+
+            # Focus the search input
+            dashboard.focus_search()
+
+    @on(ArtistBrowserClosed)
+    def on_artist_browser_closed(self, _event: ArtistBrowserClosed) -> None:
+        """Handle artist browser closed - hide/remove the overlay and show dashboard."""
+        self._close_artist_browser()
+        # Return to dashboard when closing browser without selection
+        self._show_dashboard()
+
+    def _close_artist_browser(self) -> None:
+        """Close/hide the artist browser overlay."""
+        from textual.css.query import NoMatches
+
+        from .widgets import ArtistBrowser
+
+        try:
+            browser = self.query_one("#artist-browser", ArtistBrowser)
+            browser.remove()
+        except NoMatches:
+            pass
+
+    def _open_artist_portfolio(self, artist_name: str, select_card: str | None = None) -> None:
+        """Common handler for opening an artist portfolio from any source."""
+        self._close_artist_browser()  # Safe to call even if not open
+        self.notify(f"Loading cards by {artist_name}...", timeout=2)
+        self.show_artist(artist_name, select_card=select_card)
+
+    @on(ArtistSelected)
+    def on_artist_selected(self, event: ArtistSelected) -> None:
+        """Handle artist selection from artist browser."""
+        self._open_artist_portfolio(event.artist.name)
+
+    @on(ArtNavigatorArtistSelected)
+    def on_art_navigator_artist_selected(self, event: ArtNavigatorArtistSelected) -> None:
+        """Handle artist selection from art navigator (focus view)."""
+        self._open_artist_portfolio(event.artist_name, select_card=event.card_name)
+
+    @on(ViewArtwork)
+    def on_view_artwork(self, event: ViewArtwork) -> None:
+        """Handle view artwork request - show card in main panel."""
+        card_name = event.card.name
+        self.notify(f"Loading {card_name}...", timeout=2)
+        self.lookup_card(card_name)
+
+    @on(ClosePortfolio)
+    def on_close_portfolio(self, _event: ClosePortfolio) -> None:
+        """Handle close portfolio request."""
+        from textual.css.query import NoMatches
+
+        from .widgets import ArtistPortfolioView
+
+        try:
+            portfolio = self.query_one("#artist-portfolio", ArtistPortfolioView)
+            portfolio.add_class("hidden")
+        except NoMatches:
+            pass
+
+    @on(SetDetailClosed)
+    def on_set_detail_closed(self, _event: SetDetailClosed) -> None:
+        """Handle set detail view closed."""
+        from textual.css.query import NoMatches
+
+        from .widgets import SetDetailView
+
+        try:
+            set_detail = self.query_one("#set-detail", SetDetailView)
+            set_detail.add_class("hidden")
+        except NoMatches:
+            pass
+
+    @on(SynergyPanelClosed)
+    def on_synergy_panel_closed(self, _event: SynergyPanelClosed) -> None:
+        """Handle synergy panel closed - return to normal view."""
+        from textual.css.query import NoMatches
+
+        self._synergy_mode = False
+        self._hide_synergy_panel()
+        # Hide the enhanced synergy panel
+        try:
+            synergy_panel = self.query_one("#synergy-panel", EnhancedSynergyPanel)
+            synergy_panel.add_class("hidden")
+        except NoMatches:
+            pass
+        # Show the results container again and exit synergy layout mode
+        self.query_one("#results-container").remove_class("hidden")
+        self.query_one("#main-container").remove_class("synergy-layout")
+        self.action_focus_input()
+
+    @on(SynergySelected)
+    def on_synergy_selected(self, event: SynergySelected) -> None:
+        """Handle synergy card selected - show in card panel."""
+        synergy = event.synergy
+        # Look up the full card details
+        self._load_synergy_card(synergy.name)
+
+    @work
+    async def _load_synergy_card(self, card_name: str) -> None:
+        """Load and display a synergy card."""
+        if not self._db:
+            return
+        from mtg_core.tools import cards
+
+        try:
+            card = await cards.get_card(self._db, self._scryfall, name=card_name)
+            self._current_card = card
+            self._update_card_panel_with_synergy(card)
+            await self._load_card_extras(card)
+        except CardNotFoundError:
+            pass

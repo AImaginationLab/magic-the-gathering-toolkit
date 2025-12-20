@@ -14,10 +14,13 @@ dependencies = [
     "httpx>=0.27,<1",
     "typer>=0.9,<1",
     "rich>=13.0,<14",
+    "scikit-learn>=1.8.0",
 ]
 
 [project.scripts]
 create-datasources = "mtg_core.scripts.create_datasources:app"
+download-17lands = "mtg_core.scripts.download_17lands:app"
+download-spellbook = "mtg_core.scripts.download_spellbook:app"
 
 [build-system]
 requires = ["hatchling"]

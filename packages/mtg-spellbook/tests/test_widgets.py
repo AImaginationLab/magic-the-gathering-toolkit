@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal
-from textual.widgets import Static
 
 from mtg_spellbook.widgets import CardPanel
 
@@ -29,28 +28,28 @@ class TestCardPanelUniqueIds:
         panel2 = CardPanel(id="panel-b")
 
         # Test internal _child_id format (no # prefix)
-        assert panel1._child_id("card-text") == "panel-a-card-text"
-        assert panel2._child_id("card-text") == "panel-b-card-text"
-        assert panel1._child_id("art-image") == "panel-a-art-image"
-        assert panel2._child_id("art-image") == "panel-b-art-image"
+        assert panel1._child_id("art-navigator") == "panel-a-art-navigator"
+        assert panel2._child_id("art-navigator") == "panel-b-art-navigator"
+        assert panel1._child_id("focus") == "panel-a-focus"
+        assert panel2._child_id("focus") == "panel-b-focus"
 
     @pytest.mark.asyncio
     async def test_get_child_name_returns_id_without_selector(self) -> None:
         """Test that get_child_name returns the ID without # selector."""
         panel = CardPanel(id="test-panel")
 
-        assert panel.get_child_name("card-text") == "test-panel-card-text"
-        assert panel.get_child_name("tabs") == "test-panel-tabs"
-        assert panel.get_child_name("art-image") == "test-panel-art-image"
+        assert panel.get_child_name("art-navigator") == "test-panel-art-navigator"
+        assert panel.get_child_name("focus") == "test-panel-focus"
+        assert panel.get_child_name("grid") == "test-panel-grid"
 
     @pytest.mark.asyncio
     async def test_get_child_id_returns_selector(self) -> None:
         """Test that get_child_id returns a CSS selector with #."""
         panel = CardPanel(id="test-panel")
 
-        assert panel.get_child_id("card-text") == "#test-panel-card-text"
-        assert panel.get_child_id("tabs") == "#test-panel-tabs"
-        assert panel.get_child_id("art-image") == "#test-panel-art-image"
+        assert panel.get_child_id("art-navigator") == "#test-panel-art-navigator"
+        assert panel.get_child_id("focus") == "#test-panel-focus"
+        assert panel.get_child_id("grid") == "#test-panel-grid"
 
     @pytest.mark.asyncio
     async def test_two_panels_have_distinct_children(self) -> None:
@@ -63,49 +62,53 @@ class TestCardPanelUniqueIds:
             panel2 = app.query_one("#source-card-panel", CardPanel)
 
             # Verify they generate different child IDs (using public API)
-            assert panel1.get_child_name("card-text") != panel2.get_child_name("card-text")
-            assert panel1.get_child_name("art-image") != panel2.get_child_name("art-image")
-            assert panel1.get_child_name("tabs") != panel2.get_child_name("tabs")
+            assert panel1.get_child_name("art-navigator") != panel2.get_child_name("art-navigator")
+            assert panel1.get_child_name("focus") != panel2.get_child_name("focus")
+            assert panel1.get_child_name("grid") != panel2.get_child_name("grid")
 
             # Verify specific ID values (using public API)
-            assert panel1.get_child_name("card-text") == "card-panel-card-text"
-            assert panel2.get_child_name("card-text") == "source-card-panel-card-text"
+            assert panel1.get_child_name("art-navigator") == "card-panel-art-navigator"
+            assert panel2.get_child_name("art-navigator") == "source-card-panel-art-navigator"
 
     @pytest.mark.asyncio
     async def test_can_query_specific_panel_children(self) -> None:
         """Test that we can query children within a specific panel."""
+        from mtg_spellbook.widgets.art_navigator import EnhancedArtNavigator
+
         async with TwoCardPanelsApp().run_test() as pilot:
             app = pilot.app
 
             panel1 = app.query_one("#card-panel", CardPanel)
             panel2 = app.query_one("#source-card-panel", CardPanel)
 
-            # Query card-text from panel1
-            card_text_1 = panel1.query_one(panel1.get_child_id("card-text"), Static)
-            assert card_text_1 is not None
-            assert card_text_1.id == "card-panel-card-text"
+            # Query art-navigator from panel1
+            art_nav_1 = panel1.query_one(panel1.get_child_id("art-navigator"), EnhancedArtNavigator)
+            assert art_nav_1 is not None
+            assert art_nav_1.id == "card-panel-art-navigator"
 
-            # Query card-text from panel2
-            card_text_2 = panel2.query_one(panel2.get_child_id("card-text"), Static)
-            assert card_text_2 is not None
-            assert card_text_2.id == "source-card-panel-card-text"
+            # Query art-navigator from panel2
+            art_nav_2 = panel2.query_one(panel2.get_child_id("art-navigator"), EnhancedArtNavigator)
+            assert art_nav_2 is not None
+            assert art_nav_2.id == "source-card-panel-art-navigator"
 
             # Ensure they are different widget instances
-            assert card_text_1 is not card_text_2
+            assert art_nav_1 is not art_nav_2
 
     @pytest.mark.asyncio
     async def test_global_query_finds_both_panels(self) -> None:
         """Test that global queries can find widgets from both panels."""
+        from mtg_spellbook.widgets.art_navigator import EnhancedArtNavigator
+
         async with TwoCardPanelsApp().run_test() as pilot:
             app = pilot.app
 
-            # Query all Static widgets - should find multiple card-text widgets
-            all_statics = list(app.query(Static))
+            # Query all EnhancedArtNavigator widgets - should find from both panels
+            all_navs = list(app.query(EnhancedArtNavigator))
 
-            # Should have at least the card-text widgets from both panels
-            ids = [s.id for s in all_statics if s.id]
-            assert "card-panel-card-text" in ids
-            assert "source-card-panel-card-text" in ids
+            # Should have art navigators from both panels
+            ids = [n.id for n in all_navs if n.id]
+            assert "card-panel-art-navigator" in ids
+            assert "source-card-panel-art-navigator" in ids
 
     @pytest.mark.asyncio
     async def test_panel_without_id_uses_default_prefix(self) -> None:
@@ -114,25 +117,24 @@ class TestCardPanelUniqueIds:
 
         # Should use "card-panel" as default prefix
         assert panel._id_prefix == "card-panel"
-        assert panel.get_child_name("card-text") == "card-panel-card-text"
+        assert panel.get_child_name("art-navigator") == "card-panel-art-navigator"
 
 
 class TestCardPanelCompose:
     """Test that CardPanel correctly composes its children with unique IDs."""
 
     @pytest.mark.asyncio
-    async def test_all_tabs_have_unique_ids(self) -> None:
-        """Test that all tab panes have panel-prefixed IDs."""
+    async def test_art_navigator_has_unique_id(self) -> None:
+        """Test that art navigator has panel-prefixed ID."""
         async with TwoCardPanelsApp().run_test() as pilot:
             app = pilot.app
 
             panel1 = app.query_one("#card-panel", CardPanel)
 
-            # Check all expected tab IDs exist (using public API)
-            expected_tabs = ["tab-card", "tab-art", "tab-rulings", "tab-legal", "tab-price"]
-            for tab_name in expected_tabs:
-                full_id = panel1.get_child_name(tab_name)
-                assert full_id.startswith("card-panel-")
+            # Check art navigator ID exists (using public API)
+            nav_id = panel1.get_child_name("art-navigator")
+            assert nav_id.startswith("card-panel-")
+            assert nav_id == "card-panel-art-navigator"
 
     @pytest.mark.asyncio
     async def test_all_content_widgets_have_unique_ids(self) -> None:
@@ -143,7 +145,8 @@ class TestCardPanelCompose:
             panel1 = app.query_one("#card-panel", CardPanel)
             panel2 = app.query_one("#source-card-panel", CardPanel)
 
-            content_widgets = ["card-text", "art-info", "rulings-text", "legal-text", "price-text"]
+            # Art navigator components have prefixed IDs
+            content_widgets = ["art-navigator", "focus", "grid", "preview"]
             for widget_name in content_widgets:
                 id1 = panel1.get_child_name(widget_name)
                 id2 = panel2.get_child_name(widget_name)

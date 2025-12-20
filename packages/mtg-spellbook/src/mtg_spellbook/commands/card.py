@@ -27,6 +27,7 @@ class CardCommandsMixin:
         _current_results: list[Any]
         _current_card: Any
         _synergy_mode: bool
+        _artist_mode: bool
         _pagination: PaginationState | None
 
         def query_one(self, selector: str, expect_type: type[Any] = ...) -> Any: ...
@@ -37,21 +38,56 @@ class CardCommandsMixin:
         def _show_message(self, message: str) -> None: ...
 
     @work
-    async def lookup_card(self, name: str) -> None:
-        """Look up a single card by name."""
+    async def lookup_card(
+        self,
+        name: str,
+        uuid: str | None = None,
+        target_set: str | None = None,
+        target_number: str | None = None,
+    ) -> None:
+        """Look up a single card by name or uuid.
+
+        Args:
+            name: Card name to search for
+            uuid: Optional uuid for exact printing lookup
+            target_set: Optional set code for selecting the specific printing in gallery
+            target_number: Optional collector number for selecting the specific printing
+        """
         if not self._db:
             return
 
         self._hide_synergy_panel()
         self._synergy_mode = False
+        self._artist_mode = False
 
         try:
-            card = await cards.get_card(self._db, self._scryfall, name=name)
+            card = None
+
+            # If target_set and target_number are provided, try to load that exact printing
+            if target_set and target_number:
+                db_card = await self._db.get_card_by_set_and_number(target_set, target_number)
+                if db_card:
+                    # Convert db Card to CardDetail using the cards tool
+                    card = await cards.get_card(
+                        self._db, self._scryfall, uuid=db_card.uuid, name=db_card.name
+                    )
+
+            # Fall back to uuid or name lookup if no target printing or not found
+            if card is None:
+                card = await cards.get_card(self._db, self._scryfall, name=name, uuid=uuid)
+
             self._current_results = [card]
             self._current_card = card
             self._update_results([card])
             self._update_card_panel(card)
-            await self._load_card_extras(card)
+            # Pass target set/number if provided, otherwise use card's own set/number
+            # QW2: Auto-focus art navigator for single card lookup
+            await self._load_card_extras(
+                card,
+                target_set=target_set or card.set_code,
+                target_number=target_number or card.number,
+                auto_focus_art=True,
+            )
         except CardNotFoundError:
             filters = SearchCardsInput(name=name, page_size=10)
             result = await cards.search_cards(self._db, self._scryfall, filters)
@@ -68,6 +104,7 @@ class CardCommandsMixin:
 
         self._hide_synergy_panel()
         self._synergy_mode = False
+        self._artist_mode = False
 
         # Use max allowed page size to get more results for pagination
         filters = parse_search_query(query)
@@ -101,7 +138,10 @@ class CardCommandsMixin:
         self._current_results = []
         for summary in self._pagination.current_page_items:
             try:
-                detail = await cards.get_card(self._db, self._scryfall, name=summary.name)
+                # Use uuid if available for exact printing, otherwise fall back to name
+                detail = await cards.get_card(
+                    self._db, self._scryfall, uuid=summary.uuid, name=summary.name
+                )
                 self._current_results.append(detail)
             except CardNotFoundError:
                 pass
@@ -117,27 +157,45 @@ class CardCommandsMixin:
             self._update_card_panel(self._current_results[0])
             await self._load_card_extras(self._current_results[0])
 
-    async def _load_card_extras(self, card: CardDetail, panel_id: str = "#card-panel") -> None:
+    async def _load_card_extras(
+        self,
+        card: CardDetail,
+        panel_id: str = "#card-panel",
+        target_set: str | None = None,
+        target_number: str | None = None,
+        auto_focus_art: bool = False,
+    ) -> None:
         """Load rulings, legalities, and printings for a card.
 
         Args:
             card: The card to load extras for
             panel_id: CSS selector for the CardPanel to update
+            target_set: Optional set code to select in the gallery (defaults to card.set_code)
+            target_number: Optional collector number to select (defaults to card.number)
+            auto_focus_art: If True, auto-focus the art navigator after loading (QW2)
         """
         from ..widgets import CardPanel
 
         panel = self.query_one(panel_id, CardPanel)
 
-        tasks = [panel.load_printings(self._scryfall, card.name)]
-        if self._db:
-            tasks.extend(
-                [
-                    panel.load_rulings(self._db, card.name),
-                    panel.load_legalities(self._db, card.name),
-                ]
+        tasks = [
+            panel.load_printings(
+                self._scryfall,
+                self._db,
+                card.name,
+                flavor_name=card.flavor_name,
+                target_set=target_set or card.set_code,
+                target_number=target_number or card.number,
             )
+        ]
+        if self._db:
+            tasks.append(panel.load_legalities(self._db, card.name))
 
         await asyncio.gather(*tasks, return_exceptions=True)
+
+        # QW2: Auto-focus art navigator for single card results
+        if auto_focus_art:
+            panel.focus_art_navigator()
 
     @work
     async def lookup_random(self) -> None:
@@ -147,10 +205,12 @@ class CardCommandsMixin:
 
         self._hide_synergy_panel()
         self._synergy_mode = False
+        self._artist_mode = False
 
         card = await cards.get_random_card(self._db, self._scryfall)
         self._current_results = [card]
         self._current_card = card
         self._update_results([card])
         self._update_card_panel(card)
-        await self._load_card_extras(card)
+        # QW2: Auto-focus art navigator for random card
+        await self._load_card_extras(card, auto_focus_art=True)

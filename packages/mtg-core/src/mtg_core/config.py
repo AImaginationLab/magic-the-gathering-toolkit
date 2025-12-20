@@ -41,6 +41,16 @@ def _get_default_combo_db_path() -> Path:
     return Path.home() / ".mtg-spellbook" / "combos.sqlite"
 
 
+def _get_default_image_cache_path() -> Path:
+    """Get default path to image cache directory."""
+    return Path.home() / ".cache" / "mtg-spellbook" / "images"
+
+
+def _get_default_data_cache_path() -> Path:
+    """Get default path to data cache directory."""
+    return Path.home() / ".cache" / "mtg-spellbook" / "data"
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
@@ -98,6 +108,30 @@ class Settings(BaseSettings):
     db_max_connections: int = Field(
         default=5,
         description="Maximum concurrent database operations (semaphore limit)",
+    )
+
+    # Image cache settings
+    image_cache_dir: Path = Field(
+        default_factory=_get_default_image_cache_path,
+        description="Directory for cached card images",
+    )
+    image_cache_max_mb: int = Field(
+        default=1024,
+        description="Maximum disk cache size for card images in MB (default 1GB, ~1000 cards)",
+    )
+    image_memory_cache_count: int = Field(
+        default=20,
+        description="Maximum images to keep in memory (RAM) for fast access",
+    )
+
+    # Data cache settings (printings, synergies, etc.)
+    data_cache_dir: Path = Field(
+        default_factory=_get_default_data_cache_path,
+        description="Directory for cached data (printings, synergies)",
+    )
+    data_cache_max_mb: int = Field(
+        default=100,
+        description="Maximum disk cache size for data in MB",
     )
 
 

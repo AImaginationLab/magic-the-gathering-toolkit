@@ -44,6 +44,8 @@ class DeckCardWithData:
     quantity: int
     is_sideboard: bool
     is_commander: bool
+    set_code: str | None  # Preferred printing set code
+    collector_number: str | None  # Preferred printing collector number
     card: Card | None  # Full card data, may be None if lookup fails
 
 
@@ -102,10 +104,6 @@ class DeckManager:
         self.mtg = mtg_db
         self.scryfall = scryfall
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Deck Operations
-    # ─────────────────────────────────────────────────────────────────────────
-
     async def create_deck(
         self,
         name: str,
@@ -154,16 +152,14 @@ class DeckManager:
         """Update deck metadata."""
         await self.user.update_deck(deck_id, name=name, format=format, commander=commander)
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Card Operations
-    # ─────────────────────────────────────────────────────────────────────────
-
     async def add_card(
         self,
         deck_id: int,
         card_name: str,
         quantity: int = 1,
         sideboard: bool = False,
+        set_code: str | None = None,
+        collector_number: str | None = None,
     ) -> AddCardResult:
         """Add a card to a deck with validation."""
         # Validate card exists
@@ -175,7 +171,14 @@ class DeckManager:
             )
 
         # Add to deck (uses canonical name from DB)
-        await self.user.add_card(deck_id, card.name, quantity, sideboard)
+        await self.user.add_card(
+            deck_id,
+            card.name,
+            quantity,
+            sideboard,
+            set_code=set_code,
+            collector_number=collector_number,
+        )
 
         # Get new total quantity
         new_qty = await self.user.get_deck_card_count(deck_id, card.name)
@@ -208,10 +211,6 @@ class DeckManager:
     async def move_to_mainboard(self, deck_id: int, card_name: str) -> None:
         """Move a card to mainboard."""
         await self.user.move_to_mainboard(deck_id, card_name)
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # Analysis
-    # ─────────────────────────────────────────────────────────────────────────
 
     async def validate_deck(self, deck_id: int) -> DeckValidationResult:
         """Validate a deck."""
@@ -293,18 +292,10 @@ class DeckManager:
             price=price,
         )
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Queries
-    # ─────────────────────────────────────────────────────────────────────────
-
     async def find_decks_with_card(self, card_name: str) -> list[DeckSummary]:
         """Find all decks containing a card."""
         result: list[DeckSummary] = await self.user.find_decks_with_card(card_name)
         return result
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # Import/Export
-    # ─────────────────────────────────────────────────────────────────────────
 
     async def import_from_text(
         self,
@@ -377,26 +368,27 @@ class DeckManager:
 
         return "\n".join(lines)
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Helpers
-    # ─────────────────────────────────────────────────────────────────────────
-
     async def _load_card_data(self, rows: list[DeckCardRow]) -> list[DeckCardWithData]:
-        """Load full card data for deck cards."""
-        from mtg_core.exceptions import CardNotFoundError
+        """Load full card data for deck cards using batch query."""
+        if not rows:
+            return []
+
+        # Batch load all cards in a single query to avoid N+1
+        card_names = [row.card_name for row in rows]
+        cards_by_name = await self.mtg.get_cards_by_names(card_names)
 
         result = []
         for row in rows:
-            try:
-                card = await self.mtg.get_card_by_name(row.card_name)
-            except CardNotFoundError:
-                card = None
+            # Lookup uses lowercase key
+            card = cards_by_name.get(row.card_name.lower())
             result.append(
                 DeckCardWithData(
                     card_name=row.card_name,
                     quantity=row.quantity,
                     is_sideboard=row.is_sideboard,
                     is_commander=row.is_commander,
+                    set_code=row.set_code,
+                    collector_number=row.collector_number,
                     card=card,
                 )
             )

@@ -11,6 +11,7 @@ import aiosqlite
 from ...config import Settings, get_settings
 from .cache import CardCache
 from .combos import ComboDatabase
+from .migrations import run_mtg_migrations, run_scryfall_migrations
 from .mtg import MTGDatabase
 from .scryfall import ScryfallDatabase
 from .user import UserDatabase
@@ -69,6 +70,10 @@ class DatabaseManager:
 
         self._conn = await aiosqlite.connect(db_path)
         self._conn.row_factory = aiosqlite.Row
+
+        # Run migrations (WAL mode + performance indexes)
+        await run_mtg_migrations(self._conn)
+
         self._db = MTGDatabase(self._conn, self._cache, max_connections=max_conn)
 
         # Scryfall database (optional)
@@ -77,6 +82,10 @@ class DatabaseManager:
             try:
                 self._scryfall_conn = await aiosqlite.connect(scryfall_path)
                 self._scryfall_conn.row_factory = aiosqlite.Row
+
+                # Run Scryfall migrations (WAL mode + performance indexes)
+                await run_scryfall_migrations(self._scryfall_conn)
+
                 self._scryfall = ScryfallDatabase(self._scryfall_conn, max_connections=max_conn)
                 logger.info("Scryfall database loaded from %s", scryfall_path)
             except (aiosqlite.Error, OSError):

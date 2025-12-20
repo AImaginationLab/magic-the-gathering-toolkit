@@ -65,7 +65,7 @@ async def search_cards_fts(
         db: Database connection
         query: Search query string
         limit: Maximum number of UUIDs to return
-        search_name: Include card name in search
+        search_name: Include card name and flavorName in search
         search_type: Include card type in search
         search_text: Include oracle text in search
 
@@ -81,6 +81,7 @@ async def search_cards_fts(
     columns = []
     if search_name:
         columns.append("name")
+        columns.append("flavorName")  # Also search alternate names
     if search_type:
         columns.append("type")
     if search_text:
@@ -90,7 +91,7 @@ async def search_cards_fts(
         return []
 
     # Build FTS5 query with column targeting
-    if len(columns) == 3:
+    if len(columns) == 4:
         # Search all columns - simpler syntax
         match_expr = fts_query
     else:

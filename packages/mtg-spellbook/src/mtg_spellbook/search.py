@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import shlex
+
 from mtg_core.data.models.inputs import SearchCardsInput
 
 
@@ -16,13 +18,20 @@ def parse_search_query(query: str) -> SearchCardsInput:
         f:modern - format
         r:mythic - rarity
         set:MH2 - set code
-        text:"draw" - oracle text
+        text:"draw a card" - oracle text (quoted for spaces)
         kw:flying - keyword
+        artist:"Michal Ivan" - artist name (quoted for spaces)
     """
     filters: dict[str, str | list[str] | int | None] = {"page_size": 25}
     name_parts = []
 
-    tokens = query.split()
+    # Use shlex to properly handle quoted strings
+    try:
+        tokens = shlex.split(query)
+    except ValueError:
+        # Fall back to simple split if quotes are unbalanced
+        tokens = query.split()
+
     for token in tokens:
         if ":" in token:
             key, value = token.split(":", 1)
@@ -42,9 +51,14 @@ def parse_search_query(query: str) -> SearchCardsInput:
             elif key == "set":
                 filters["set_code"] = value
             elif key == "text":
-                filters["text"] = value.strip('"')
+                filters["text"] = value
             elif key == "kw":
                 filters["keywords"] = [value]
+            elif key == "artist":
+                filters["artist"] = value
+            else:
+                # Unknown filter key, treat as part of name
+                name_parts.append(token)
         else:
             name_parts.append(token)
 

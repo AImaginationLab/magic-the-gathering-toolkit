@@ -101,11 +101,33 @@ ABILITY_SYNERGIES: dict[str, list[tuple[str, str]]] = {
         ("whenever you discard", "Discard triggers"),
         ("Anje Falkenrath", "Madness commander"),
     ],
-    "graveyard": [
-        ("reanimate", "Return from graveyard"),
-        ("flashback", "Cast from graveyard"),
-        ("dredge", "Mill + return"),
-        ("Meren", "Recurring graveyard value"),
+    # Split "graveyard" into specific mechanics that actually synergize
+    "flashback": [
+        ("mill", "Fill graveyard for flashback"),
+        ("discard", "Put spells in graveyard"),
+        ("surveil", "Filter cards to graveyard"),
+        ("self-mill", "Stock graveyard"),
+    ],
+    "unearth|escape": [
+        ("mill", "Fill graveyard for recursion"),
+        ("surveil", "Filter to graveyard"),
+        ("discard", "Put creatures in graveyard"),
+    ],
+    r"return.*creature.*graveyard.*battlefield|reanimate": [
+        ("sacrifice", "Put creatures in graveyard"),
+        ("mill", "Fill graveyard with creatures"),
+        ("entomb", "Tutor to graveyard"),
+        ("discard", "Put creatures in graveyard"),
+    ],
+    r"return.*aura.*graveyard|return.*equipment.*graveyard": [
+        ("mill", "Fill graveyard with auras/equipment"),
+        ("sacrifice.*enchantment", "Put auras in graveyard"),
+        ("Voltron", "Aura/Equipment theme"),
+    ],
+    "dredge": [
+        ("draw", "Trigger dredge replacement"),
+        ("mill", "Fill graveyard"),
+        ("graveyard.*matters", "Benefit from full graveyard"),
     ],
     "create.*token": [
         ("populate", "Copy tokens"),

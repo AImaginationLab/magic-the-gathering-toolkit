@@ -34,7 +34,8 @@ def register(mcp: FastMCP) -> None:
         name: Annotated[str, "Exact card name"],
     ) -> PrintingsResponse:
         """Get all printings of a card with images and prices."""
-        return await images.get_card_printings(get_app(ctx).scryfall, name)
+        app = get_app(ctx)
+        return await images.get_card_printings(app.scryfall, app.db, name)
 
     @mcp.tool()
     async def get_card_price(

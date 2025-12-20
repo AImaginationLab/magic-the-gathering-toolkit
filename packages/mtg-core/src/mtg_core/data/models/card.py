@@ -33,6 +33,7 @@ class Card(BaseModel):
     # Core identifiers
     uuid: str | None = None
     name: str
+    flavor_name: str | None = Field(default=None, alias="flavorName")
 
     # Card characteristics
     layout: str | None = None
@@ -60,6 +61,7 @@ class Card(BaseModel):
     set_name: str | None = Field(default=None, alias="setName")
     rarity: str | None = None
     number: str | None = None
+    release_date: str | None = Field(default=None, alias="releaseDate")
 
     # Art
     artist: str | None = None

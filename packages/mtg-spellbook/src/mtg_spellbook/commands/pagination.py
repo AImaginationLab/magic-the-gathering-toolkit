@@ -13,7 +13,7 @@ from mtg_core.tools import cards
 from ..formatting import prettify_mana
 from ..pagination import PaginationState
 from ..ui.formatters import CardFormatters
-from ..ui.theme import rarity_colors, ui_colors
+from ..ui.theme import get_name_color_for_rarity, get_synergy_score_color, ui_colors
 
 if TYPE_CHECKING:
     from mtg_core.data.models.responses import CardDetail
@@ -30,10 +30,14 @@ class PaginationCommandsMixin:
         _current_card: Any
         _synergy_mode: bool
         _synergy_info: dict[str, Any]
+        _artist_mode: bool
+        _artist_name: str
+        _artist_card_uuids: dict[int, str]
 
         def query_one(self, selector: str, expect_type: type[Any] = ...) -> Any: ...
         def _update_card_panel(self, card: Any) -> None: ...
         def _update_card_panel_with_synergy(self, card: Any) -> None: ...
+        def _display_artist_results(self) -> None: ...
         def _show_message(self, message: str) -> None: ...
         def push_screen(self, screen: Any, callback: Any = None) -> Any: ...
 
@@ -108,16 +112,8 @@ class PaginationCommandsMixin:
 
         # Load card details for current page
         current_items = self._pagination.current_page_items
-        details: list[CardDetail] = []
-
-        for item in current_items:
-            try:
-                # item could be CardSummary or a synergy result
-                name = item.name if hasattr(item, "name") else str(item)
-                detail = await cards.get_card(self._db, self._scryfall, name=name)
-                details.append(detail)
-            except CardNotFoundError:
-                pass
+        page_start = (self._pagination.current_page - 1) * self._pagination.page_size
+        details = await self._load_card_details(current_items, page_start)
 
         # Cache and display
         self._pagination.cache_details(self._pagination.current_page, details)
@@ -132,6 +128,8 @@ class PaginationCommandsMixin:
         """Display the current page results in the list."""
         if self._synergy_mode:
             self._display_synergy_results()
+        elif self._artist_mode:
+            self._display_artist_results()
         else:
             self._display_search_results()
 
@@ -183,18 +181,12 @@ class PaginationCommandsMixin:
             icon = type_icons.get(synergy_type, "\u2022")
 
             # 10-segment score bar
-            score_color = "green" if score >= 0.7 else "yellow" if score >= 0.4 else "dim"
+            score_color = get_synergy_score_color(score)
             filled = int(score * 10)
             score_bar = "\u2588" * filled + "\u2591" * (10 - filled)
 
             # Card name with rarity color
-            rarity_lower = (card.rarity or "").lower()
-            if rarity_lower == "mythic":
-                name_color = rarity_colors.MYTHIC
-            elif rarity_lower == "rare":
-                name_color = rarity_colors.RARE
-            else:
-                name_color = ui_colors.WHITE
+            name_color = get_name_color_for_rarity(card.rarity)
 
             mana = prettify_mana(card.mana_cost) if card.mana_cost else ""
             type_icon = CardFormatters.get_type_icon(card.type or "")
@@ -233,21 +225,31 @@ class PaginationCommandsMixin:
         """Update the pagination header display."""
         header = self.query_one("#results-header", Static)
 
+        # Determine mode-specific settings
+        if self._artist_mode:
+            icon = "🎨"
+            title_prefix = self._artist_name
+            title_short = self._artist_name
+        elif self._synergy_mode:
+            icon = "🔗"
+            title_prefix = "Synergies"
+            title_short = "Synergies"
+        else:
+            icon = "🔍"
+            title_prefix = "Results"
+            title_short = "Results"
+
         if not self._pagination or self._pagination.total_items == 0:
-            title = "🔍 Synergies" if self._synergy_mode else "🔍 Results"
-            header.update(f"[bold {ui_colors.GOLD}]{title} (0)[/]")
+            header.update(f"[bold {ui_colors.GOLD}]{icon} {title_prefix} (0)[/]")
             return
 
         p = self._pagination
-        icon = "🔗" if self._synergy_mode else "🔍"
 
         if p.total_pages <= 1:
-            # Single page: show full title with source query
-            title = f"Synergies for {p.source_query}" if self._synergy_mode else "Results"
-            header.update(f"[bold {ui_colors.GOLD}]{icon} {title} ({p.total_items})[/]")
+            # Single page: show full title
+            header.update(f"[bold {ui_colors.GOLD}]{icon} {title_prefix} ({p.total_items})[/]")
         else:
-            # Multiple pages: use short title to fit controls
-            title = "Synergies" if self._synergy_mode else "Results"
+            # Multiple pages: show pagination controls
             info = f"{p.start_index}-{p.end_index} of {p.total_items}"
             position = f"Page {p.current_page}/{p.total_pages}"
             controls = "n:Next p:Prev g:GoTo"
@@ -256,10 +258,40 @@ class PaginationCommandsMixin:
                 position = "[yellow]Loading...[/]"
                 controls = ""
 
-            text = f"[bold {ui_colors.GOLD}]{icon} {title}: {info}[/]  [{ui_colors.GRAY_LIGHT}]{position}[/]"
+            text = f"[bold {ui_colors.GOLD}]{icon} {title_short}: {info}[/]  [{ui_colors.GRAY_LIGHT}]{position}[/]"
             if controls:
                 text += f"  [dim]{controls}[/]"
             header.update(text)
+
+    async def _load_card_details(self, items: list[Any], start_index: int) -> list[CardDetail]:
+        """Load card details for a list of items.
+
+        Args:
+            items: List of card summaries or items with name attribute
+            start_index: Global index of first item (for artist UUID lookup)
+
+        Returns:
+            List of loaded CardDetail objects
+        """
+        details: list[CardDetail] = []
+        for i, item in enumerate(items):
+            try:
+                # In artist mode, use UUID to get the correct artist's version
+                if self._artist_mode and hasattr(self, "_artist_card_uuids"):
+                    global_idx = start_index + i
+                    uuid = self._artist_card_uuids.get(global_idx)
+                    if uuid:
+                        detail = await cards.get_card(self._db, self._scryfall, uuid=uuid)
+                        details.append(detail)
+                        continue
+
+                # Fallback: name-based lookup for search/synergy modes
+                name = item.name if hasattr(item, "name") else str(item)
+                detail = await cards.get_card(self._db, self._scryfall, name=name)
+                details.append(detail)
+            except CardNotFoundError:
+                continue  # Card not loadable, skip
+        return details
 
     @work
     async def _prefetch_next_page(self) -> None:
@@ -280,15 +312,7 @@ class PaginationCommandsMixin:
         end = start + self._pagination.page_size
         next_items = self._pagination.all_items[start:end]
 
-        details: list[CardDetail] = []
-        for item in next_items:
-            try:
-                name = item.name if hasattr(item, "name") else str(item)
-                detail = await cards.get_card(self._db, self._scryfall, name=name)
-                details.append(detail)
-            except CardNotFoundError:
-                pass
-
+        details = await self._load_card_details(next_items, start)
         self._pagination.cache_details(next_page, details)
 
     def _format_result_line(self, card: Any) -> str:
@@ -296,14 +320,7 @@ class PaginationCommandsMixin:
 
         Format: [Name]  [Mana]  [Icon Type]  [#Rank]  [Stats]  [Price]
         """
-        rarity_lower = (card.rarity or "").lower()
-        if rarity_lower == "mythic":
-            name_color = rarity_colors.MYTHIC
-        elif rarity_lower == "rare":
-            name_color = rarity_colors.RARE
-        else:
-            name_color = ui_colors.WHITE
-
+        name_color = get_name_color_for_rarity(card.rarity)
         mana = prettify_mana(card.mana_cost) if card.mana_cost else ""
         type_icon = CardFormatters.get_type_icon(card.type or "")
 

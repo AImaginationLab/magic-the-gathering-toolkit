@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ...cache import get_cached, set_cached
 from ...data.models.inputs import SearchCardsInput
 from ...data.models.responses import (
     DetectCombosResult,
@@ -38,14 +39,34 @@ if TYPE_CHECKING:
     from ...data.database import ComboDatabase, MTGDatabase, ScryfallDatabase
     from ...data.models.card import Card
 
+# Cache namespace and TTL for synergies
+_SYNERGIES_CACHE_NS = "synergies"
+_SYNERGIES_TTL_DAYS = 14
+
+
+def _synergy_cache_key(card_name: str, max_results: int, format_legal: str | None) -> str:
+    """Generate cache key for synergy results."""
+    return f"{card_name.lower()}|{max_results}|{format_legal or 'any'}"
+
 
 async def find_synergies(
     db: MTGDatabase,
     card_name: str,
     max_results: int = 20,
     format_legal: str | None = None,
+    *,
+    use_cache: bool = True,
 ) -> FindSynergiesResult:
     """Find cards that synergize with a given card."""
+    # Check cache first
+    cache_key = _synergy_cache_key(card_name, max_results, format_legal)
+    if use_cache:
+        cached = get_cached(
+            _SYNERGIES_CACHE_NS, cache_key, FindSynergiesResult, _SYNERGIES_TTL_DAYS
+        )
+        if cached is not None:
+            return cached
+
     source_card = await db.get_card_by_name(card_name)
     if not source_card:
         raise CardNotFoundError(f"Card not found: {card_name}")
@@ -132,10 +153,16 @@ async def find_synergies(
     synergies.sort(key=lambda s: s.score, reverse=True)
     synergies = synergies[:max_results]
 
-    return FindSynergiesResult(
+    result = FindSynergiesResult(
         card_name=source_card.name,
         synergies=synergies,
     )
+
+    # Cache result for future use
+    if use_cache:
+        set_cached(_SYNERGIES_CACHE_NS, cache_key, result)
+
+    return result
 
 
 async def _add_tribal_matches(

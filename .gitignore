@@ -37,6 +37,14 @@ data/*.db
 resources/*.sqlite
 resources/*.sqlite*
 
+# SQLite runtime artifacts (WAL, shared memory)
+*.sqlite-wal
+*.sqlite-shm
+*.db-wal
+*.db-shm
+test_db.sqlite
+test_db.sqlite-*
+
 # Environment
 .env
 

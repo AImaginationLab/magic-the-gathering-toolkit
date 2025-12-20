@@ -25,6 +25,17 @@ class QueryBuilder:
             self.conditions.append(f"{column} LIKE ?")
             self.params.append(pattern.format(value=value))
 
+    def add_name_search(self, value: str | None) -> None:
+        """Add a name search that checks both name and flavorName columns.
+
+        This allows finding cards like SpongeBob (stored as flavorName) when
+        searching by their alternate/promotional names.
+        """
+        if value:
+            pattern = f"%{value}%"
+            self.conditions.append("(c.name LIKE ? OR c.flavorName LIKE ?)")
+            self.params.extend([pattern, pattern])
+
     def add_exact(self, column: str, value: Any, case_insensitive: bool = False) -> None:
         """Add an exact match condition."""
         if value is not None:
@@ -92,7 +103,7 @@ class QueryBuilder:
     def from_filters(cls, filters: SearchCardsInput) -> QueryBuilder:
         """Build a QueryBuilder from SearchCardsInput."""
         qb = cls()
-        qb.add_like("c.name", filters.name)
+        qb.add_name_search(filters.name)
         qb.add_colors(filters.colors)
         qb.add_color_identity(filters.color_identity)
         qb.add_like("c.type", filters.type)
@@ -108,4 +119,5 @@ class QueryBuilder:
         qb.add_like("c.text", filters.text)
         qb.add_keywords(filters.keywords)
         qb.add_format_legality(filters.format_legal)
+        qb.add_like("c.artist", filters.artist)
         return qb
