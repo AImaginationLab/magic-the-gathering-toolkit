@@ -56,11 +56,9 @@ test_db.sqlite-*
 .pytest_cache/
 .coverage
 htmlcov/
-packages/mtg-spellbook/tests/__snapshots__*
-packages/mtg-spellbook/tests/screenshots/__snapshots__*
-
-# TODO: Remove these temporary test artifacts
-packages/mtg-spellbook/tests/art_panel_ux_test*
+packages/mtg-spellbook/tests_spellbook/screenshots/__snapshots__*
+packages/mtg-spellbook/tests_spellbook/art_panel_ux_test*
+packages/mtg-spellbook/tests_spellbook/__snapshots__/test_screen_snapshots*
 packages/mtg-spellbook/docs*
 docs/*
 snapshot_report.html
