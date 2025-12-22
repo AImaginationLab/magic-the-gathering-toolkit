@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Iterator
+    from collections.abc import Iterator
 
     from textual.pilot import Pilot
 
@@ -86,44 +86,83 @@ MOCK_CARD = {
 }
 
 MOCK_SEARCH_RESULTS = [
-    {**MOCK_CARD, "uuid": f"mock-uuid-{i:03d}", "collector_number": str(160 + i)}
-    for i in range(10)
+    {**MOCK_CARD, "uuid": f"mock-uuid-{i:03d}", "collector_number": str(160 + i)} for i in range(10)
 ]
 
 MOCK_ARTISTS = [
-    {"name": "Rebecca Guay", "card_count": 150, "sets_count": 45, "first_card_year": 1997, "most_recent_year": 2023},
-    {"name": "Terese Nielsen", "card_count": 200, "sets_count": 50, "first_card_year": 1996, "most_recent_year": 2020},
-    {"name": "John Avon", "card_count": 180, "sets_count": 55, "first_card_year": 1996, "most_recent_year": 2023},
+    {
+        "name": "Rebecca Guay",
+        "card_count": 150,
+        "sets_count": 45,
+        "first_card_year": 1997,
+        "most_recent_year": 2023,
+    },
+    {
+        "name": "Terese Nielsen",
+        "card_count": 200,
+        "sets_count": 50,
+        "first_card_year": 1996,
+        "most_recent_year": 2020,
+    },
+    {
+        "name": "John Avon",
+        "card_count": 180,
+        "sets_count": 55,
+        "first_card_year": 1996,
+        "most_recent_year": 2023,
+    },
 ]
 
 MOCK_SETS = [
-    {"code": "LEB", "name": "Limited Edition Beta", "release_date": "1993-10-01", "set_type": "core", "card_count": 302},
-    {"code": "ARN", "name": "Arabian Nights", "release_date": "1993-12-01", "set_type": "expansion", "card_count": 92},
-    {"code": "ATQ", "name": "Antiquities", "release_date": "1994-03-01", "set_type": "expansion", "card_count": 100},
+    {
+        "code": "LEB",
+        "name": "Limited Edition Beta",
+        "release_date": "1993-10-01",
+        "set_type": "core",
+        "card_count": 302,
+    },
+    {
+        "code": "ARN",
+        "name": "Arabian Nights",
+        "release_date": "1993-12-01",
+        "set_type": "expansion",
+        "card_count": 92,
+    },
+    {
+        "code": "ATQ",
+        "name": "Antiquities",
+        "release_date": "1994-03-01",
+        "set_type": "expansion",
+        "card_count": 100,
+    },
 ]
 
 
 def _create_mock_artist_summary():
     """Create a mock ArtistSummary."""
     from mtg_core.data.models.responses import ArtistSummary
+
     return ArtistSummary(**MOCK_ARTIST)
 
 
 def _create_mock_card():
     """Create a mock Card."""
     from mtg_core.data.models.card import Card
+
     return Card(**MOCK_CARD)
 
 
 def _create_mock_search_results():
     """Create mock search results."""
     from mtg_core.data.models.card import Card
+
     return [Card(**data) for data in MOCK_SEARCH_RESULTS]
 
 
 def _create_mock_artists():
     """Create mock artist list."""
     from mtg_core.data.models.responses import ArtistSummary
+
     return [ArtistSummary(**data) for data in MOCK_ARTISTS]
 
 
