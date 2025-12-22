@@ -131,6 +131,4 @@ class TestDashboardSearch:
             )
 
             # First card should be selected
-            assert pilot.app._current_card is not None, (
-                "First search result should be selected"
-            )
+            assert pilot.app._current_card is not None, "First search result should be selected"

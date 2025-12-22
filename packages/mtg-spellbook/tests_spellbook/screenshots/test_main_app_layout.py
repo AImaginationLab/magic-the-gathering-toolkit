@@ -138,8 +138,7 @@ class TestMainAppLayout:
             stack_info = [type(s).__name__ for s in pilot.app.screen_stack]
 
             assert "Collection" in screen_name, (
-                f"Expected Collection screen, got {screen_name}. "
-                f"Screen stack: {stack_info}"
+                f"Expected Collection screen, got {screen_name}. Screen stack: {stack_info}"
             )
 
             # Collection screen (BaseScreen) has its own menu bar with id #screen-menu-bar
@@ -150,10 +149,10 @@ class TestMainAppLayout:
                 # Debug: show what widgets exist in the screen
                 all_widgets = list(screen.query("*"))
                 widget_ids = [w.id for w in all_widgets if w.id]
-                assert False, (
+                raise AssertionError(
                     f"Could not find #screen-menu-bar. Error: {e}. "
                     f"Screen: {screen_name}. Widget IDs in screen: {widget_ids[:20]}"
-                )
+                ) from e
             assert menu.region.height > 0, "Menu bar should be visible on Collection screen"
 
             # Menu should be at the top of the screen (y = 0)

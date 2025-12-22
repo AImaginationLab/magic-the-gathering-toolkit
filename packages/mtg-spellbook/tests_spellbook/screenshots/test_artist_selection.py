@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from textual.widgets import ListView, Static
+from textual.widgets import ListView
 
 from mtg_spellbook.app import MTGSpellbook
 
