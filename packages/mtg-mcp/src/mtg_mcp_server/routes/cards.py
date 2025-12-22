@@ -77,7 +77,7 @@ def register(mcp: FastMCP) -> None:
             page=page,
             page_size=min(page_size, 100),
         )
-        return await cards.search_cards(app.db, app.scryfall, filters)
+        return await cards.search_cards(app.db, filters)
 
     @mcp.tool()
     async def get_card(
@@ -87,7 +87,7 @@ def register(mcp: FastMCP) -> None:
     ) -> CardDetail:
         """Get detailed information about a specific card."""
         app = get_app(ctx)
-        return await cards.get_card(app.db, app.scryfall, name, uuid)
+        return await cards.get_card(app.db, name=name, uuid=uuid)
 
     @mcp.tool()
     async def get_card_rulings(
@@ -109,4 +109,4 @@ def register(mcp: FastMCP) -> None:
     async def get_random_card(ctx: ToolContext) -> CardDetail:
         """Get a random Magic card."""
         app = get_app(ctx)
-        return await cards.get_random_card(app.db, app.scryfall)
+        return await cards.get_random_card(app.db)

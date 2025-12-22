@@ -29,6 +29,7 @@ class SearchCardsInput(BaseModel):
     text: str | None = Field(default=None, description="Search in card text")
     keywords: list[str] | None = Field(default=None, description="Filter by keywords")
     format_legal: Format | None = Field(default=None, description="Filter by format legality")
+    artist: str | None = Field(default=None, description="Filter by artist name")
     sort_by: SortField | None = Field(
         default=None, description="Sort by field (name, cmc, color, rarity, type)"
     )

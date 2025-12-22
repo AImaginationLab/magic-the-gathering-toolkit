@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING
 
 from mtg_core.data.models import (
     Card,
     CardDetail,
     CardSummary,
+    ImageUrls,
     LegalitiesResponse,
+    Prices,
+    PurchaseLinks,
+    RelatedLinks,
     RulingEntry,
     RulingsResponse,
     SearchCardsInput,
@@ -18,51 +21,24 @@ from mtg_core.data.models import (
 from mtg_core.exceptions import ValidationError
 
 if TYPE_CHECKING:
-    from mtg_core.data.database import MTGDatabase, ScryfallDatabase
+    from mtg_core.data.database import UnifiedDatabase
 
 
 async def search_cards(
-    db: MTGDatabase,
-    scryfall: ScryfallDatabase | None,
+    db: UnifiedDatabase,
     filters: SearchCardsInput,
-    use_fts: bool = True,
 ) -> SearchResult:
     """Search for Magic: The Gathering cards.
 
     Args:
-        db: MTG database connection
-        scryfall: Optional Scryfall database for images/prices
+        db: Unified MTG database connection
         filters: Search filters
-        use_fts: If True, use FTS5 for text searches when available
 
     Returns:
         SearchResult with matching cards
     """
-    # Use FTS-enhanced search when text filter is provided
-    if use_fts and filters.text:
-        cards, total_count = await db.search_cards_with_fts(filters, use_fts=True)
-    else:
-        cards, total_count = await db.search_cards(filters)
-
+    cards, total_count = await db.search_cards(filters)
     results = [_card_to_summary(card) for card in cards]
-
-    if scryfall:
-
-        async def _enrich_with_scryfall(summary: CardSummary, card: Card) -> None:
-            image = await scryfall.get_card_image(card.name, card.set_code)
-            if image:
-                summary.image = image.image_normal
-                summary.image_small = image.image_small
-                summary.price_usd = image.get_price_usd()
-                summary.purchase_link = image.purchase_tcgplayer
-
-        await asyncio.gather(
-            *[
-                _enrich_with_scryfall(summary, card)
-                for summary, card in zip(results, cards, strict=True)
-            ],
-            return_exceptions=True,
-        )
 
     return SearchResult(
         cards=results,
@@ -73,8 +49,7 @@ async def search_cards(
 
 
 async def get_card(
-    db: MTGDatabase,
-    scryfall: ScryfallDatabase | None,
+    db: UnifiedDatabase,
     name: str | None = None,
     uuid: str | None = None,
 ) -> CardDetail:
@@ -83,23 +58,16 @@ async def get_card(
         raise ValidationError("Provide either 'name' or 'uuid'")
 
     # get_card_by_uuid and get_card_by_name raise CardNotFoundError if not found
-    card = await db.get_card_by_uuid(uuid) if uuid else await db.get_card_by_name(name)  # type: ignore[arg-type]
+    if uuid:
+        card = await db.get_card_by_uuid(uuid)
+    else:
+        card = await db.get_card_by_name(name)  # type: ignore[arg-type]
 
-    detail = _card_to_detail(card)
-
-    if scryfall:
-        image = await scryfall.get_card_image(card.name, card.set_code)
-        if image:
-            detail.images = image.to_image_urls()
-            detail.prices = image.to_prices()
-            detail.purchase_links = image.to_purchase_links()
-            detail.related_links = image.to_related_links()
-
-    return detail
+    return _card_to_detail(card)
 
 
 async def get_card_rulings(
-    db: MTGDatabase,
+    db: UnifiedDatabase,
     name: str,
 ) -> RulingsResponse:
     """Get official rulings for a card."""
@@ -121,7 +89,7 @@ async def get_card_rulings(
 
 
 async def get_card_legalities(
-    db: MTGDatabase,
+    db: UnifiedDatabase,
     name: str,
 ) -> LegalitiesResponse:
     """Get format legalities for a card."""
@@ -138,32 +106,24 @@ async def get_card_legalities(
 
     return LegalitiesResponse(
         card_name=name,
-        legalities={leg.format: leg.legality for leg in legalities},
+        legalities=legalities,
     )
 
 
 async def get_random_card(
-    db: MTGDatabase,
-    scryfall: ScryfallDatabase | None,
+    db: UnifiedDatabase,
 ) -> CardDetail:
     """Get a random Magic card."""
     card = await db.get_random_card()
-
-    detail = _card_to_detail(card)
-
-    if scryfall:
-        image = await scryfall.get_card_image(card.name)
-        if image:
-            detail.images = image.to_image_urls()
-            detail.prices = image.to_prices()
-
-    return detail
+    return _card_to_detail(card)
 
 
 def _card_to_summary(card: Card) -> CardSummary:
     """Convert a Card to a summary response."""
     return CardSummary(
+        uuid=card.uuid,
         name=card.name,
+        flavor_name=card.flavor_name,
         mana_cost=card.mana_cost,
         cmc=card.cmc,
         type=card.type,
@@ -171,9 +131,15 @@ def _card_to_summary(card: Card) -> CardSummary:
         color_identity=card.color_identity or [],
         rarity=card.rarity,
         set_code=card.set_code,
+        collector_number=card.number,
         keywords=card.keywords or [],
         power=card.power,
         toughness=card.toughness,
+        # Images and prices from unified database
+        image=card.image_normal,
+        image_small=card.image_small,
+        price_usd=card.get_price_usd(),
+        purchase_link=card.purchase_tcgplayer,
     )
 
 
@@ -181,6 +147,7 @@ def _card_to_detail(card: Card) -> CardDetail:
     """Convert a Card to a detailed response."""
     return CardDetail(
         name=card.name,
+        flavor_name=card.flavor_name,
         uuid=card.uuid,
         mana_cost=card.mana_cost,
         cmc=card.cmc,
@@ -207,4 +174,27 @@ def _card_to_detail(card: Card) -> CardDetail:
         if card.legalities
         else None,
         rulings_count=len(card.rulings) if card.rulings else None,
+        # Images and prices from unified database
+        images=ImageUrls(
+            small=card.image_small,
+            normal=card.image_normal,
+            large=card.image_large,
+            png=card.image_png,
+            art_crop=card.image_art_crop,
+        ),
+        prices=Prices(
+            usd=card.get_price_usd(),
+            usd_foil=card.get_price_usd_foil(),
+            eur=card.get_price_eur(),
+            eur_foil=card.get_price_eur_foil(),
+        ),
+        purchase_links=PurchaseLinks(
+            tcgplayer=card.purchase_tcgplayer,
+            cardmarket=card.purchase_cardmarket,
+            cardhoarder=card.purchase_cardhoarder,
+        ),
+        related_links=RelatedLinks(
+            edhrec=card.link_edhrec,
+            gatherer=card.link_gatherer,
+        ),
     )

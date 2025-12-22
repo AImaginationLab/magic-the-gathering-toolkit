@@ -26,7 +26,7 @@ def register(mcp: FastMCP) -> None:
         set_code: Annotated[str | None, "Set code for specific printing"] = None,
     ) -> CardImageResponse:
         """Get card images in multiple sizes with pricing."""
-        return await images.get_card_image(get_app(ctx).scryfall, name, set_code)
+        return await images.get_card_image(get_app(ctx).db, name, set_code)
 
     @mcp.tool()
     async def get_card_printings(
@@ -34,7 +34,8 @@ def register(mcp: FastMCP) -> None:
         name: Annotated[str, "Exact card name"],
     ) -> PrintingsResponse:
         """Get all printings of a card with images and prices."""
-        return await images.get_card_printings(get_app(ctx).scryfall, name)
+        app = get_app(ctx)
+        return await images.get_card_printings(app.db, name)
 
     @mcp.tool()
     async def get_card_price(
@@ -43,7 +44,7 @@ def register(mcp: FastMCP) -> None:
         set_code: Annotated[str | None, "Set code for specific printing"] = None,
     ) -> PriceResponse:
         """Get current prices for a card (USD/EUR, regular/foil)."""
-        return await images.get_card_price(get_app(ctx).scryfall, name, set_code)
+        return await images.get_card_price(get_app(ctx).db, name, set_code)
 
     @mcp.tool()
     async def search_by_price(
@@ -55,7 +56,7 @@ def register(mcp: FastMCP) -> None:
     ) -> PriceSearchResponse:
         """Search for cards by price range."""
         return await images.search_by_price(
-            get_app(ctx).scryfall,
+            get_app(ctx).db,
             min_price,
             max_price,
             page,

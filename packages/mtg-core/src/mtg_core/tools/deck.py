@@ -22,7 +22,7 @@ from ..exceptions import CardNotFoundError
 from ..utils.mana import COLOR_ORDER, COLORS, parse_mana_cost
 
 if TYPE_CHECKING:
-    from ..data.database import MTGDatabase, ScryfallDatabase
+    from ..data.database import UnifiedDatabase
     from ..data.models.inputs import AnalyzeDeckInput, DeckCardInput, ValidateDeckInput
 
 # Format rules: (min_deck_size, max_sideboard, copy_limit, is_singleton, check_color_identity)
@@ -87,17 +87,17 @@ RAMP_PATTERNS = frozenset(
 )
 
 
-async def _get_card_price(scryfall: ScryfallDatabase, card_name: str) -> float | None:
+async def _get_card_price(db: UnifiedDatabase, card_name: str) -> float | None:
     """Get USD price for a card, or None if unavailable."""
     try:
-        image = await scryfall.get_card_image(card_name)
-        return image.get_price_usd() if image else None
+        card = await db.get_card_by_name(card_name, include_extras=False)
+        return card.get_price_usd()
     except CardNotFoundError:
         return None
 
 
 async def _resolve_deck_cards(
-    db: MTGDatabase,
+    db: UnifiedDatabase,
     cards: list[DeckCardInput],
     include_extras: bool = False,
 ) -> list[tuple[DeckCardInput, Card | None]]:
@@ -128,7 +128,7 @@ async def _resolve_deck_cards(
 
 
 async def validate_deck(
-    db: MTGDatabase,
+    db: UnifiedDatabase,
     input: ValidateDeckInput,
 ) -> DeckValidationResult:
     """Validate a deck against format rules."""
@@ -265,7 +265,7 @@ async def validate_deck(
 
 
 async def analyze_mana_curve(
-    db: MTGDatabase,
+    db: UnifiedDatabase,
     input: AnalyzeDeckInput,
 ) -> ManaCurveResult:
     """Analyze the mana curve of a deck."""
@@ -321,7 +321,7 @@ async def analyze_mana_curve(
 
 
 async def analyze_colors(
-    db: MTGDatabase,
+    db: UnifiedDatabase,
     input: AnalyzeDeckInput,
 ) -> ColorAnalysisResult:
     """Analyze the color distribution of a deck."""
@@ -401,7 +401,7 @@ async def analyze_colors(
 
 
 async def analyze_deck_composition(
-    db: MTGDatabase,
+    db: UnifiedDatabase,
     input: AnalyzeDeckInput,
 ) -> CompositionResult:
     """Analyze the card type composition of a deck."""
@@ -472,28 +472,17 @@ async def analyze_deck_composition(
 
 
 async def analyze_deck_price(
-    db: MTGDatabase,  # noqa: ARG001 - kept for API consistency with other analyze functions
-    scryfall: ScryfallDatabase | None,
+    db: UnifiedDatabase,
     input: AnalyzeDeckInput,
 ) -> PriceAnalysisResult:
     """Analyze the price of a deck."""
-    if scryfall is None:
-        return PriceAnalysisResult(
-            total_price=None,
-            mainboard_price=None,
-            sideboard_price=None,
-            average_card_price=None,
-            most_expensive=[],
-            missing_prices=[c.name for c in input.cards],
-        )
-
     card_prices: list[CardPrice] = []
     missing_prices: list[str] = []
     mainboard_total = 0.0
     sideboard_total = 0.0
 
     for card_input in input.cards:
-        price_info = await _get_card_price(scryfall, card_input.name)
+        price_info = await _get_card_price(db, card_input.name)
         if price_info is None:
             missing_prices.append(card_input.name)
             continue

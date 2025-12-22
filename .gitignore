@@ -36,6 +36,18 @@ env/
 data/*.db
 resources/*.sqlite
 resources/*.sqlite*
+resources/*.db
+
+# But track smaller generated databases
+!resources/limited_stats.sqlite
+
+# SQLite runtime artifacts (WAL, shared memory)
+*.sqlite-wal
+*.sqlite-shm
+*.db-wal
+*.db-shm
+test_db.sqlite
+test_db.sqlite-*
 
 # Environment
 .env
@@ -44,7 +56,18 @@ resources/*.sqlite*
 .pytest_cache/
 .coverage
 htmlcov/
+packages/mtg-spellbook/tests/__snapshots__*
+packages/mtg-spellbook/tests/screenshots/__snapshots__*
+
+# TODO: Remove these temporary test artifacts
+packages/mtg-spellbook/tests/art_panel_ux_test*
+packages/mtg-spellbook/docs*
+docs/*
+snapshot_report.html
 
 # OS
 .DS_Store
 Thumbs.db
+
+.claude
+CLAUDE*

@@ -64,7 +64,7 @@ class GoToPageModal(ModalScreen[int | None]):
     """
 
     BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
-        ("escape", "cancel", "Cancel"),
+        ("escape,q", "cancel", "Cancel"),
         ("enter", "submit", "Go"),
     ]
 

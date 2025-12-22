@@ -74,9 +74,78 @@ class UIColors:
     SYNERGY_STRONG: str = "#00ff00"
     SYNERGY_MODERATE: str = "#c9a227"
     SYNERGY_WEAK: str = "#e6c84a"
+    PRICE_HIGH: str = "#ffa500"  # orange
+    PRICE_MEDIUM: str = "#ffff00"  # yellow
+    PRICE_LOW: str = "#00ff00"  # green
 
 
 mtg_colors = MTGColors()
 card_type_colors = CardTypeColors()
 rarity_colors = RarityColors()
 ui_colors = UIColors()
+
+
+def get_price_color(price: float | None) -> str:
+    """Get color for price display based on value tier."""
+    if price is None:
+        return ui_colors.TEXT_DIM
+    if price >= 100:
+        return ui_colors.TEXT_ERROR
+    elif price >= 20:
+        return ui_colors.PRICE_HIGH
+    elif price >= 5:
+        return ui_colors.PRICE_MEDIUM
+    return ui_colors.PRICE_LOW
+
+
+def get_rarity_style(rarity: str) -> tuple[str, str]:
+    """Get icon and color for rarity display.
+
+    Args:
+        rarity: Card rarity string (common, uncommon, rare, mythic, special, bonus)
+
+    Returns:
+        Tuple of (icon, color) for rich text formatting
+    """
+    rarity_styles = {
+        "common": ("●", rarity_colors.COMMON),
+        "uncommon": ("◆", rarity_colors.UNCOMMON),
+        "rare": ("♦", rarity_colors.RARE),
+        "mythic": ("★", rarity_colors.MYTHIC),
+        "special": ("✦", rarity_colors.MYTHIC),
+        "bonus": ("✧", rarity_colors.RARE),
+    }
+    return rarity_styles.get(rarity.lower(), ("○", rarity_colors.DEFAULT))
+
+
+def get_name_color_for_rarity(rarity: str | None) -> str:
+    """Get text color for card name based on rarity.
+
+    Args:
+        rarity: Card rarity string or None
+
+    Returns:
+        Color hex code for rich text formatting
+    """
+    rarity_lower = (rarity or "").lower()
+    if rarity_lower == "mythic":
+        return rarity_colors.MYTHIC
+    elif rarity_lower == "rare":
+        return rarity_colors.RARE
+    return ui_colors.WHITE
+
+
+def get_synergy_score_color(score: float) -> str:
+    """Get color for synergy score display.
+
+    Args:
+        score: Synergy score between 0.0 and 1.0
+
+    Returns:
+        Color for rich text formatting
+    """
+    if score >= 0.7:
+        return ui_colors.SYNERGY_STRONG
+    elif score >= 0.4:
+        return ui_colors.SYNERGY_MODERATE
+    return ui_colors.SYNERGY_WEAK

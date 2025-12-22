@@ -6,13 +6,17 @@ This package provides modular command handling through composable mixins:
 - SynergyCommandsMixin: Synergy and combo discovery
 - InfoCommandsMixin: Rulings, legalities, price, art
 - SetCommandsMixin: Set browsing and statistics
+- ArtistCommandsMixin: Artist discovery and portfolio
+- BlockCommandsMixin: Block browsing and recent releases
 - CommandHelpersMixin: Shared helper methods
 - PaginationCommandsMixin: Pagination navigation
 
 The CommandHandlersMixin combines all mixins for backwards compatibility.
 """
 
+from .artist import ArtistCommandsMixin
 from .base import AppProtocol, CommandRouterMixin
+from .blocks import BlockCommandsMixin
 from .card import CardCommandsMixin
 from .helpers import CommandHelpersMixin
 from .info import InfoCommandsMixin
@@ -27,6 +31,8 @@ class CommandHandlersMixin(  # type: ignore[misc]  # Mixin stubs vs @work-decora
     SynergyCommandsMixin,
     InfoCommandsMixin,
     SetCommandsMixin,
+    ArtistCommandsMixin,
+    BlockCommandsMixin,
     CommandHelpersMixin,
     PaginationCommandsMixin,
 ):
@@ -41,6 +47,8 @@ class CommandHandlersMixin(  # type: ignore[misc]  # Mixin stubs vs @work-decora
 
 __all__ = [
     "AppProtocol",
+    "ArtistCommandsMixin",
+    "BlockCommandsMixin",
     "CardCommandsMixin",
     "CommandHandlersMixin",
     "CommandHelpersMixin",

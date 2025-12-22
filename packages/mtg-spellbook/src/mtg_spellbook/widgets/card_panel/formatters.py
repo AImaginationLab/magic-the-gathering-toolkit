@@ -6,7 +6,7 @@ import re
 from typing import TYPE_CHECKING
 
 from ...formatting import prettify_mana
-from ...ui.theme import card_type_colors, rarity_colors, ui_colors
+from ...ui.theme import card_type_colors, get_rarity_style, ui_colors
 
 if TYPE_CHECKING:
     from mtg_core.data.models.responses import CardDetail
@@ -64,6 +64,16 @@ def render_card_text(card: CardDetail, keywords: set[str]) -> str:
     if footer_parts:
         lines.append("")
         lines.append(" · ".join(footer_parts))
+
+    # PRICES
+    if card.prices:
+        price_parts = []
+        if card.prices.usd:
+            price_parts.append(f"[green]${card.prices.usd:.2f}[/]")
+        if card.prices.usd_foil:
+            price_parts.append(f"[yellow]${card.prices.usd_foil:.2f} ✨[/]")
+        if price_parts:
+            lines.append("[dim]💰[/] " + " · ".join(price_parts))
 
     return "\n".join(lines)
 
@@ -123,17 +133,6 @@ def get_type_color(card_type: str) -> str:
     elif "land" in type_lower:
         return card_type_colors.LAND
     return card_type_colors.DEFAULT
-
-
-def get_rarity_style(rarity: str) -> tuple[str, str]:
-    """Get icon and color for rarity."""
-    rarity_styles = {
-        "common": ("●", rarity_colors.COMMON),
-        "uncommon": ("◆", rarity_colors.UNCOMMON),
-        "rare": ("♦", rarity_colors.RARE),
-        "mythic": ("★", rarity_colors.MYTHIC),
-    }
-    return rarity_styles.get(rarity.lower(), ("○", rarity_colors.DEFAULT))
 
 
 def get_score_color(score: float) -> str:

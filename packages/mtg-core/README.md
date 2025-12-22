@@ -24,10 +24,10 @@ await db_manager.start()
 
 # Search for cards
 filters = SearchCardsInput(name="Lightning", colors=["R"], limit=10)
-results = await cards.search_cards(db_manager.db, db_manager.scryfall, filters)
+results = await cards.search_cards(db_manager.db, filters)
 
 # Get card details
-card = await cards.get_card(db_manager.db, db_manager.scryfall, name="Lightning Bolt")
+card = await cards.get_card(db_manager.db, name="Lightning Bolt")
 
 # Analyze a deck
 deck_cards = [{"name": "Lightning Bolt", "quantity": 4}, ...]
@@ -45,8 +45,9 @@ await db_manager.stop()
 ### `data/`
 
 - **`database/`** - Async SQLite database access
-  - `MTGDatabase` - MTGJson database (cards, rulings, legalities)
-  - `ScryfallDatabase` - Scryfall database (images, prices)
+  - `UnifiedDatabase` - Unified MTG database (cards, rulings, legalities, images, prices)
+  - `UserDatabase` - User data (decks, collections, preferences)
+  - `ComboDatabase` - Combo patterns and detection
   - `DatabaseManager` - Connection lifecycle management
   - `QueryBuilder` - Type-safe query construction
 
@@ -76,15 +77,17 @@ Settings via pydantic-settings:
 from mtg_core.config import get_settings
 
 settings = get_settings()
-print(settings.mtg_db_path)      # Path to AllPrintings.sqlite
-print(settings.scryfall_db_path) # Path to scryfall.sqlite
+print(settings.mtg_db_path)      # Path to mtg.sqlite (unified database)
+print(settings.user_db_path)     # Path to user_data.sqlite
+print(settings.combo_db_path)    # Path to combos.sqlite
 print(settings.log_level)        # INFO
 print(settings.cache_max_size)   # 1000
 ```
 
 Environment variables:
-- `MTG_DB_PATH` - Path to MTGJson database
-- `SCRYFALL_DB_PATH` - Path to Scryfall database
+- `MTG_DB_PATH` - Path to unified MTG database (default: resources/mtg.sqlite)
+- `USER_DB_PATH` - Path to user database (default: ~/.mtg-spellbook/user_data.sqlite)
+- `COMBO_DB_PATH` - Path to combo database (default: ~/.mtg-spellbook/combos.sqlite)
 - `LOG_LEVEL` - Logging level (default: INFO)
 - `CACHE_MAX_SIZE` - Card cache size (default: 1000)
 - `CACHE_TTL_SECONDS` - Cache TTL (default: 3600)

@@ -21,6 +21,10 @@ from .inputs import (
 )
 from .mtg_set import Set
 from .responses import (
+    ArtistCardsResult,
+    ArtistPortfolio,
+    ArtistStats,
+    ArtistSummary,
     CardDetail,
     CardImageResponse,
     CardIssue,
@@ -54,6 +58,7 @@ from .responses import (
     SearchResult,
     SetDetail,
     SetsResponse,
+    SetStats,
     SetSummary,
     SuggestCardsResult,
     SuggestedCard,
@@ -66,6 +71,10 @@ from .types import Color, Format, Rarity
 
 __all__ = [
     "AnalyzeDeckInput",
+    "ArtistCardsResult",
+    "ArtistPortfolio",
+    "ArtistStats",
+    "ArtistSummary",
     "Card",
     "CardDetail",
     "CardImage",
@@ -119,6 +128,7 @@ __all__ = [
     "SearchResult",
     "Set",
     "SetDetail",
+    "SetStats",
     "SetSummary",
     "SetsResponse",
     "SortField",
