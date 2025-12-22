@@ -590,7 +590,9 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "pytest-textual-snapshot" },
     { name = "ruff" },
+    { name = "types-pyyaml" },
 ]
 
 [package.dev-dependencies]
@@ -598,6 +600,7 @@ dev = [
     { name = "pypdf" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "types-pyyaml" },
 ]
 
 [package.metadata]
@@ -609,7 +612,9 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0" },
+    { name = "pytest-textual-snapshot", marker = "extra == 'dev'", specifier = ">=1.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
+    { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0" },
 ]
 provides-extras = ["dev"]
 
@@ -618,6 +623,7 @@ dev = [
     { name = "pypdf", specifier = ">=6.4.2" },
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "pytest-cov", specifier = ">=4.0" },
+    { name = "types-pyyaml", specifier = ">=6.0.12.20250915" },
 ]
 
 [[package]]

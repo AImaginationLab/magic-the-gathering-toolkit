@@ -16,8 +16,10 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "pytest-cov>=4.0",
+    "pytest-textual-snapshot>=1.0.0",
     "ruff>=0.4",
     "mypy>=1.10",
+    "types-PyYAML>=6.0",
 ]
 
 [tool.uv.workspace]
@@ -76,4 +78,5 @@ dev = [
     "pypdf>=6.4.2",
     "pytest>=9.0.2",
     "pytest-cov>=4.0",
+    "types-pyyaml>=6.0.12.20250915",
 ]
