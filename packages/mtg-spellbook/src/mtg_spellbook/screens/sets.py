@@ -65,11 +65,8 @@ class SetsScreen(BaseScreen[None]):
         Binding("escape", "back_or_exit", "Back/Exit", show=True),
         Binding("q", "exit", "Exit", show=False),
         Binding("enter", "select", "Select"),
-<<<<<<< Updated upstream
-=======
         Binding("e", "explore_set", "Explore"),
         Binding("a", "filter_artist_series", "Art Series"),
->>>>>>> Stashed changes
         Binding("slash", "focus_search", "Search"),
         Binding("f", "toggle_filter", "Filter"),
         Binding("r", "random_card", "Random"),
@@ -224,10 +221,7 @@ class SetsScreen(BaseScreen[None]):
     current_set_code: reactive[str | None] = reactive(None)
     current_filter: reactive[str | None] = reactive(None)
     active_pane: reactive[str] = reactive("set-list")
-<<<<<<< Updated upstream
-=======
     show_artist_series_only: reactive[bool] = reactive(False)
->>>>>>> Stashed changes
 
     def __init__(self, db: UnifiedDatabase | None = None) -> None:
         super().__init__()
@@ -235,10 +229,7 @@ class SetsScreen(BaseScreen[None]):
         self._sets: list[SetSummary] = []
         self._filtered_sets: list[SetSummary] = []
         self._search_debounce_task: asyncio.Task[None] | None = None
-<<<<<<< Updated upstream
-=======
         self._refresh_task: asyncio.Task[None] | None = None
->>>>>>> Stashed changes
         self._population_cancelled = False
         self._filter_index: int = 0
         self._rarity_filters = [None, "mythic", "rare", "uncommon", "common"]
@@ -276,25 +267,15 @@ class SetsScreen(BaseScreen[None]):
 
     def _render_header(self) -> str:
         """Render header text."""
-<<<<<<< Updated upstream
-=======
         art_badge = "[cyan][Art Series][/]  " if self.show_artist_series_only else ""
->>>>>>> Stashed changes
         if self.current_set_code:
             filter_text = ""
             if self.current_filter:
                 filter_text = f"  [cyan]Filter: {self.current_filter.title()}[/]"
-<<<<<<< Updated upstream
-            return f"[bold {ui_colors.GOLD}]SETS[/]  [dim]viewing {self.current_set_code.upper()}[/]{filter_text}"
-        if self.search_query:
-            return (
-                f"[bold {ui_colors.GOLD}]SETS[/]  "
-=======
             return f"[bold {ui_colors.GOLD}]SETS[/]  {art_badge}[dim]viewing {self.current_set_code.upper()}[/]{filter_text}"
         if self.search_query or self.show_artist_series_only:
             return (
                 f"[bold {ui_colors.GOLD}]SETS[/]  {art_badge}"
->>>>>>> Stashed changes
                 f"[dim]showing {self.filtered_count} of {self.total_count}[/]"
             )
         return f"[bold {ui_colors.GOLD}]SETS[/]  [dim]({self.total_count} sets)[/]"
@@ -302,13 +283,6 @@ class SetsScreen(BaseScreen[None]):
     def _render_statusbar(self) -> str:
         """Render status bar."""
         if self.active_pane == "set-list":
-<<<<<<< Updated upstream
-            parts = [
-                f"[{ui_colors.TEXT_DIM}]jk/arrows: navigate[/]",
-                f"[{ui_colors.GOLD}]Enter[/]: view set",
-                f"[{ui_colors.GOLD}]/[/]: search",
-                f"[{ui_colors.GOLD}]Tab[/]: switch pane",
-=======
             art_hint = "[dim]on[/]" if self.show_artist_series_only else "off"
             parts = [
                 f"[{ui_colors.TEXT_DIM}]jk/arrows: navigate[/]",
@@ -316,16 +290,12 @@ class SetsScreen(BaseScreen[None]):
                 f"[{ui_colors.GOLD}]e[/]: explore",
                 f"[{ui_colors.GOLD}]a[/]: art series ({art_hint})",
                 f"[{ui_colors.GOLD}]/[/]: search",
->>>>>>> Stashed changes
                 f"[{ui_colors.GOLD}]Esc[/]: exit",
             ]
         else:
             parts = [
                 f"[{ui_colors.TEXT_DIM}]jk/arrows: navigate cards[/]",
-<<<<<<< Updated upstream
-=======
                 f"[{ui_colors.GOLD}]e[/]: explore",
->>>>>>> Stashed changes
                 f"[{ui_colors.GOLD}]f[/]: filter rarity",
                 f"[{ui_colors.GOLD}]r[/]: random card",
                 f"[{ui_colors.GOLD}]Tab[/]: switch pane",
@@ -412,16 +382,6 @@ class SetsScreen(BaseScreen[None]):
             pass
 
     def _filter_sets(self, query: str) -> list[SetSummary]:
-<<<<<<< Updated upstream
-        """Filter sets by search query."""
-        if not query:
-            return self._sets
-
-        query_lower = query.lower()
-        return [
-            s for s in self._sets if query_lower in s.name.lower() or query_lower in s.code.lower()
-        ]
-=======
         """Filter sets by search query and artist series toggle."""
         sets = self._sets
 
@@ -437,7 +397,6 @@ class SetsScreen(BaseScreen[None]):
             ]
 
         return sets
->>>>>>> Stashed changes
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Handle search input changes with debouncing."""
@@ -717,8 +676,6 @@ class SetsScreen(BaseScreen[None]):
         except NoMatches:
             pass
 
-<<<<<<< Updated upstream
-=======
     def action_explore_set(self) -> None:
         """Load set cards into main results and return to home."""
         # Get set code from either current detail view or selected list item
@@ -774,7 +731,6 @@ class SetsScreen(BaseScreen[None]):
             self._update_header()
             self._update_statusbar()
 
->>>>>>> Stashed changes
     def action_nav_up(self) -> None:
         """Navigate up in active list."""
         if self.active_pane == "set-list":

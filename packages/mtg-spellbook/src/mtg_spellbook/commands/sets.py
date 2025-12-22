@@ -12,16 +12,6 @@ from mtg_core.exceptions import SetNotFoundError
 from mtg_core.tools import cards as card_tools
 from mtg_core.tools import sets
 
-<<<<<<< Updated upstream
-if TYPE_CHECKING:
-    from mtg_core.data.models import Set
-    from mtg_core.data.models.responses import CardSummary
-
-    from ..widgets.set_detail import SetStats
-
-=======
-<<<<<<< Updated upstream
-=======
 if TYPE_CHECKING:
     from mtg_core.data.models import Set
     from mtg_core.data.models.responses import CardDetail, CardSummary
@@ -33,8 +23,6 @@ logger = logging.getLogger(__name__)
 
 SET_PAGE_SIZE = 50
 
->>>>>>> Stashed changes
->>>>>>> Stashed changes
 
 class SetCommandsMixin:
     """Mixin providing set browsing and statistics commands."""

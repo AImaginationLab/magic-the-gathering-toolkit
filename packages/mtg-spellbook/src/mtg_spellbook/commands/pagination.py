@@ -29,33 +29,17 @@ class PaginationCommandsMixin:
         _current_card: Any
         _synergy_mode: bool
         _synergy_info: dict[str, Any]
-<<<<<<< Updated upstream
-        _artist_mode: bool
-        _artist_name: str
-        _artist_card_uuids: dict[int, str]
-=======
-<<<<<<< Updated upstream
-=======
         _artist_mode: bool
         _artist_name: str
         _artist_card_uuids: dict[int, str]
         _set_mode: bool
         _set_code: str
->>>>>>> Stashed changes
->>>>>>> Stashed changes
 
         def query_one(self, selector: str, expect_type: type[Any] = ...) -> Any: ...
         def _update_card_panel(self, card: Any) -> None: ...
         def _update_card_panel_with_synergy(self, card: Any) -> None: ...
-<<<<<<< Updated upstream
-        def _display_artist_results(self) -> None: ...
-=======
-<<<<<<< Updated upstream
-=======
         def _display_artist_results(self) -> None: ...
         def _display_set_results(self) -> None: ...
->>>>>>> Stashed changes
->>>>>>> Stashed changes
         def _show_message(self, message: str) -> None: ...
         def push_screen(self, screen: Any, callback: Any = None) -> Any: ...
 
@@ -153,18 +137,10 @@ class PaginationCommandsMixin:
         """Display the current page results in the list."""
         if self._synergy_mode:
             self._display_synergy_results()
-<<<<<<< Updated upstream
-        elif self._artist_mode:
-            self._display_artist_results()
-=======
-<<<<<<< Updated upstream
-=======
         elif self._artist_mode:
             self._display_artist_results()
         elif getattr(self, "_set_mode", False):
             self._display_set_results()
->>>>>>> Stashed changes
->>>>>>> Stashed changes
         else:
             self._display_search_results()
 
@@ -260,11 +236,6 @@ class PaginationCommandsMixin:
         """Update the pagination header display."""
         header = self.query_one("#results-header", Static)
 
-<<<<<<< Updated upstream
-=======
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
         # Determine mode-specific settings
         if self._artist_mode:
             icon = "🎨"
@@ -274,23 +245,16 @@ class PaginationCommandsMixin:
             icon = "🔗"
             title_prefix = "Synergies"
             title_short = "Synergies"
-<<<<<<< Updated upstream
-=======
         elif getattr(self, "_set_mode", False):
             icon = "📦"
             set_code = getattr(self, "_set_code", "")
             title_prefix = f"Set: {set_code}"
             title_short = set_code
->>>>>>> Stashed changes
         else:
             icon = "🔍"
             title_prefix = "Results"
             title_short = "Results"
 
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
->>>>>>> Stashed changes
         if not self._pagination or self._pagination.total_items == 0:
             header.update(f"[bold {ui_colors.GOLD}]{icon} {title_prefix} (0)[/]")
             return
