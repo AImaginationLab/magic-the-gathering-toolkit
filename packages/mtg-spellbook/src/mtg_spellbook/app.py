@@ -153,8 +153,18 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
         self._current_card: CardDetail | None = None
         self._synergy_mode: bool = False
         self._synergy_info: dict[str, dict[str, object]] = {}
+<<<<<<< Updated upstream
         self._artist_mode: bool = False
         self._artist_name: str = ""
+=======
+<<<<<<< Updated upstream
+=======
+        self._artist_mode: bool = False
+        self._artist_name: str = ""
+        self._set_mode: bool = False
+        self._set_code: str = ""
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
         self._deck_panel_visible: bool = False
         self._collection_panel_visible: bool = False
         self._viewing_deck_id: int | None = None  # Currently viewed deck
