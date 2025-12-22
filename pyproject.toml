@@ -78,5 +78,6 @@ dev = [
     "pypdf>=6.4.2",
     "pytest>=9.0.2",
     "pytest-cov>=4.0",
+    "pytest-xdist>=3.8.0",
     "types-pyyaml>=6.0.12.20250915",
 ]

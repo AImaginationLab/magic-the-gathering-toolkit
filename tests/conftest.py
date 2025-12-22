@@ -7,7 +7,7 @@ from collections.abc import AsyncGenerator
 import pytest
 
 from mtg_core.config import get_settings
-from mtg_core.data.database import DatabaseManager, MTGDatabase, ScryfallDatabase
+from mtg_core.data.database import DatabaseManager, UnifiedDatabase
 
 
 @pytest.fixture
@@ -21,12 +21,6 @@ async def db_manager() -> AsyncGenerator[DatabaseManager, None]:
 
 
 @pytest.fixture
-async def db(db_manager: DatabaseManager) -> MTGDatabase:
-    """Get the MTG database instance."""
+async def db(db_manager: DatabaseManager) -> UnifiedDatabase:
+    """Get the unified MTG database instance."""
     return db_manager.db
-
-
-@pytest.fixture
-async def scryfall(db_manager: DatabaseManager) -> ScryfallDatabase | None:
-    """Get the Scryfall database instance (may be None)."""
-    return db_manager.scryfall
