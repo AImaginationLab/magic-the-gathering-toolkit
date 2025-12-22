@@ -62,9 +62,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: resources/
-          key: mtg-databases-v3-${{ hashFiles('packages/mtg-core/src/mtg_core/scripts/create_mtg_db.py') }}
-          restore-keys: |
-            mtg-databases-v3-
+          key: mtg-databases-v4
 
       - name: Build MTG database
         run: |
