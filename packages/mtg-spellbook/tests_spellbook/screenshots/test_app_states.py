@@ -24,11 +24,11 @@ if TYPE_CHECKING:
     from textual.pilot import Pilot
 
 
+@pytest.mark.usefixtures("mock_database_for_snapshots")
 class TestMTGSpellbookScreenshots:
     """Visual regression tests for MTG Spellbook app.
 
-    These tests use the real database and actual UI interactions to capture
-    meaningful screenshots that represent real user workflows.
+    These tests use mock database data for deterministic snapshots.
     """
 
     def test_initial_state(self, snap_compare: Any) -> None:

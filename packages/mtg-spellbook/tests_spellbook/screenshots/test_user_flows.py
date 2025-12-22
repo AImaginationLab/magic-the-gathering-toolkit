@@ -31,12 +31,11 @@ except pytest.skip.Exception:
 
 
 @pytest.mark.skipif(not _HAS_SNAPSHOT_SUPPORT, reason="pytest-textual-snapshot not installed")
+@pytest.mark.usefixtures("mock_database_for_snapshots")
 class TestUserFlowScreenshots:
     """User flow tests that mimic real user behavior.
 
-    These tests verify complete user journeys through the application,
-    capturing screenshots at key transition points to ensure the UI
-    responds correctly to user actions.
+    These tests use mock database data for deterministic snapshots.
     """
 
     def test_artist_flow_open_browser(self, snap_compare: Any) -> None:
