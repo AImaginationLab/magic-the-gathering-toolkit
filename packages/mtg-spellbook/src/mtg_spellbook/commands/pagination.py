@@ -32,15 +32,19 @@ class PaginationCommandsMixin:
         _artist_mode: bool
         _artist_name: str
         _artist_card_uuids: dict[int, str]
+        _set_mode: bool
+        _set_code: str
 
         def query_one(self, selector: str, expect_type: type[Any] = ...) -> Any: ...
         def _update_card_panel(self, card: Any) -> None: ...
         def _update_card_panel_with_synergy(self, card: Any) -> None: ...
         def _display_artist_results(self) -> None: ...
+        def _display_set_results(self) -> None: ...
         def _show_message(self, message: str) -> None: ...
         def push_screen(self, screen: Any, callback: Any = None) -> Any: ...
 
         async def _load_card_extras(self, card: Any, panel_id: str = "#card-panel") -> None: ...
+        async def _load_more_set_cards_async(self, _target_page: int) -> None: ...
 
     def action_next_page(self) -> None:
         """Go to next page of results."""
@@ -99,6 +103,12 @@ class PaginationCommandsMixin:
         self._pagination.is_loading = True
         self._update_pagination_header()
 
+        # For set mode with lazy loading, check if we need more items
+        if getattr(self, "_set_mode", False) and self._pagination.needs_more_items(
+            self._pagination.current_page
+        ):
+            await self._load_more_set_cards_async(self._pagination.current_page)
+
         # Check cache first
         cached = self._pagination.get_cached_details(self._pagination.current_page)
         if cached:
@@ -129,6 +139,8 @@ class PaginationCommandsMixin:
             self._display_synergy_results()
         elif self._artist_mode:
             self._display_artist_results()
+        elif getattr(self, "_set_mode", False):
+            self._display_set_results()
         else:
             self._display_search_results()
 
@@ -233,6 +245,11 @@ class PaginationCommandsMixin:
             icon = "🔗"
             title_prefix = "Synergies"
             title_short = "Synergies"
+        elif getattr(self, "_set_mode", False):
+            icon = "📦"
+            set_code = getattr(self, "_set_code", "")
+            title_prefix = f"Set: {set_code}"
+            title_short = set_code
         else:
             icon = "🔍"
             title_prefix = "Results"

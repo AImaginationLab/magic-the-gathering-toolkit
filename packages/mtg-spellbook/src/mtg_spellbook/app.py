@@ -155,6 +155,8 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
         self._synergy_info: dict[str, dict[str, object]] = {}
         self._artist_mode: bool = False
         self._artist_name: str = ""
+        self._set_mode: bool = False
+        self._set_code: str = ""
         self._deck_panel_visible: bool = False
         self._collection_panel_visible: bool = False
         self._viewing_deck_id: int | None = None  # Currently viewed deck

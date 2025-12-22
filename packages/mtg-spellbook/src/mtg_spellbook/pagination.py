@@ -20,10 +20,13 @@ class PaginationState:
     is_loading: bool = False
     source_type: str = "search"  # "search" or "synergy"
     source_query: str = ""  # Original query for context
+    total_override: int | None = None  # Override total for lazy loading
 
     @property
     def total_items(self) -> int:
         """Total number of items across all pages."""
+        if self.total_override is not None:
+            return self.total_override
         return len(self.all_items)
 
     @property
@@ -61,6 +64,20 @@ class PaginationState:
         start = (self.current_page - 1) * self.page_size
         end = start + self.page_size
         return self.all_items[start:end]
+
+    @property
+    def loaded_items_count(self) -> int:
+        """Number of items currently loaded."""
+        return len(self.all_items)
+
+    def needs_more_items(self, page: int) -> bool:
+        """Check if we need to load more items to display a page."""
+        start = (page - 1) * self.page_size
+        return start >= len(self.all_items) and self.total_override is not None
+
+    def extend_items(self, items: list[Any]) -> None:
+        """Add more items to the list (for lazy loading)."""
+        self.all_items.extend(items)
 
     def get_cached_details(self, page: int) -> list[CardDetail] | None:
         """Get cached card details for a page."""

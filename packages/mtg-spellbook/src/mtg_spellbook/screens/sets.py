@@ -65,6 +65,8 @@ class SetsScreen(BaseScreen[None]):
         Binding("escape", "back_or_exit", "Back/Exit", show=True),
         Binding("q", "exit", "Exit", show=False),
         Binding("enter", "select", "Select"),
+        Binding("e", "explore_set", "Explore"),
+        Binding("a", "filter_artist_series", "Art Series"),
         Binding("slash", "focus_search", "Search"),
         Binding("f", "toggle_filter", "Filter"),
         Binding("r", "random_card", "Random"),
@@ -219,6 +221,7 @@ class SetsScreen(BaseScreen[None]):
     current_set_code: reactive[str | None] = reactive(None)
     current_filter: reactive[str | None] = reactive(None)
     active_pane: reactive[str] = reactive("set-list")
+    show_artist_series_only: reactive[bool] = reactive(False)
 
     def __init__(self, db: UnifiedDatabase | None = None) -> None:
         super().__init__()
@@ -226,6 +229,7 @@ class SetsScreen(BaseScreen[None]):
         self._sets: list[SetSummary] = []
         self._filtered_sets: list[SetSummary] = []
         self._search_debounce_task: asyncio.Task[None] | None = None
+        self._refresh_task: asyncio.Task[None] | None = None
         self._population_cancelled = False
         self._filter_index: int = 0
         self._rarity_filters = [None, "mythic", "rare", "uncommon", "common"]
@@ -263,14 +267,15 @@ class SetsScreen(BaseScreen[None]):
 
     def _render_header(self) -> str:
         """Render header text."""
+        art_badge = "[cyan][Art Series][/]  " if self.show_artist_series_only else ""
         if self.current_set_code:
             filter_text = ""
             if self.current_filter:
                 filter_text = f"  [cyan]Filter: {self.current_filter.title()}[/]"
-            return f"[bold {ui_colors.GOLD}]SETS[/]  [dim]viewing {self.current_set_code.upper()}[/]{filter_text}"
-        if self.search_query:
+            return f"[bold {ui_colors.GOLD}]SETS[/]  {art_badge}[dim]viewing {self.current_set_code.upper()}[/]{filter_text}"
+        if self.search_query or self.show_artist_series_only:
             return (
-                f"[bold {ui_colors.GOLD}]SETS[/]  "
+                f"[bold {ui_colors.GOLD}]SETS[/]  {art_badge}"
                 f"[dim]showing {self.filtered_count} of {self.total_count}[/]"
             )
         return f"[bold {ui_colors.GOLD}]SETS[/]  [dim]({self.total_count} sets)[/]"
@@ -278,16 +283,19 @@ class SetsScreen(BaseScreen[None]):
     def _render_statusbar(self) -> str:
         """Render status bar."""
         if self.active_pane == "set-list":
+            art_hint = "[dim]on[/]" if self.show_artist_series_only else "off"
             parts = [
                 f"[{ui_colors.TEXT_DIM}]jk/arrows: navigate[/]",
                 f"[{ui_colors.GOLD}]Enter[/]: view set",
+                f"[{ui_colors.GOLD}]e[/]: explore",
+                f"[{ui_colors.GOLD}]a[/]: art series ({art_hint})",
                 f"[{ui_colors.GOLD}]/[/]: search",
-                f"[{ui_colors.GOLD}]Tab[/]: switch pane",
                 f"[{ui_colors.GOLD}]Esc[/]: exit",
             ]
         else:
             parts = [
                 f"[{ui_colors.TEXT_DIM}]jk/arrows: navigate cards[/]",
+                f"[{ui_colors.GOLD}]e[/]: explore",
                 f"[{ui_colors.GOLD}]f[/]: filter rarity",
                 f"[{ui_colors.GOLD}]r[/]: random card",
                 f"[{ui_colors.GOLD}]Tab[/]: switch pane",
@@ -374,14 +382,21 @@ class SetsScreen(BaseScreen[None]):
             pass
 
     def _filter_sets(self, query: str) -> list[SetSummary]:
-        """Filter sets by search query."""
-        if not query:
-            return self._sets
+        """Filter sets by search query and artist series toggle."""
+        sets = self._sets
 
-        query_lower = query.lower()
-        return [
-            s for s in self._sets if query_lower in s.name.lower() or query_lower in s.code.lower()
-        ]
+        # Filter to artist series if enabled (sets starting with 'A')
+        if self.show_artist_series_only:
+            sets = [s for s in sets if s.code.upper().startswith("A")]
+
+        # Then apply search query
+        if query:
+            query_lower = query.lower()
+            sets = [
+                s for s in sets if query_lower in s.name.lower() or query_lower in s.code.lower()
+            ]
+
+        return sets
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Handle search input changes with debouncing."""
@@ -660,6 +675,61 @@ class SetsScreen(BaseScreen[None]):
             card_list.select_random()
         except NoMatches:
             pass
+
+    def action_explore_set(self) -> None:
+        """Load set cards into main results and return to home."""
+        # Get set code from either current detail view or selected list item
+        set_code: str | None = None
+
+        if self.current_set_code:
+            set_code = self.current_set_code
+        elif self.active_pane == "set-list":
+            try:
+                set_list = self.query_one("#sets-list", ListView)
+                if set_list.index is not None and set_list.children:
+                    item = set_list.children[set_list.index]
+                    if isinstance(item, SetListItem):
+                        set_code = item.set_data.code
+            except NoMatches:
+                pass
+
+        if not set_code:
+            return
+
+        app = self.app
+
+        # Pop all screens to return to home
+        while len(app.screen_stack) > 1:
+            app.pop_screen()
+
+        # Show search view first (before loading cards)
+        if hasattr(app, "_show_search_view"):
+            app._show_search_view()
+            app.notify(f"Loading cards from {set_code.upper()}...", timeout=2)
+
+        # Load cards from this set into results
+        if hasattr(app, "explore_set"):
+            app.explore_set(set_code)
+
+    def action_filter_artist_series(self) -> None:
+        """Toggle filter to show only artist series sets."""
+        self.show_artist_series_only = not self.show_artist_series_only
+        self._filtered_sets = self._filter_sets(self.search_query)
+        self.filtered_count = len(self._filtered_sets)
+        self._apply_filters()
+
+    def _apply_filters(self) -> None:
+        """Apply current filters and refresh the list."""
+        self._population_cancelled = True
+        self._refresh_task = asyncio.create_task(self._refresh_list())
+
+    async def _refresh_list(self) -> None:
+        """Refresh the list with current filters."""
+        self._population_cancelled = False
+        await self._populate_list()
+        if not self._population_cancelled:
+            self._update_header()
+            self._update_statusbar()
 
     def action_nav_up(self) -> None:
         """Navigate up in active list."""
