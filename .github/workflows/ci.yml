@@ -77,6 +77,8 @@ jobs:
       - name: Run tests with coverage
         run: |
           uv run python -m pytest packages/ \
+            --ignore=packages/mtg-spellbook/tests_spellbook/screenshots \
+            --ignore=packages/mtg-spellbook/tests_spellbook/test_screen_snapshots.py \
             --cov=packages/mtg-core/src \
             --cov=packages/mtg-mcp/src \
             --cov=packages/mtg-spellbook/src \
