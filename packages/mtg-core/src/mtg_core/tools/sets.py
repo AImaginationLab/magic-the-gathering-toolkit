@@ -7,11 +7,11 @@ from typing import TYPE_CHECKING
 from ..data.models import Set, SetDetail, SetsResponse, SetSummary
 
 if TYPE_CHECKING:
-    from ..data.database import MTGDatabase
+    from ..data.database import UnifiedDatabase
 
 
 async def get_sets(
-    db: MTGDatabase,
+    db: UnifiedDatabase,
     name: str | None = None,
     set_type: str | None = None,
     include_online_only: bool = True,
@@ -37,7 +37,7 @@ async def get_sets(
 
 
 async def get_set(
-    db: MTGDatabase,
+    db: UnifiedDatabase,
     code: str,
 ) -> SetDetail:
     """Get detailed information about a specific set."""

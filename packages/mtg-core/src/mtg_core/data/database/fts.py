@@ -51,6 +51,20 @@ async def check_fts_available(db: aiosqlite.Connection) -> bool:
         return False
 
 
+async def get_fts_columns(db: aiosqlite.Connection) -> set[str]:
+    """Get the list of searchable columns in the FTS5 table."""
+    try:
+        async with db.execute("PRAGMA table_info(cards_fts)") as cursor:
+            columns = set()
+            async for row in cursor:
+                col_name = row[1]  # Column name is at index 1
+                if col_name != "id":  # Skip unindexed id column
+                    columns.add(col_name)
+            return columns
+    except Exception:
+        return set()
+
+
 async def search_cards_fts(
     db: aiosqlite.Connection,
     query: str,
@@ -65,7 +79,7 @@ async def search_cards_fts(
         db: Database connection
         query: Search query string
         limit: Maximum number of UUIDs to return
-        search_name: Include card name in search
+        search_name: Include card name and flavorName in search
         search_type: Include card type in search
         search_text: Include oracle text in search
 
@@ -77,20 +91,29 @@ async def search_cards_fts(
     if not fts_query:
         return []
 
-    # Build column filter for targeted search
+    # Get available columns in the FTS table
+    available_cols = await get_fts_columns(db)
+    if not available_cols:
+        return []
+
+    # Build column filter for targeted search (only include columns that exist)
     columns = []
     if search_name:
-        columns.append("name")
-    if search_type:
-        columns.append("type")
-    if search_text:
-        columns.append("text")
+        if "name" in available_cols:
+            columns.append("name")
+        if "flavor_name" in available_cols:  # Also search alternate names (e.g., SpongeBob)
+            columns.append("flavor_name")
+    if search_type and "type_line" in available_cols:
+        columns.append("type_line")
+    if search_text and "oracle_text" in available_cols:
+        columns.append("oracle_text")
 
     if not columns:
         return []
 
     # Build FTS5 query with column targeting
-    if len(columns) == 3:
+    # FTS columns may include: id (unindexed), name, flavor_name, type_line, oracle_text
+    if len(columns) == len(available_cols):  # All searchable columns
         # Search all columns - simpler syntax
         match_expr = fts_query
     else:
@@ -102,7 +125,7 @@ async def search_cards_fts(
         uuids: list[str] = []
         async with db.execute(
             """
-            SELECT uuid FROM cards_fts
+            SELECT id FROM cards_fts
             WHERE cards_fts MATCH ?
             ORDER BY bm25(cards_fts)
             LIMIT ?
@@ -154,7 +177,7 @@ async def search_cards_fts_with_params(
         uuids: list[str] = []
         async with db.execute(
             f"""
-            SELECT uuid FROM cards_fts
+            SELECT id FROM cards_fts
             WHERE {where_clause}
             ORDER BY bm25(cards_fts)
             LIMIT ?

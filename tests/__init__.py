@@ -1,1 +1,0 @@
-"""MTG MCP test suite."""

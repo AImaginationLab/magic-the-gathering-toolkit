@@ -33,6 +33,7 @@ class Card(BaseModel):
     # Core identifiers
     uuid: str | None = None
     name: str
+    flavor_name: str | None = Field(default=None, alias="flavorName")
 
     # Card characteristics
     layout: str | None = None
@@ -60,6 +61,7 @@ class Card(BaseModel):
     set_name: str | None = Field(default=None, alias="setName")
     rarity: str | None = None
     number: str | None = None
+    release_date: str | None = Field(default=None, alias="releaseDate")
 
     # Art
     artist: str | None = None
@@ -70,9 +72,73 @@ class Card(BaseModel):
     # EDHRec popularity rank (lower = more popular)
     edhrec_rank: int | None = Field(default=None, alias="edhrecRank", ge=0)
 
+    # Images (from unified database)
+    image_small: str | None = None
+    image_normal: str | None = None
+    image_large: str | None = None
+    image_png: str | None = None
+    image_art_crop: str | None = None
+    image_border_crop: str | None = None
+
+    # Prices (in USD/EUR cents, None if unavailable)
+    price_usd: int | None = Field(default=None, ge=0)
+    price_usd_foil: int | None = Field(default=None, ge=0)
+    price_eur: int | None = Field(default=None, ge=0)
+    price_eur_foil: int | None = Field(default=None, ge=0)
+
+    # Purchase links
+    purchase_tcgplayer: str | None = None
+    purchase_cardmarket: str | None = None
+    purchase_cardhoarder: str | None = None
+
+    # Related links
+    link_edhrec: str | None = None
+    link_gatherer: str | None = None
+
+    # Visual properties
+    illustration_id: str | None = None
+    highres_image: bool = False
+    border_color: str | None = None
+    frame: str | None = None
+    full_art: bool = False
+    finishes: list[str] = Field(default_factory=list)
+
     # Rules (populated on detailed lookups)
     rulings: list[CardRuling] | None = None
     legalities: list[CardLegality] | None = None
+
+    @field_validator("finishes", mode="before")
+    @classmethod
+    def parse_finishes(cls, v: str | list[str] | None) -> list[str]:
+        """Parse finishes from JSON string if needed."""
+        if v is None:
+            return []
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return []
+
+    def get_price_usd(self) -> float | None:
+        """Get USD price as float dollars."""
+        return self.price_usd / 100 if self.price_usd is not None else None
+
+    def get_price_usd_foil(self) -> float | None:
+        """Get USD foil price as float dollars."""
+        return self.price_usd_foil / 100 if self.price_usd_foil is not None else None
+
+    def get_price_eur(self) -> float | None:
+        """Get EUR price as float."""
+        return self.price_eur / 100 if self.price_eur is not None else None
+
+    def get_price_eur_foil(self) -> float | None:
+        """Get EUR foil price as float."""
+        return self.price_eur_foil / 100 if self.price_eur_foil is not None else None
 
     def to_summary(self) -> str:
         """Return a concise summary of the card."""

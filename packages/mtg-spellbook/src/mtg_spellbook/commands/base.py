@@ -5,15 +5,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    from mtg_core.data.database import MTGDatabase, ScryfallDatabase
+    from mtg_core.data.database import UnifiedDatabase
     from mtg_core.data.models.responses import CardDetail
 
 
 class AppProtocol(Protocol):
     """Protocol for the App class that command mixins expect."""
 
-    _db: MTGDatabase | None
-    _scryfall: ScryfallDatabase | None
+    _db: UnifiedDatabase | None
     _current_results: list[CardDetail]
     _current_card: CardDetail | None
 
@@ -30,7 +29,6 @@ class CommandRouterMixin:
 
     if TYPE_CHECKING:
         _db: Any
-        _scryfall: Any
         _current_results: list[Any]
         _current_card: Any
         _synergy_mode: bool
@@ -43,13 +41,25 @@ class CommandRouterMixin:
         def find_combos(self, card_name: str) -> None: ...
         def browse_sets(self, query: str) -> None: ...
         def show_set(self, code: str) -> None: ...
+        def show_set_detail(self, set_code: str) -> None: ...
         def show_stats(self) -> None: ...
         def load_rulings(self, card_name: str) -> None: ...
         def load_legalities(self, card_name: str) -> None: ...
         def show_price(self, card_name: str) -> None: ...
         def show_art(self, card_name: str) -> None: ...
         def show_help(self) -> None: ...
-        def lookup_card(self, name: str) -> None: ...
+        def lookup_card(
+            self,
+            name: str,
+            uuid: str | None = None,
+            target_set: str | None = None,
+            target_number: str | None = None,
+        ) -> None: ...
+        def show_artist(self, artist_name: str, select_card: str | None = None) -> None: ...
+        def browse_artists(self, search_query: str = "") -> None: ...
+        def random_artist(self) -> None: ...
+        def browse_blocks(self) -> None: ...
+        def show_recent_sets(self, limit: int = 10) -> None: ...
         def _show_message(self, message: str) -> None: ...
 
     def handle_command(self, query: str) -> None:
@@ -81,9 +91,28 @@ class CommandRouterMixin:
             self.browse_sets(args)
         elif cmd == "set":
             if args:
-                self.show_set(args)
+                self.show_set_detail(args)
             else:
                 self._show_message("[yellow]Usage: set <code>[/]")
+        elif cmd == "setinfo":
+            if args:
+                self.show_set(args)
+            else:
+                self._show_message("[yellow]Usage: setinfo <code>[/]")
+        elif cmd == "artist":
+            if args:
+                self.show_artist(args)
+            else:
+                self._show_message("[yellow]Usage: artist <name>[/]")
+        elif cmd == "artists":
+            self.browse_artists(args)
+        elif cmd == "randomartist":
+            self.random_artist()
+        elif cmd == "blocks":
+            self.browse_blocks()
+        elif cmd in ("releases", "recent"):
+            limit = int(args) if args.isdigit() else 10
+            self.show_recent_sets(limit)
         elif cmd == "stats":
             self.show_stats()
         elif cmd in ("rulings", "r"):

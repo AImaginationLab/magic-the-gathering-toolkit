@@ -26,7 +26,7 @@ def register(mcp: FastMCP) -> None:
     async def card_resource(name: str, ctx: ToolContext) -> str:
         """Get a card as a browsable resource."""
         app = get_app(ctx)
-        result = await cards.get_card(app.db, app.scryfall, name=name)
+        result = await cards.get_card(app.db, name=name)
         return _model_to_json(result)
 
     @mcp.resource("mtg://sets/{code}")

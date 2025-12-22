@@ -9,12 +9,12 @@ from ...data.models.responses import SynergyResult, SynergyType
 from .scoring import create_synergy_result, normalize_card_name
 
 if TYPE_CHECKING:
-    from ...data.database import MTGDatabase
+    from ...data.database import UnifiedDatabase
     from ...data.models.card import Card
 
 
 async def search_synergies(
-    db: MTGDatabase,
+    db: UnifiedDatabase,
     source_card: Card,
     search_terms: list[tuple[str, str]],
     synergy_type: SynergyType,

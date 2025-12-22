@@ -62,27 +62,27 @@ jobs:
         uses: actions/cache@v4
         with:
           path: resources/
-          key: mtg-databases-${{ hashFiles('packages/mtg-core/src/mtg_core/scripts/create_datasources.py') }}
-          restore-keys: |
-            mtg-databases-
+          key: mtg-databases-v4
 
-      - name: Download databases
+      - name: Build MTG database
         run: |
-          if [ ! -f resources/AllPrintings.sqlite ]; then
-            uv run create-datasources
+          if [ ! -f resources/mtg.sqlite ]; then
+            uv run create-mtg-db
           else
-            echo "Databases already cached"
+            echo "Database already cached"
           fi
 
       - name: Run tests with coverage
         run: |
-          uv run python -m pytest tests/ \
+          uv run python -m pytest packages/ \
+            --ignore=packages/mtg-spellbook/tests_spellbook/screenshots \
+            --ignore=packages/mtg-spellbook/tests_spellbook/test_screen_snapshots.py \
+            -n auto \
             --cov=packages/mtg-core/src \
             --cov=packages/mtg-mcp/src \
             --cov=packages/mtg-spellbook/src \
             --cov-report=xml \
-            --cov-report=term-missing \
-            -v
+            --cov-report=term-missing
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.11'

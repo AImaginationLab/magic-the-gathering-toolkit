@@ -25,9 +25,16 @@ class DeckCreated(Message):
 class AddToDeckRequested(Message):
     """Message sent when user wants to add a card to a deck."""
 
-    def __init__(self, card_name: str) -> None:
+    def __init__(
+        self,
+        card_name: str,
+        set_code: str | None = None,
+        collector_number: str | None = None,
+    ) -> None:
         super().__init__()
         self.card_name = card_name
+        self.set_code = set_code
+        self.collector_number = collector_number
 
 
 class CardAddedToDeck(Message):

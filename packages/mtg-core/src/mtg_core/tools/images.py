@@ -2,114 +2,138 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
+from ..cache import get_cached, set_cached
 from ..data.models import (
+    Card,
     CardImageResponse,
+    ImageUrls,
     PriceResponse,
+    Prices,
     PriceSearchResponse,
     PriceSearchResult,
     PrintingInfo,
     PrintingsResponse,
+    PurchaseLinks,
+    RelatedLinks,
 )
-from ..exceptions import CardNotFoundError, DatabaseNotAvailableError, ValidationError
+from ..exceptions import CardNotFoundError, ValidationError
 
 if TYPE_CHECKING:
-    from ..data.database import ScryfallDatabase
+    from ..data.database import UnifiedDatabase
 
+logger = logging.getLogger(__name__)
 
-def _require_scryfall(db: ScryfallDatabase | None) -> ScryfallDatabase:
-    """Validate Scryfall database is available."""
-    if db is None:
-        raise DatabaseNotAvailableError("Scryfall")
-    return db
+# Cache namespace and TTL for printings
+_PRINTINGS_CACHE_NS = "printings"
+_PRINTINGS_TTL_DAYS = 7
 
 
 async def get_card_image(
-    db: ScryfallDatabase | None,
+    db: UnifiedDatabase,
     name: str,
     set_code: str | None = None,
+    collector_number: str | None = None,
 ) -> CardImageResponse:
     """Get image URLs and pricing for a card."""
-    scryfall = _require_scryfall(db)
-    image = await scryfall.get_card_image(name, set_code)
+    # If specific printing requested, use set/number lookup
+    if set_code and collector_number:
+        card = await db.get_card_by_set_and_number(set_code, collector_number)
+        if not card:
+            raise CardNotFoundError(f"{name} in set {set_code}")
+    else:
+        card = await db.get_card_by_name(name)
 
-    if not image:
-        identifier = f"{name} in set {set_code}" if set_code else name
-        raise CardNotFoundError(identifier)
-
-    return CardImageResponse(
-        card_name=image.name,
-        set_code=image.set_code,
-        images=image.to_image_urls(),
-        prices=image.to_prices(),
-        purchase_links=image.to_purchase_links(),
-        related_links=image.to_related_links(),
-        highres_image=image.highres_image,
-        full_art=image.full_art,
-    )
+    return _card_to_image_response(card)
 
 
 async def get_card_printings(
-    db: ScryfallDatabase | None,
+    db: UnifiedDatabase,
     name: str,
+    *,
+    use_cache: bool = True,
 ) -> PrintingsResponse:
-    """Get all printings of a card with images and prices."""
-    scryfall = _require_scryfall(db)
-    printings = await scryfall.get_all_printings(name)
+    """Get all printings of a card with images and prices.
+
+    Args:
+        db: Unified MTG database
+        name: Card name to search for
+        use_cache: Whether to use disk cache (default True)
+
+    Returns:
+        PrintingsResponse with all printings and their metadata
+    """
+    # Check cache first
+    cache_key = name
+    if use_cache:
+        cached = get_cached(_PRINTINGS_CACHE_NS, cache_key, PrintingsResponse, _PRINTINGS_TTL_DAYS)
+        if cached is not None:
+            return cached
+
+    printings = await db.get_all_printings(name)
 
     if not printings:
         raise CardNotFoundError(name)
 
-    return PrintingsResponse(
+    result = PrintingsResponse(
         card_name=name,
-        printings=[
-            PrintingInfo(
-                set_code=p.set_code,
-                collector_number=p.collector_number,
-                image=p.image_normal,
-                price_usd=p.get_price_usd(),
-            )
-            for p in printings
-        ],
+        printings=[_card_to_printing_info(card) for card in printings],
     )
+
+    # Cache result for future use
+    if use_cache:
+        set_cached(_PRINTINGS_CACHE_NS, cache_key, result)
+
+    return result
 
 
 async def get_card_price(
-    db: ScryfallDatabase | None,
+    db: UnifiedDatabase,
     name: str,
     set_code: str | None = None,
+    collector_number: str | None = None,
 ) -> PriceResponse:
     """Get current price for a card."""
-    scryfall = _require_scryfall(db)
-    image = await scryfall.get_card_image(name, set_code)
-
-    if not image:
-        identifier = f"{name} in set {set_code}" if set_code else name
-        raise CardNotFoundError(identifier)
+    # If specific printing requested, use set/number lookup
+    if set_code and collector_number:
+        card = await db.get_card_by_set_and_number(set_code, collector_number)
+        if not card:
+            identifier = f"{name} in set {set_code}"
+            raise CardNotFoundError(identifier)
+    else:
+        card = await db.get_card_by_name(name)
 
     return PriceResponse(
-        card_name=image.name,
-        set_code=image.set_code,
-        prices=image.to_prices(),
-        purchase_links=image.to_purchase_links(),
+        card_name=card.name,
+        set_code=card.set_code,
+        prices=Prices(
+            usd=card.get_price_usd(),
+            usd_foil=card.get_price_usd_foil(),
+            eur=card.get_price_eur(),
+            eur_foil=card.get_price_eur_foil(),
+        ),
+        purchase_links=PurchaseLinks(
+            tcgplayer=card.purchase_tcgplayer,
+            cardmarket=card.purchase_cardmarket,
+            cardhoarder=card.purchase_cardhoarder,
+        ),
     )
 
 
 async def search_by_price(
-    db: ScryfallDatabase | None,
+    db: UnifiedDatabase,
     min_price: float | None = None,
     max_price: float | None = None,
     page: int = 1,
     page_size: int = 25,
 ) -> PriceSearchResponse:
     """Search for cards by price range."""
-    scryfall = _require_scryfall(db)
-
     if min_price is None and max_price is None:
         raise ValidationError("Provide at least min_price or max_price")
 
-    cards = await scryfall.search_by_price(
+    cards = await db.search_by_price(
         min_price=min_price,
         max_price=max_price,
         page=page,
@@ -119,13 +143,70 @@ async def search_by_price(
     return PriceSearchResponse(
         cards=[
             PriceSearchResult(
-                name=c.name,
-                set_code=c.set_code,
-                price_usd=c.get_price_usd(),
-                image=c.image_small,
+                name=card.name,
+                set_code=card.set_code,
+                price_usd=card.get_price_usd(),
+                image=card.image_small,
             )
-            for c in cards
+            for card in cards
         ],
         page=page,
         page_size=page_size,
+    )
+
+
+def _card_to_image_response(card: Card) -> CardImageResponse:
+    """Convert a Card to a CardImageResponse."""
+    return CardImageResponse(
+        card_name=card.name,
+        set_code=card.set_code,
+        images=ImageUrls(
+            small=card.image_small,
+            normal=card.image_normal,
+            large=card.image_large,
+            png=card.image_png,
+            art_crop=card.image_art_crop,
+        ),
+        prices=Prices(
+            usd=card.get_price_usd(),
+            usd_foil=card.get_price_usd_foil(),
+            eur=card.get_price_eur(),
+            eur_foil=card.get_price_eur_foil(),
+        ),
+        purchase_links=PurchaseLinks(
+            tcgplayer=card.purchase_tcgplayer,
+            cardmarket=card.purchase_cardmarket,
+            cardhoarder=card.purchase_cardhoarder,
+        ),
+        related_links=RelatedLinks(
+            edhrec=card.link_edhrec,
+            gatherer=card.link_gatherer,
+        ),
+        highres_image=card.highres_image,
+        full_art=card.full_art,
+    )
+
+
+def _card_to_printing_info(card: Card) -> PrintingInfo:
+    """Convert a Card to PrintingInfo."""
+    return PrintingInfo(
+        uuid=card.uuid,
+        set_code=card.set_code,
+        collector_number=card.number,
+        image=card.image_normal,
+        art_crop=card.image_art_crop,
+        price_usd=card.get_price_usd(),
+        price_usd_foil=card.get_price_usd_foil(),
+        price_eur=card.get_price_eur(),
+        artist=card.artist,
+        flavor_text=card.flavor,
+        rarity=card.rarity,
+        release_date=card.release_date,
+        illustration_id=card.illustration_id,
+        mana_cost=card.mana_cost,
+        type_line=card.type,
+        oracle_text=card.text,
+        power=card.power,
+        toughness=card.toughness,
+        loyalty=card.loyalty,
     )
