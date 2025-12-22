@@ -62,23 +62,16 @@ jobs:
         uses: actions/cache@v4
         with:
           path: resources/
-          key: mtg-databases-v2-${{ hashFiles('packages/mtg-core/src/mtg_core/scripts/create_datasources.py', 'packages/mtg-core/src/mtg_core/scripts/create_mtg_db.py') }}
+          key: mtg-databases-v3-${{ hashFiles('packages/mtg-core/src/mtg_core/scripts/create_mtg_db.py') }}
           restore-keys: |
-            mtg-databases-v2-
+            mtg-databases-v3-
 
-      - name: Download and build databases
+      - name: Build MTG database
         run: |
-          # Download raw data sources (AllPrintings.sqlite, scryfall.sqlite)
-          if [ ! -f resources/AllPrintings.sqlite ]; then
-            uv run create-datasources
-          else
-            echo "Data sources already cached"
-          fi
-          # Build unified mtg.sqlite database
           if [ ! -f resources/mtg.sqlite ]; then
             uv run create-mtg-db
           else
-            echo "Unified database already cached"
+            echo "Database already cached"
           fi
 
       - name: Run tests with coverage
