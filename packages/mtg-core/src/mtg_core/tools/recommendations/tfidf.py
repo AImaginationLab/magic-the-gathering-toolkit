@@ -16,7 +16,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 if TYPE_CHECKING:
     from scipy.sparse import csr_matrix
 
-    from mtg_core.data.database import MTGDatabase
+    from mtg_core.data.database import UnifiedDatabase
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ class CardRecommender:
     _initialized: bool = False
     _init_time: float = 0.0
 
-    async def initialize(self, db: MTGDatabase) -> float:
+    async def initialize(self, db: UnifiedDatabase) -> float:
         """Initialize the recommender with card data from the database.
 
         Returns:
@@ -95,30 +95,31 @@ class CardRecommender:
 
         return self._init_time
 
-    async def _fetch_unique_cards(self, db: MTGDatabase) -> list[dict[str, Any]]:
+    async def _fetch_unique_cards(self, db: UnifiedDatabase) -> list[dict[str, Any]]:
         """Fetch unique cards from database (one printing per card name)."""
         query = """
             SELECT
                 c.name,
-                c.uuid,
-                c.type,
-                c.text,
-                c.manaCost,
+                c.id AS uuid,
+                c.type_line AS type,
+                c.oracle_text AS text,
+                c.mana_cost AS manaCost,
                 c.colors,
-                c.colorIdentity,
-                c.types,
-                c.subtypes,
+                c.color_identity AS colorIdentity,
+                c.type_line AS types,
+                -- subtypes extracted from type_line by _build_document
+                c.type_line AS subtypes,
                 c.keywords,
                 c.power,
                 c.toughness,
-                c.manaValue,
-                c.edhrecRank
+                c.cmc AS manaValue,
+                c.edhrec_rank AS edhrecRank
             FROM cards c
-            WHERE (c.isPromo IS NULL OR c.isPromo = 0)
-              AND (c.isFunny IS NULL OR c.isFunny = 0)
+            WHERE (c.is_promo IS NULL OR c.is_promo = 0)
+              AND c.is_token = 0
               AND c.name NOT LIKE '%//%'
             GROUP BY c.name
-            ORDER BY c.edhrecRank ASC NULLS LAST
+            ORDER BY c.edhrec_rank ASC NULLS LAST
         """
         cards: list[dict[str, Any]] = []
         async with db._execute(query) as cursor:
@@ -433,7 +434,7 @@ def get_recommender() -> CardRecommender:
     return _recommender
 
 
-async def initialize_recommender(db: MTGDatabase) -> float:
+async def initialize_recommender(db: UnifiedDatabase) -> float:
     """Initialize the global recommender with database.
 
     Returns:

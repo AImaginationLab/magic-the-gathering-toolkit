@@ -19,7 +19,7 @@ from .editor_panel import DeckCardItem, DeckEditorPanel
 from .quick_filter_bar import QuickFilterBar
 
 if TYPE_CHECKING:
-    from mtg_core.data.database import DeckSummary, MTGDatabase, ScryfallDatabase
+    from mtg_core.data.database import DeckSummary, UnifiedDatabase
     from mtg_core.data.models.responses import CardSummary
 
     from ..deck_manager import DeckManager, DeckWithCards
@@ -185,14 +185,12 @@ class FullDeckBuilder(Screen[None]):
         self,
         deck: DeckWithCards,
         deck_manager: DeckManager,
-        db: MTGDatabase,
-        scryfall: ScryfallDatabase | None = None,
+        db: UnifiedDatabase,
     ) -> None:
         super().__init__()
         self._deck = deck
         self._deck_manager = deck_manager
         self._db = db
-        self._scryfall = scryfall
         self._search_results: list[CardSummary] = []
         self._active_pane: str = "search"  # "search" or "deck"
         self._all_deck_summaries: list[DeckSummary] = []
@@ -293,7 +291,6 @@ class FullDeckBuilder(Screen[None]):
         # Load card into preview panel
         panel = self.query_one("#builder-card-panel", CardPanel)
         await panel.load_printings(
-            self._scryfall,
             self._db,
             first_card.card_name,
         )
@@ -411,7 +408,7 @@ class FullDeckBuilder(Screen[None]):
         search_input.page_size = 50
 
         try:
-            result = await card_tools.search_cards(self._db, self._scryfall, search_input)
+            result = await card_tools.search_cards(self._db, search_input)
             self._search_results = result.cards
             self._update_search_results()
         except Exception as e:
@@ -569,7 +566,6 @@ class FullDeckBuilder(Screen[None]):
         """Load card into preview panel by name, optionally targeting a specific printing."""
         panel = self.query_one("#builder-card-panel", CardPanel)
         await panel.load_printings(
-            self._scryfall,
             self._db,
             card_name,
             target_set=set_code,
@@ -581,7 +577,6 @@ class FullDeckBuilder(Screen[None]):
         """Load card into preview panel."""
         panel = self.query_one("#builder-card-panel", CardPanel)
         await panel.load_printings(
-            self._scryfall,
             self._db,
             card.name,
             flavor_name=card.flavor_name,

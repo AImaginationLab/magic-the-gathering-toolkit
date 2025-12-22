@@ -16,7 +16,7 @@ from .messages import SearchResultSelected, SearchSubmitted
 if TYPE_CHECKING:
     from textual.events import Key
 
-    from mtg_core.data.database import MTGDatabase, ScryfallDatabase
+    from mtg_core.data.database import UnifiedDatabase
     from mtg_core.data.models.responses import CardSummary
 
 # Debounce delay in milliseconds
@@ -31,7 +31,14 @@ SearchResultItem = CardResultItem
 
 
 class SearchBar(Vertical, can_focus=False):
-    """Search input with autocomplete dropdown."""
+    """Search input with autocomplete dropdown.
+
+    Args:
+        name: Unique name for this search bar (used to generate element IDs).
+              Defaults to "dashboard" for backward compatibility.
+        placeholder: Custom placeholder text for the input.
+        id: Widget ID.
+    """
 
     DEFAULT_CSS = """
     SearchBar {
@@ -78,30 +85,44 @@ class SearchBar(Vertical, can_focus=False):
     }
     """
 
-    def __init__(self, *, id: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        name: str = "dashboard",
+        placeholder: str = "type card name or pattern 'search t:type c:colors set:code artist:name'",
+        id: str | None = None,
+    ) -> None:
         super().__init__(id=id)
-        self._db: MTGDatabase | None = None
-        self._scryfall: ScryfallDatabase | None = None
+        self._name = name
+        self._placeholder = placeholder
+        self._db: UnifiedDatabase | None = None
         self._search_task: asyncio.Task[None] | None = None
         self._results: list[CardSummary] = []
         self._dropdown_visible = False
 
+    @property
+    def _input_id(self) -> str:
+        return f"{self._name}-search"
+
+    @property
+    def _dropdown_id(self) -> str:
+        return f"{self._name}-search-dropdown"
+
     def compose(self) -> ComposeResult:
         """Compose the search bar with input and dropdown."""
         yield Input(
-            placeholder="Search: name or t:type c:colors set:code artist:name",
-            id="dashboard-search",
+            placeholder=self._placeholder,
+            id=self._input_id,
         )
-        yield ListView(id="search-dropdown", classes="hidden")
+        yield ListView(id=self._dropdown_id, classes="hidden")
 
-    def set_databases(self, db: MTGDatabase, scryfall: ScryfallDatabase | None = None) -> None:
-        """Set database connections for search."""
+    def set_database(self, db: UnifiedDatabase) -> None:
+        """Set database connection for search."""
         self._db = db
-        self._scryfall = scryfall
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Handle input changes with debouncing."""
-        if event.input.id != "dashboard-search":
+        if event.input.id != self._input_id:
             return
 
         query = event.value.strip()
@@ -169,20 +190,20 @@ class SearchBar(Vertical, can_focus=False):
                 from mtg_core.data.models.inputs import SearchCardsInput
 
                 filters = SearchCardsInput(**filters_dict)
-                result = await cards.search_cards(self._db, self._scryfall, filters)
+                result = await cards.search_cards(self._db, filters)
             else:
                 # Typeahead mode - simple FTS name search
                 from mtg_core.data.models.inputs import SearchCardsInput
 
                 filters = SearchCardsInput(name=query, page_size=8)
-                result = await cards.search_cards(self._db, self._scryfall, filters, use_fts=True)
+                result = await cards.search_cards(self._db, filters)
             return result.cards
         except Exception:
             return []
 
     def _populate_dropdown(self, results: list[CardSummary]) -> None:
         """Populate dropdown with search results."""
-        dropdown = self.query_one("#search-dropdown", ListView)
+        dropdown = self.query_one(f"#{self._dropdown_id}", ListView)
         dropdown.clear()
 
         for card in results:
@@ -192,21 +213,21 @@ class SearchBar(Vertical, can_focus=False):
         """Show the dropdown."""
         if not self._dropdown_visible:
             self._dropdown_visible = True
-            dropdown = self.query_one("#search-dropdown", ListView)
+            dropdown = self.query_one(f"#{self._dropdown_id}", ListView)
             dropdown.remove_class("hidden")
 
     def _hide_dropdown(self) -> None:
         """Hide the dropdown."""
         if self._dropdown_visible:
             self._dropdown_visible = False
-            dropdown = self.query_one("#search-dropdown", ListView)
+            dropdown = self.query_one(f"#{self._dropdown_id}", ListView)
             dropdown.add_class("hidden")
             dropdown.clear()
             self._results = []
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle Enter in input."""
-        if event.input.id != "dashboard-search":
+        if event.input.id != self._input_id:
             return
 
         query = event.value.strip()
@@ -214,7 +235,7 @@ class SearchBar(Vertical, can_focus=False):
             return
 
         # If dropdown has highlighted item, select it
-        dropdown = self.query_one("#search-dropdown", ListView)
+        dropdown = self.query_one(f"#{self._dropdown_id}", ListView)
         if self._dropdown_visible and dropdown.highlighted_child:
             item = dropdown.highlighted_child
             if isinstance(item, SearchResultItem):
@@ -230,20 +251,20 @@ class SearchBar(Vertical, can_focus=False):
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         """Handle selection from dropdown."""
-        if event.list_view.id != "search-dropdown":
+        if event.list_view.id != self._dropdown_id:
             return
 
         item = event.item
         if isinstance(item, SearchResultItem):
             self._hide_dropdown()
-            search_input = self.query_one("#dashboard-search", Input)
+            search_input = self.query_one(f"#{self._input_id}", Input)
             search_input.value = ""
             self.post_message(SearchResultSelected(item.card))
 
     def on_key(self, event: Key) -> None:
         """Handle key events for dropdown navigation."""
-        search_input = self.query_one("#dashboard-search", Input)
-        dropdown = self.query_one("#search-dropdown", ListView)
+        search_input = self.query_one(f"#{self._input_id}", Input)
+        dropdown = self.query_one(f"#{self._dropdown_id}", ListView)
 
         # If input is focused
         if search_input.has_focus:
@@ -274,11 +295,11 @@ class SearchBar(Vertical, can_focus=False):
 
     def clear(self) -> None:
         """Clear the search bar."""
-        search_input = self.query_one("#dashboard-search", Input)
+        search_input = self.query_one(f"#{self._input_id}", Input)
         search_input.value = ""
         self._hide_dropdown()
 
     def focus_search(self) -> None:
         """Focus the search input."""
-        search_input = self.query_one("#dashboard-search", Input)
+        search_input = self.query_one(f"#{self._input_id}", Input)
         search_input.focus()

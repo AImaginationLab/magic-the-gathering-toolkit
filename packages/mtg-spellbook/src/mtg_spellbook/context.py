@@ -7,7 +7,7 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from mtg_core.config import get_settings
-from mtg_core.data.database import DatabaseManager, MTGDatabase, ScryfallDatabase, UserDatabase
+from mtg_core.data.database import DatabaseManager, UnifiedDatabase, UserDatabase
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -27,8 +27,7 @@ class DatabaseContext:
 
     def __init__(self) -> None:
         self._manager: DatabaseManager | None = None
-        self._db: MTGDatabase | None = None
-        self._scryfall: ScryfallDatabase | None = None
+        self._db: UnifiedDatabase | None = None
         self._user: UserDatabase | None = None
         self._deck_manager: DeckManager | None = None
         self._collection_manager: CollectionManager | None = None
@@ -47,21 +46,15 @@ class DatabaseContext:
         """Exit async context manager, ensuring cleanup."""
         await self.close()
 
-    async def get_db(self) -> MTGDatabase:
-        """Get MTGDatabase, connecting if needed."""
+    async def get_db(self) -> UnifiedDatabase:
+        """Get UnifiedDatabase, connecting if needed."""
         if self._manager is None:
             settings = get_settings()
             self._manager = DatabaseManager(settings)
             await self._manager.start()
             self._db = self._manager.db
-            self._scryfall = self._manager.scryfall
         assert self._db is not None
         return self._db
-
-    async def get_scryfall(self) -> ScryfallDatabase | None:
-        """Get ScryfallDatabase, connecting if needed."""
-        await self.get_db()
-        return self._scryfall
 
     async def get_user_db(self) -> UserDatabase | None:
         """Get UserDatabase, connecting if needed."""
@@ -78,7 +71,7 @@ class DatabaseContext:
             if user is not None:
                 from mtg_spellbook.deck_manager import DeckManager
 
-                self._deck_manager = DeckManager(user, db, self._scryfall)
+                self._deck_manager = DeckManager(user, db)
         return self._deck_manager
 
     async def get_collection_manager(self) -> CollectionManager | None:
@@ -89,7 +82,7 @@ class DatabaseContext:
             if user is not None:
                 from mtg_spellbook.collection_manager import CollectionManager
 
-                self._collection_manager = CollectionManager(user, db, self._scryfall)
+                self._collection_manager = CollectionManager(user, db)
         return self._collection_manager
 
     async def get_keywords(self) -> set[str]:
@@ -105,7 +98,6 @@ class DatabaseContext:
             await self._manager.stop()
             self._manager = None
             self._db = None
-            self._scryfall = None
 
 
 def run_async(coro: Any) -> Any:

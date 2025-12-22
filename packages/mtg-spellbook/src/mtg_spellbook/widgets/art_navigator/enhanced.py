@@ -22,6 +22,13 @@ if TYPE_CHECKING:
 
     from ...collection_manager import CollectionManager
 
+# Status bar hints for each view mode
+_STATUSBAR_HINTS = {
+    ViewMode.GALLERY: "←→ Navigate | a: Art crop | f: Focus mode | c: Compare | s: Sort | esc: back",
+    ViewMode.FOCUS: "←→ Next printing | a: Art crop | e: Explore Artist | g: Gallery | c: Compare | esc: back",
+    ViewMode.COMPARE: "Space: Add | x: Remove | 1-4: Select slot | Backspace: Clear | g: Gallery | esc: back",
+}
+
 
 class EnhancedArtNavigator(Vertical, can_focus=True):
     """Multi-mode art navigator with gallery and focus views."""
@@ -34,6 +41,7 @@ class EnhancedArtNavigator(Vertical, can_focus=True):
         Binding("j,down", "navigate_down", "↓ Down", show=False),
         Binding("k,up", "navigate_up", "↑ Up", show=False),
         Binding("l,right", "navigate_right", "→ Right", show=False),
+        Binding("e", "browse_artist", "Explore Artist", show=False),
         Binding("s", "cycle_sort", "Sort", show=False),
         Binding("g", "switch_to_gallery", "Gallery", show=False),
         Binding("f", "switch_to_focus", "Focus", show=False),
@@ -120,18 +128,9 @@ class EnhancedArtNavigator(Vertical, can_focus=True):
         """Update statusbar text based on current view mode (QW1: Context-Sensitive)."""
         try:
             statusbar = self.query_one(f"#{self._id_prefix}-statusbar", Static)
-            if self.current_view == ViewMode.GALLERY:
-                statusbar.update(
-                    "[dim]←→ Navigate | a: Art crop | f: Focus mode | c: Compare | s: Sort | esc: back[/]"
-                )
-            elif self.current_view == ViewMode.FOCUS:
-                statusbar.update(
-                    "[dim]←→ Next printing | a: Art crop | Enter: Artist | g: Gallery | c: Compare | esc: back[/]"
-                )
-            elif self.current_view == ViewMode.COMPARE:
-                statusbar.update(
-                    "[dim]Space: Add | x: Remove | 1-4: Select slot | Backspace: Clear | g: Gallery | esc: back[/]"
-                )
+            hint = _STATUSBAR_HINTS.get(self.current_view, "")
+            if hint:
+                statusbar.update(f"[dim]{hint}[/]")
         except NoMatches:
             pass
 
@@ -221,6 +220,28 @@ class EnhancedArtNavigator(Vertical, can_focus=True):
         """Handle printing selection from grid."""
         preview = self.query_one(f"#{self._id_prefix}-preview", PreviewPanel)
         self.run_worker(preview.update_printing(self._card_name, printing))
+
+    def action_browse_artist(self) -> None:
+        """Browse other cards by the current artist."""
+        from .messages import ArtistSelected
+
+        # Get artist from current view
+        artist = None
+        if self.current_view == ViewMode.FOCUS:
+            focus = self.query_one(f"#{self._id_prefix}-focus", FocusView)
+            printing = focus.get_current_printing()
+            if printing:
+                artist = printing.artist
+        elif self.current_view == ViewMode.GALLERY:
+            grid = self.query_one(f"#{self._id_prefix}-grid", PrintingsGrid)
+            printing = grid.get_current_printing()
+            if printing:
+                artist = printing.artist
+
+        if artist:
+            self.post_message(ArtistSelected(artist, self._card_name))
+        else:
+            self.notify("No artist information available", severity="warning", timeout=2)
 
     def action_switch_to_gallery(self) -> None:
         """Switch to gallery view."""

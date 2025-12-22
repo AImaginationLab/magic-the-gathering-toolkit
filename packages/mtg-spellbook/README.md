@@ -49,24 +49,50 @@ uv run mtg-spellbook
 
 ## Keyboard Shortcuts
 
+### Global
 | Key | Action |
 |-----|--------|
-| `/` | Focus search bar |
+| `Esc` | Focus search / go back |
+| `?` | Help screen |
 | `Tab` | Cycle through tabs |
-| `Ctrl+S` | Find synergies for current card |
-| `Ctrl+O` | Detect combos for current card |
+| `a` | Browse artists |
+| `s` | Browse sets |
+| `d` | Browse decks |
+| `c` | Browse collection |
+| `r` | Random card |
 | `Ctrl+Q` | Quit |
+
+### Card Panel
+| Key | Action |
+|-----|--------|
+| `g` | Gallery view |
+| `f` | Focus view |
+| `c` | Compare view |
+| `e` | Explore artist |
+| `a` | Toggle art crop |
+| `Ctrl+S` | Find synergies |
+| `Ctrl+O` | Detect combos |
+| `Ctrl+E` | Add to deck |
+| `Ctrl+D` | Toggle deck panel |
 
 ## Architecture
 
 ```
 src/mtg_spellbook/
-├── __init__.py     # Entry point (main function)
-├── app.py          # Main Textual application
-├── widgets.py      # Custom widgets (search, results, card details)
-├── styles.py       # CSS styling (dark theme with gold accents)
-├── commands.py     # Command palette commands
-└── context.py      # Application context
+├── __init__.py           # Entry point
+├── app.py                # Main Textual application
+├── styles.py             # CSS styling
+├── context.py            # Application context
+├── collection_manager.py # Collection tracking
+├── deck_manager.py       # Deck management
+├── collection/           # Collection view widgets
+├── commands/             # Command palette
+├── deck/                 # Deck builder widgets
+├── recommendations/      # Deck recommendations
+├── screens/              # Application screens
+├── ui/                   # UI utilities and theming
+└── widgets/              # Reusable UI widgets
+    └── art_navigator/    # Artwork browser
 ```
 
 ## Dependencies

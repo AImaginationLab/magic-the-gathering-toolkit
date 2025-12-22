@@ -13,11 +13,11 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.css.query import NoMatches
 from textual.reactive import reactive
-from textual.screen import Screen
 from textual.widgets import Input, ListItem, ListView, Static
 
 from ..collection.card_preview import CollectionCardPreview
 from ..recommendations.messages import AddCardToDeck
+from ..screens import BaseScreen
 from ..ui.theme import ui_colors
 from ..widgets.card_result_item import CardResultItem
 from ..widgets.recommendation_detail import (
@@ -32,7 +32,7 @@ from .modals import ConfirmDeleteModal, NewDeckModal
 from .stats_bar import DeckStatsBar
 
 if TYPE_CHECKING:
-    from mtg_core.data.database import MTGDatabase, ScryfallDatabase
+    from mtg_core.data.database import UnifiedDatabase
     from mtg_core.data.database.user import DeckSummary
     from mtg_core.data.models.responses import CardSummary
     from mtg_core.tools.recommendations import HybridRecommender
@@ -159,7 +159,7 @@ class DeckCardResultItem(ListItem):
         return f"{line1}\n{line2}"
 
 
-class FullDeckScreen(Screen[None]):
+class FullDeckScreen(BaseScreen[None]):
     """Full-screen deck management interface.
 
     Three-pane layout:
@@ -174,7 +174,7 @@ class FullDeckScreen(Screen[None]):
     - Keyboard-driven workflow
     """
 
-    BINDINGS: ClassVar[list[Binding]] = [  # type: ignore[assignment]
+    BINDINGS: ClassVar[list[Binding]] = [
         Binding("escape", "back", "Back", show=True),
         Binding("n", "new_deck", "New Deck", show=True),
         Binding("slash", "focus_search", "Search", show=True),
@@ -201,27 +201,40 @@ class FullDeckScreen(Screen[None]):
         Binding("e,enter", "expand_recommendation", "Why?", show=False),
     ]
 
+    # Don't show footer - this screen has its own footer
+    show_footer: ClassVar[bool] = False
+
     CSS = """
     FullDeckScreen {
         background: #0d0d0d;
     }
 
+    /* Override screen-content to use grid for proper height distribution */
+    FullDeckScreen #screen-content {
+        layout: grid;
+        grid-size: 1;
+        grid-rows: 4 1fr;
+    }
+
     #deck-screen-header {
-        height: 3;
         background: #0a0a14;
         border-bottom: heavy #c9a227;
         padding: 0 2;
         content-align: center middle;
     }
 
+    /* Grid child must fill its row; use grid layout for proper height distribution */
     #deck-screen-body {
         width: 100%;
         height: 1fr;
+        layout: grid;
+        grid-size: 1;
+        grid-rows: 1fr auto auto;  /* main, stats-bar, footer */
     }
 
     #deck-screen-main {
         width: 100%;
-        height: 1fr;
+        height: 100%;
     }
 
     /* Left pane - deck list */
@@ -378,14 +391,12 @@ class FullDeckScreen(Screen[None]):
     def __init__(
         self,
         deck_manager: DeckManager,
-        db: MTGDatabase | None = None,
-        scryfall: ScryfallDatabase | None = None,
+        db: UnifiedDatabase | None = None,
         collection_manager: CollectionManager | None = None,
     ) -> None:
         super().__init__()
         self._deck_manager = deck_manager
         self._db = db
-        self._scryfall = scryfall
         self._collection_manager = collection_manager
         self._collection_cards: set[str] = set()
         self._current_deck: DeckWithCards | None = None
@@ -397,7 +408,7 @@ class FullDeckScreen(Screen[None]):
         self._recommender_initializing: bool = False
         self._recommendation_details: dict[str, ScoredRecommendation] = {}
 
-    def compose(self) -> ComposeResult:
+    def compose_content(self) -> ComposeResult:
         yield Static(
             f"[bold {ui_colors.GOLD}]🗂 DECK MANAGER[/]",
             id="deck-screen-header",
@@ -452,11 +463,11 @@ class FullDeckScreen(Screen[None]):
             # Stats bar across bottom
             yield DeckStatsBar(id="deck-stats-bar")
 
-        # Footer with context-sensitive hints
-        yield Static(
-            self._render_footer(),
-            id="deck-screen-footer",
-        )
+            # Footer with context-sensitive hints (inside body to match 2-row grid pattern)
+            yield Static(
+                self._render_footer(),
+                id="deck-screen-footer",
+            )
 
     async def on_mount(self) -> None:
         """Load decks on mount."""
@@ -570,8 +581,8 @@ class FullDeckScreen(Screen[None]):
         self._refresh_deck_display(prices=prices)
 
     async def _fetch_deck_prices(self, deck: DeckWithCards | None) -> dict[str, float]:
-        """Fetch prices for all cards in the deck from Scryfall."""
-        if deck is None or self._scryfall is None:
+        """Fetch prices for all cards in the deck."""
+        if deck is None or self._db is None:
             return {}
 
         card_names = list({c.card_name for c in deck.cards})
@@ -579,10 +590,10 @@ class FullDeckScreen(Screen[None]):
 
         try:
             # Use batch lookup for prices
-            images = await self._scryfall.get_card_images_batch(card_names)
-            for name, image in images.items():
-                if image and image.price_usd:
-                    prices[name] = image.price_usd / 100  # Convert cents to dollars
+            cards = await self._db.get_cards_by_names(card_names, include_extras=False)
+            for name, card in cards.items():
+                if card and card.price_usd:
+                    prices[name] = card.price_usd / 100  # Convert cents to dollars
         except Exception:
             pass
 
@@ -827,7 +838,6 @@ class FullDeckScreen(Screen[None]):
 
             # Load image and prices
             await preview.load_printing(
-                self._scryfall,
                 self._db,
                 deck_card.card_name,
                 deck_card.set_code,
@@ -845,7 +855,6 @@ class FullDeckScreen(Screen[None]):
 
             # For search results, we don't have full card data, just load the printing
             await preview.load_printing(
-                self._scryfall,
                 self._db,
                 card_name,
                 set_code,
@@ -942,7 +951,7 @@ class FullDeckScreen(Screen[None]):
 
         try:
             filters = SearchCardsInput(name=query)
-            result = await cards.search_cards(self._db, self._scryfall, filters)
+            result = await cards.search_cards(self._db, filters)
             self._search_results = result.cards[:50]  # Limit results
             self._update_search_results()
         except Exception:

@@ -20,15 +20,9 @@ def _find_workspace_root() -> Path:
 
 
 def _get_default_db_path() -> Path:
-    """Get default path to AllPrintings.sqlite."""
+    """Get default path to unified mtg.sqlite database."""
     workspace = _find_workspace_root()
-    return workspace / "resources" / "AllPrintings.sqlite"
-
-
-def _get_default_scryfall_path() -> Path:
-    """Get default path to scryfall.sqlite."""
-    workspace = _find_workspace_root()
-    return workspace / "resources" / "scryfall.sqlite"
+    return workspace / "resources" / "mtg.sqlite"
 
 
 def _get_default_user_db_path() -> Path:
@@ -63,11 +57,7 @@ class Settings(BaseSettings):
     # Database paths
     mtg_db_path: Path = Field(
         default_factory=_get_default_db_path,
-        description="Path to MTGJson AllPrintings.sqlite database",
-    )
-    scryfall_db_path: Path = Field(
-        default_factory=_get_default_scryfall_path,
-        description="Path to Scryfall database",
+        description="Path to unified MTG database (mtg.sqlite)",
     )
     user_db_path: Path = Field(
         default_factory=_get_default_user_db_path,

@@ -5,15 +5,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    from mtg_core.data.database import MTGDatabase, ScryfallDatabase
+    from mtg_core.data.database import UnifiedDatabase
     from mtg_core.data.models.responses import CardDetail
 
 
 class AppProtocol(Protocol):
     """Protocol for the App class that command mixins expect."""
 
-    _db: MTGDatabase | None
-    _scryfall: ScryfallDatabase | None
+    _db: UnifiedDatabase | None
     _current_results: list[CardDetail]
     _current_card: CardDetail | None
 
@@ -30,7 +29,6 @@ class CommandRouterMixin:
 
     if TYPE_CHECKING:
         _db: Any
-        _scryfall: Any
         _current_results: list[Any]
         _current_card: Any
         _synergy_mode: bool

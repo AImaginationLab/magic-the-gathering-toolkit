@@ -67,10 +67,8 @@ class CommandHelpersMixin:
         source_panel.update_card(None)
 
     def show_help(self) -> None:
-        """Show enhanced interactive help screen."""
+        """Show help - use Menu (F10) for navigation options."""
         from typing import Any, cast
 
-        from ..widgets import HelpScreen
-
         app = cast(Any, self)
-        app.push_screen(HelpScreen(), callback=app._on_help_action)
+        app.notify("Press F10 or Ctrl+M to open the Menu for navigation options", timeout=5)

@@ -111,7 +111,6 @@ def register(mcp: FastMCP) -> None:
 
         return await synergy.suggest_cards(
             app.db,
-            app.scryfall,
             deck_cards=deck_card_names,
             format_legal=format_legal,
             budget_max=budget_max,

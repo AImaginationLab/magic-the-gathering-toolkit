@@ -8,7 +8,7 @@ from ..cache import get_cached, set_cached
 from ..data.models.responses import ArtistCardsResult, CardSummary
 
 if TYPE_CHECKING:
-    from ..data.database import MTGDatabase
+    from ..data.database import UnifiedDatabase
 
 # Cache namespace and TTL for artist cards
 _ARTIST_CACHE_NS = "artist_cards"
@@ -16,7 +16,7 @@ _ARTIST_TTL_DAYS = 30  # Artist portfolios rarely change
 
 
 async def get_artist_cards(
-    db: MTGDatabase,
+    db: UnifiedDatabase,
     artist_name: str,
     *,
     use_cache: bool = True,

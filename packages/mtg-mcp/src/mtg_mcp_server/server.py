@@ -43,14 +43,8 @@ async def lifespan(_server: FastMCP) -> AsyncIterator[AppContext]:
         stats.get("data_version", "?"),
     )
 
-    if db_manager.scryfall:
-        scryfall_stats = await db_manager.scryfall.get_database_stats()
-        logger.info("Scryfall: %d cards with images/prices", scryfall_stats["total_cards"])
-    else:
-        logger.warning("Scryfall database not found - image/price tools unavailable")
-
     try:
-        yield AppContext(db=db_manager.db, scryfall=db_manager.scryfall)
+        yield AppContext(db=db_manager.db)
     finally:
         await db_manager.stop()
         logger.info("MTG MCP Server stopped.")

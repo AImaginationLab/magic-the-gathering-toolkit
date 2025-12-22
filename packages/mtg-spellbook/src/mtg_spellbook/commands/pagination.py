@@ -24,7 +24,6 @@ class PaginationCommandsMixin:
 
     if TYPE_CHECKING:
         _db: Any
-        _scryfall: Any
         _pagination: PaginationState | None
         _current_results: list[Any]
         _current_card: Any
@@ -281,13 +280,13 @@ class PaginationCommandsMixin:
                     global_idx = start_index + i
                     uuid = self._artist_card_uuids.get(global_idx)
                     if uuid:
-                        detail = await cards.get_card(self._db, self._scryfall, uuid=uuid)
+                        detail = await cards.get_card(self._db, uuid=uuid)
                         details.append(detail)
                         continue
 
                 # Fallback: name-based lookup for search/synergy modes
                 name = item.name if hasattr(item, "name") else str(item)
-                detail = await cards.get_card(self._db, self._scryfall, name=name)
+                detail = await cards.get_card(self._db, name=name)
                 details.append(detail)
             except CardNotFoundError:
                 continue  # Card not loadable, skip

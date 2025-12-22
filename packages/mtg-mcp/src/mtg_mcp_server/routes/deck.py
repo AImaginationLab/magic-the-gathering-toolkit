@@ -128,4 +128,4 @@ def register(mcp: FastMCP) -> None:
             format=format,
             commander=commander,
         )
-        return await deck.analyze_deck_price(app.db, app.scryfall, input_data)
+        return await deck.analyze_deck_price(app.db, input_data)

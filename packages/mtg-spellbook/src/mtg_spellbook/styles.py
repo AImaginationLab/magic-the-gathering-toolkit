@@ -7,9 +7,15 @@ APP_CSS = """
 
 Screen {
     background: #0d0d0d;
+    overflow: hidden;  /* Prevent screen from scrolling - only content should scroll */
+}
+
+/* Main app screen layout (MTGSpellbook) - NOT for BaseScreen subclasses
+   BaseScreen has its own grid layout defined in screens/base.py */
+MTGSpellbook {
     layout: grid;
     grid-size: 1;
-    grid-rows: auto 1fr auto auto;
+    grid-rows: 5 auto 1fr 1;  /* header (5), menu (auto), content (1fr), footer (1) */
 }
 
 .hidden {
@@ -31,7 +37,6 @@ Screen {
 /* ─── Main Layout ─── */
 #main-container {
     width: 100%;
-    height: 100%;
 }
 
 /* ─── Results: Enhanced Card Stack ─── */
@@ -104,6 +109,10 @@ Screen {
     background: #151515;
     border: round #3d3d3d;
     margin: 0 1;
+}
+
+#card-panel:focus-within {
+    border: round #e6c84a;
 }
 
 #card-panel.synergy-mode {
@@ -714,7 +723,7 @@ ListView:focus ListItem.-highlight {
 }
 
 .focus-image-container {
-    width: 50%;
+    width: 40%;
     height: 100%;
     min-height: 24;
     max-height: 90%;
@@ -727,8 +736,8 @@ ListView:focus ListItem.-highlight {
 #focus-image {
     width: 100%;
     height: auto;
-    min-height: 22;
-    max-height: 100%;
+    min-height: 20;
+    max-height: 35;
     content-align: center middle;
 }
 

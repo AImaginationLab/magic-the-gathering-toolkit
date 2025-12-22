@@ -36,7 +36,7 @@ from .scoring import (
 from .search import search_synergies
 
 if TYPE_CHECKING:
-    from ...data.database import ComboDatabase, MTGDatabase, ScryfallDatabase
+    from ...data.database import ComboDatabase, UnifiedDatabase
     from ...data.models.card import Card
 
 # Cache namespace and TTL for synergies
@@ -50,7 +50,7 @@ def _synergy_cache_key(card_name: str, max_results: int, format_legal: str | Non
 
 
 async def find_synergies(
-    db: MTGDatabase,
+    db: UnifiedDatabase,
     card_name: str,
     max_results: int = 20,
     format_legal: str | None = None,
@@ -166,7 +166,7 @@ async def find_synergies(
 
 
 async def _add_tribal_matches(
-    db: MTGDatabase,
+    db: UnifiedDatabase,
     source_card: Card,
     subtype: str,
     synergies: list[SynergyResult],
@@ -200,7 +200,7 @@ async def _add_tribal_matches(
 
 
 async def detect_combos(
-    db: MTGDatabase,  # noqa: ARG001
+    db: UnifiedDatabase,  # noqa: ARG001
     card_name: str | None = None,
     deck_cards: list[str] | None = None,
     combo_db: ComboDatabase | None = None,
@@ -240,8 +240,7 @@ async def detect_combos(
 
 
 async def suggest_cards(
-    db: MTGDatabase,
-    scryfall: ScryfallDatabase | None,
+    db: UnifiedDatabase,
     deck_cards: list[str],
     format_legal: str | None = None,
     budget_max: float | None = None,
@@ -282,7 +281,6 @@ async def suggest_cards(
         suggestions.extend(
             await _search_theme_suggestions(
                 db,
-                scryfall,
                 search_term,
                 theme,
                 deck_colors,
@@ -300,7 +298,6 @@ async def suggest_cards(
         suggestions.extend(
             await _search_staple_suggestions(
                 db,
-                scryfall,
                 deck_colors,
                 format_legal,
                 budget_max,
@@ -317,8 +314,7 @@ async def suggest_cards(
 
 
 async def _search_theme_suggestions(
-    db: MTGDatabase,
-    scryfall: ScryfallDatabase | None,
+    db: UnifiedDatabase,
     search_term: str,
     theme: str,
     deck_colors: list[str],
@@ -344,7 +340,7 @@ async def _search_theme_suggestions(
             continue
         seen_names.add(normalize_card_name(card.name))
 
-        price_usd = await _get_card_price(scryfall, card.name)
+        price_usd = await _get_card_price(db, card.name)
 
         if budget_max is not None and price_usd is not None and price_usd > budget_max:
             continue
@@ -367,8 +363,7 @@ async def _search_theme_suggestions(
 
 
 async def _search_staple_suggestions(
-    db: MTGDatabase,
-    scryfall: ScryfallDatabase | None,
+    db: UnifiedDatabase,
     deck_colors: list[str],
     format_legal: str | None,
     budget_max: float | None,
@@ -401,7 +396,7 @@ async def _search_staple_suggestions(
                 continue
             seen_names.add(normalize_card_name(card.name))
 
-            price_usd = await _get_card_price(scryfall, card.name)
+            price_usd = await _get_card_price(db, card.name)
 
             if budget_max is not None and price_usd is not None and price_usd > budget_max:
                 continue
@@ -423,14 +418,11 @@ async def _search_staple_suggestions(
     return suggestions
 
 
-async def _get_card_price(scryfall: ScryfallDatabase | None, card_name: str) -> float | None:
-    """Get card price from Scryfall database."""
-    if not scryfall:
-        return None
+async def _get_card_price(db: UnifiedDatabase, card_name: str) -> float | None:
+    """Get card price from unified database."""
     try:
-        image_data = await scryfall.get_card_image(card_name)
-        if image_data:
-            return image_data.get_price_usd()
-    except OSError:
+        card = await db.get_card_by_name(card_name, include_extras=False)
+        return card.get_price_usd()
+    except (OSError, CardNotFoundError):
         pass
     return None

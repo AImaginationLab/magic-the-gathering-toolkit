@@ -224,6 +224,7 @@ class PrintingInfo(BaseModel):
     image: str | None = None
     art_crop: str | None = None
     price_usd: float | None = None
+    price_usd_foil: float | None = None
     price_eur: float | None = None
     artist: str | None = None
     flavor_text: str | None = None

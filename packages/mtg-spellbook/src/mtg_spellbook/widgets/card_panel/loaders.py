@@ -8,30 +8,25 @@ from mtg_core.exceptions import CardNotFoundError, DatabaseNotAvailableError
 from mtg_core.tools import images
 
 if TYPE_CHECKING:
-    from mtg_core.data.database import MTGDatabase, ScryfallDatabase
+    from mtg_core.data.database import UnifiedDatabase
     from mtg_core.data.models.responses import PrintingInfo
 
 
 async def load_printings(
-    scryfall: ScryfallDatabase | None,
-    mtg_db: MTGDatabase | None,
+    db: UnifiedDatabase,
     card_name: str,
 ) -> tuple[list[PrintingInfo], str | None]:
     """Load all printings for a card.
 
     Args:
-        scryfall: Scryfall database for images and prices
-        mtg_db: MTGJson database for card metadata
+        db: Unified database for card data
         card_name: Card name to search for
 
     Returns:
         Tuple of (printings list, error message if any)
     """
-    if not scryfall:
-        return [], "[yellow]Scryfall database not available[/]"
-
     try:
-        result = await images.get_card_printings(scryfall, mtg_db, card_name)
+        result = await images.get_card_printings(db, card_name)
         if not result.printings:
             return [], f"[yellow]No printings found for {card_name}[/]"
 

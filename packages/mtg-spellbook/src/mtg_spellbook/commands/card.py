@@ -23,7 +23,6 @@ class CardCommandsMixin:
 
     if TYPE_CHECKING:
         _db: Any
-        _scryfall: Any
         _current_results: list[Any]
         _current_card: Any
         _synergy_mode: bool
@@ -68,13 +67,11 @@ class CardCommandsMixin:
                 db_card = await self._db.get_card_by_set_and_number(target_set, target_number)
                 if db_card:
                     # Convert db Card to CardDetail using the cards tool
-                    card = await cards.get_card(
-                        self._db, self._scryfall, uuid=db_card.uuid, name=db_card.name
-                    )
+                    card = await cards.get_card(self._db, uuid=db_card.uuid)
 
             # Fall back to uuid or name lookup if no target printing or not found
             if card is None:
-                card = await cards.get_card(self._db, self._scryfall, name=name, uuid=uuid)
+                card = await cards.get_card(self._db, name=name, uuid=uuid)
 
             self._current_results = [card]
             self._current_card = card
@@ -90,7 +87,7 @@ class CardCommandsMixin:
             )
         except CardNotFoundError:
             filters = SearchCardsInput(name=name, page_size=10)
-            result = await cards.search_cards(self._db, self._scryfall, filters)
+            result = await cards.search_cards(self._db, filters)
             if result.cards:
                 await self._load_search_results(result.cards)
             else:
@@ -112,7 +109,7 @@ class CardCommandsMixin:
         filters_dict["page_size"] = 100  # Max allowed by SearchCardsInput
         search_filters = SearchCardsInput(**filters_dict)
 
-        result = await cards.search_cards(self._db, self._scryfall, search_filters)
+        result = await cards.search_cards(self._db, search_filters)
 
         if result.cards:
             await self._load_search_results(result.cards, query)
@@ -139,9 +136,10 @@ class CardCommandsMixin:
         for summary in self._pagination.current_page_items:
             try:
                 # Use uuid if available for exact printing, otherwise fall back to name
-                detail = await cards.get_card(
-                    self._db, self._scryfall, uuid=summary.uuid, name=summary.name
-                )
+                if summary.uuid:
+                    detail = await cards.get_card(self._db, uuid=summary.uuid)
+                else:
+                    detail = await cards.get_card(self._db, name=summary.name)
                 self._current_results.append(detail)
             except CardNotFoundError:
                 pass
@@ -180,7 +178,6 @@ class CardCommandsMixin:
 
         tasks = [
             panel.load_printings(
-                self._scryfall,
                 self._db,
                 card.name,
                 flavor_name=card.flavor_name,
@@ -207,7 +204,7 @@ class CardCommandsMixin:
         self._synergy_mode = False
         self._artist_mode = False
 
-        card = await cards.get_random_card(self._db, self._scryfall)
+        card = await cards.get_random_card(self._db)
         self._current_results = [card]
         self._current_card = card
         self._update_results([card])

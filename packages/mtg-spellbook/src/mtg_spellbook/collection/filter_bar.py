@@ -20,40 +20,6 @@ class SortOrder(Enum):
     RECENT = "recent"
 
 
-class TypeFilter(Enum):
-    """Card type filters."""
-
-    ALL = "all"
-    CREATURE = "creature"
-    INSTANT = "instant"
-    SORCERY = "sorcery"
-    ARTIFACT = "artifact"
-    ENCHANTMENT = "enchantment"
-    PLANESWALKER = "planeswalker"
-    LAND = "land"
-
-
-class ColorFilter(Enum):
-    """Color filters."""
-
-    ALL = "all"
-    WHITE = "W"
-    BLUE = "U"
-    BLACK = "B"
-    RED = "R"
-    GREEN = "G"
-    COLORLESS = "C"
-    MULTI = "M"
-
-
-class AvailFilter(Enum):
-    """Availability filters."""
-
-    ALL = "all"
-    AVAILABLE = "available"
-    IN_DECKS = "in_decks"
-
-
 # MTG-themed type icons
 TYPE_ICONS: dict[str, str] = {
     "all": "◈",

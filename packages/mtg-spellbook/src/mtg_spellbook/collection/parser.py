@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass
@@ -21,6 +22,14 @@ class ParsedCardInput:
 # Optional quantity (with optional x suffix), 2-5 char set code, collector number
 SET_NUMBER_PATTERN = re.compile(
     r"^(?:(\d+)x?\s+)?([A-Za-z0-9]{2,5})\s+#?(\d+[a-z]?)$", re.IGNORECASE
+)
+
+# Pattern for set context line: "FIN:" or "mkm:" (sets context for following lines)
+SET_CONTEXT_PATTERN = re.compile(r"^([A-Za-z0-9]{2,5}):$", re.IGNORECASE)
+
+# Pattern for standalone collector number (when in set context): "345", "123a", "2 345", "3x 123"
+COLLECTOR_ONLY_PATTERN = re.compile(
+    r"^(?:(\d+)x?\s+)?#?(\d+[a-z]?)(?:\s+\*?f(?:oil)?\*?)?$", re.IGNORECASE
 )
 
 # Pattern for quantity prefix: "4" or "4x"
@@ -119,3 +128,175 @@ def parse_card_input(raw_input: str, default_quantity: int = 1) -> ParsedCardInp
         set_code=set_code,
         collector_number=collector_number,
     )
+
+
+def parse_card_list(text: str, default_quantity: int = 1) -> list[ParsedCardInput]:
+    """Parse a multi-line card list with set context support.
+
+    Supports set context lines that apply to subsequent entries:
+        fin:
+        345
+        239
+        2x 421 *f*
+        mkm:
+        123
+        4 Sol Ring
+
+    Lines following a set context (e.g., "fin:") will use that set code
+    if they contain only collector numbers. Regular card entries (names,
+    full set+number, etc.) are parsed normally and don't use the context.
+
+    Args:
+        text: Multi-line text containing card entries
+        default_quantity: Default quantity for entries without a count
+
+    Returns:
+        List of ParsedCardInput for all valid entries
+    """
+    results: list[ParsedCardInput] = []
+    current_set_context: str | None = None
+
+    for line in text.splitlines():
+        line = line.strip()
+
+        # Skip empty lines and comments
+        if not line or line.startswith("#") or line.startswith("//"):
+            continue
+
+        # Check for set context line (e.g., "fin:" or "MKM:")
+        context_match = SET_CONTEXT_PATTERN.match(line)
+        if context_match:
+            current_set_context = context_match.group(1).lower()
+            continue
+
+        # If we have a set context, check for collector-number-only lines
+        if current_set_context:
+            collector_match = COLLECTOR_ONLY_PATTERN.match(line)
+            if collector_match:
+                quantity = (
+                    int(collector_match.group(1)) if collector_match.group(1) else default_quantity
+                )
+                collector_number = collector_match.group(2)
+                # Check for foil marker in the line
+                foil = bool(re.search(r"\*?f(?:oil)?\*?", line, re.IGNORECASE))
+                results.append(
+                    ParsedCardInput(
+                        card_name=None,
+                        quantity=quantity,
+                        foil=foil,
+                        set_code=current_set_context,
+                        collector_number=collector_number,
+                    )
+                )
+                continue
+
+        # Fall back to standard parsing
+        parsed = parse_card_input(line, default_quantity)
+        if parsed.card_name or parsed.collector_number:
+            results.append(parsed)
+
+    return results
+
+
+def load_card_list_from_file(file_path: Path | str) -> list[ParsedCardInput]:
+    """Load and parse a card list from a file.
+
+    Supports .txt and .yaml/.yml files.
+
+    Args:
+        file_path: Path to the card list file
+
+    Returns:
+        List of ParsedCardInput for all valid entries
+    """
+    path = Path(file_path)
+
+    if not path.exists():
+        raise FileNotFoundError(f"Card list file not found: {path}")
+
+    content = path.read_text(encoding="utf-8")
+
+    if path.suffix.lower() in (".yaml", ".yml"):
+        return _parse_yaml_card_list(content)
+
+    return parse_card_list(content)
+
+
+def _parse_yaml_card_list(content: str) -> list[ParsedCardInput]:
+    """Parse a YAML-formatted card list.
+
+    Expected format:
+        cards:
+          fin:
+            - 345
+            - 239
+            - "421 *f*"
+          mkm:
+            - 123
+            - "4x 456"
+          names:
+            - "4 Sol Ring"
+            - "Lightning Bolt [M21]"
+
+    Or simple list format:
+        - fin 345
+        - fin 239
+        - "4 Sol Ring"
+    """
+    import yaml
+
+    data = yaml.safe_load(content)
+
+    if data is None:
+        return []
+
+    results: list[ParsedCardInput] = []
+
+    # Handle dict format with set groupings
+    if isinstance(data, dict):
+        cards_section = data.get("cards", data)
+        if isinstance(cards_section, dict):
+            for set_or_key, entries in cards_section.items():
+                if not isinstance(entries, list):
+                    continue
+
+                for entry in entries:
+                    entry_str = str(entry).strip()
+                    if not entry_str:
+                        continue
+
+                    # "names" key means parse as full card entries
+                    if set_or_key.lower() == "names":
+                        parsed = parse_card_input(entry_str)
+                    else:
+                        # Use set_or_key as set context
+                        collector_match = COLLECTOR_ONLY_PATTERN.match(entry_str)
+                        if collector_match:
+                            quantity = (
+                                int(collector_match.group(1)) if collector_match.group(1) else 1
+                            )
+                            collector_number = collector_match.group(2)
+                            foil = bool(re.search(r"\*?f(?:oil)?\*?", entry_str, re.IGNORECASE))
+                            parsed = ParsedCardInput(
+                                card_name=None,
+                                quantity=quantity,
+                                foil=foil,
+                                set_code=set_or_key.lower(),
+                                collector_number=collector_number,
+                            )
+                        else:
+                            parsed = parse_card_input(entry_str)
+
+                    if parsed.card_name or parsed.collector_number:
+                        results.append(parsed)
+
+    # Handle simple list format
+    elif isinstance(data, list):
+        for entry in data:
+            entry_str = str(entry).strip()
+            if entry_str:
+                parsed = parse_card_input(entry_str)
+                if parsed.card_name or parsed.collector_number:
+                    results.append(parsed)
+
+    return results

@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mtg_core.data.database import MTGDatabase
+    from mtg_core.data.database import UnifiedDatabase
 
 logger = logging.getLogger(__name__)
 
@@ -60,26 +60,33 @@ class CardData:
             cmc += int(match)
         return cmc
 
+    def is_land(self) -> bool:
+        """Check if this card is a land."""
+        basic_lands = {
+            "Plains",
+            "Island",
+            "Swamp",
+            "Mountain",
+            "Forest",
+            "Snow-Covered Plains",
+            "Snow-Covered Island",
+            "Snow-Covered Swamp",
+            "Snow-Covered Mountain",
+            "Snow-Covered Forest",
+            "Wastes",
+        }
+        if self.name in basic_lands:
+            return True
+        return bool(self.type_line and "land" in self.type_line.lower())
+
     def get_card_type(self) -> str:
         """Get primary card type for categorization."""
-        # Fallback for basic lands without type_line data
+        # Check for lands first (including basic lands without type_line)
+        if self.is_land():
+            return "land"
+        # For cards without type_line, treat as "other" (not "unknown" to avoid unlimited slots)
         if not self.type_line:
-            basic_lands = {
-                "Plains",
-                "Island",
-                "Swamp",
-                "Mountain",
-                "Forest",
-                "Snow-Covered Plains",
-                "Snow-Covered Island",
-                "Snow-Covered Swamp",
-                "Snow-Covered Mountain",
-                "Snow-Covered Forest",
-                "Wastes",
-            }
-            if self.name in basic_lands:
-                return "land"
-            return "unknown"
+            return "other"
         type_lower = self.type_line.lower()
         if "creature" in type_lower:
             return "creature"
@@ -91,8 +98,6 @@ class CardData:
             return "enchantment"
         elif "planeswalker" in type_lower:
             return "planeswalker"
-        elif "land" in type_lower:
-            return "land"
         return "other"
 
 
@@ -106,6 +111,7 @@ DECK_TARGETS: dict[str, dict[str, int | tuple[int, int]]] = {
         "enchantment": (5, 12),
         "land": (35, 38),
         "planeswalker": (0, 3),
+        "other": (0, 5),  # Limit misc card types
     },
     "standard": {
         "total": 60,
@@ -115,6 +121,7 @@ DECK_TARGETS: dict[str, dict[str, int | tuple[int, int]]] = {
         "enchantment": (0, 6),
         "land": (22, 26),
         "planeswalker": (0, 3),
+        "other": (0, 4),  # Limit misc card types
     },
 }
 
@@ -184,11 +191,11 @@ TRIBAL_TYPES: list[str] = [
 class DeckFinder:
     """Recommend deck archetypes based on collection."""
 
-    def __init__(self, db: MTGDatabase | None = None) -> None:
+    def __init__(self, db: UnifiedDatabase | None = None) -> None:
         self._db = db
         self._initialized = False
 
-    async def initialize(self, db: MTGDatabase) -> None:
+    async def initialize(self, db: UnifiedDatabase) -> None:
         """Initialize with card data from database."""
         self._db = db
         self._initialized = True
@@ -203,7 +210,12 @@ class DeckFinder:
         """Score a card's fit for a specific deck.
 
         Higher scores = better fit.
+        Lands are scored separately (they go through Pass 1, not scoring).
         """
+        # Lands don't need scoring - they're handled in Pass 1
+        if card.is_land():
+            return 0.0
+
         score = 1.0  # Base score
 
         card_text = (card.text or "").lower()
@@ -234,7 +246,7 @@ class DeckFinder:
         if "draw" in card_text and "card" in card_text:
             score += 1.0
 
-        # Bonus for ramp
+        # Bonus for ramp (non-land cards that produce mana)
         if "add" in card_text and any(
             c in card_text for c in ["{w}", "{u}", "{b}", "{r}", "{g}", "mana"]
         ):
@@ -247,6 +259,10 @@ class DeckFinder:
         # Planeswalkers are generally valuable
         if card_type == "planeswalker":
             score += 1.0
+
+        # Creatures get a boost to ensure we have enough for combat
+        if card_type == "creature":
+            score += 0.3
 
         return score
 
@@ -353,17 +369,20 @@ class DeckFinder:
                 missing_cards.append(color_to_basic[colors_list[0]])
                 type_counts["land"] += 1
 
-        # Pass 2: Fill remaining slots with highest-scoring cards
+        # Pass 2: Fill remaining slots with highest-scoring NON-LAND cards
+        # Lands are fully handled in Pass 1 - we don't want any more lands
+        non_land_cards = [(s, c) for s, c in valid_cards if not c.is_land()]
+
         total_selected = len(owned_cards) + len(missing_cards)
-        for _score, card in valid_cards:
+        for _score, card in non_land_cards:
             if total_selected >= max_cards:
                 break
             if card.name in selected_names:
                 continue
 
             card_type = card.get_card_type()
-            type_limit = targets.get(card_type, (0, 999))
-            max_of_type = type_limit[1] if isinstance(type_limit, tuple) else 999
+            type_limit = targets.get(card_type, (0, 10))  # Default max of 10 for unknown types
+            max_of_type = type_limit[1] if isinstance(type_limit, tuple) else 10
 
             if type_counts[card_type] < max_of_type:
                 owned_cards.append(card.name)

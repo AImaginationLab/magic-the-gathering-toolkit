@@ -16,7 +16,7 @@ from ..widgets.art_navigator import HAS_IMAGE_SUPPORT, TImage
 from ..widgets.art_navigator.image_loader import load_image_from_url
 
 if TYPE_CHECKING:
-    from mtg_core.data.database import MTGDatabase, ScryfallDatabase
+    from mtg_core.data.database import UnifiedDatabase
     from mtg_core.data.models.responses import PrintingInfo
 
     from ..collection_manager import CollectionCardWithData
@@ -227,9 +227,7 @@ class CollectionCardPreview(Vertical):
         # Artist
         artist_widget = self.query_one("#ccp-artist", Static)
         if card and card.artist:
-            artist_widget.update(
-                f"[dim]🎨[/] [{ui_colors.GOLD}]{card.artist}[/] [dim](Enter to explore)[/]"
-            )
+            artist_widget.update(f"🎨 [{ui_colors.GOLD}]{card.artist}[/]")
         else:
             artist_widget.update("")
 
@@ -309,6 +307,8 @@ class CollectionCardPreview(Vertical):
             if self._printing.price_usd is not None:
                 color = get_price_color(self._printing.price_usd)
                 parts.append(f"[{color}]${self._printing.price_usd:.2f}[/]")
+            if self._printing.price_usd_foil is not None:
+                parts.append(f"[yellow]${self._printing.price_usd_foil:.2f} ✨[/]")
             if self._printing.price_eur is not None:
                 parts.append(f"[dim]€{self._printing.price_eur:.2f}[/]")
 
@@ -345,8 +345,7 @@ class CollectionCardPreview(Vertical):
 
     async def load_printing(
         self,
-        scryfall: ScryfallDatabase | None,
-        db: MTGDatabase | None,
+        db: UnifiedDatabase | None,
         card_name: str,
         set_code: str | None = None,
         collector_number: str | None = None,
@@ -354,13 +353,12 @@ class CollectionCardPreview(Vertical):
         """Load printing info and image for a card.
 
         Args:
-            scryfall: Scryfall database for image/price data
-            db: MTG database for card data
+            db: Unified MTG database for all card data
             card_name: The card name to look up
             set_code: Optional set code for exact printing
             collector_number: Optional collector number for exact printing
         """
-        if not scryfall or not card_name:
+        if not db or not card_name:
             return
 
         try:
@@ -368,19 +366,20 @@ class CollectionCardPreview(Vertical):
 
             # First try to get exact printing if set_code and collector_number provided
             if set_code and collector_number:
-                image = await scryfall.get_card_image(card_name, set_code, collector_number)
-                if image:
+                card = await db.get_card_by_set_and_number(set_code, collector_number)
+                if card:
                     self._printing = PrintingInfo(
-                        uuid=None,
-                        set_code=image.set_code,
-                        collector_number=image.collector_number,
-                        rarity=None,
-                        image=image.image_normal,
-                        art_crop=image.image_art_crop,
-                        price_usd=image.price_usd / 100 if image.price_usd else None,
-                        price_eur=image.price_eur / 100 if image.price_eur else None,
-                        artist=None,
-                        illustration_id=image.illustration_id,
+                        uuid=card.uuid,
+                        set_code=card.set_code,
+                        collector_number=card.number,
+                        rarity=card.rarity,
+                        image=card.image_normal,
+                        art_crop=card.image_art_crop,
+                        price_usd=card.price_usd / 100 if card.price_usd else None,
+                        price_usd_foil=card.price_usd_foil / 100 if card.price_usd_foil else None,
+                        price_eur=card.price_eur / 100 if card.price_eur else None,
+                        artist=card.artist,
+                        illustration_id=card.illustration_id,
                     )
                     self._update_prices()
                     if self._printing.image:
@@ -390,7 +389,7 @@ class CollectionCardPreview(Vertical):
             # Fall back to getting all printings and selecting first
             from mtg_core.tools import images
 
-            printings = await images.get_card_printings(scryfall, db, card_name)
+            printings = await images.get_card_printings(db, card_name)
             if printings and printings.printings:
                 # Try to find matching set_code if provided
                 if set_code:

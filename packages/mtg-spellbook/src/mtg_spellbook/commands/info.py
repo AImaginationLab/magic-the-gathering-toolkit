@@ -15,7 +15,6 @@ class InfoCommandsMixin:
 
     if TYPE_CHECKING:
         _db: Any
-        _scryfall: Any
 
         def query_one(self, selector: str, expect_type: type[Any] = ...) -> Any: ...
         def _show_message(self, message: str) -> None: ...
@@ -45,12 +44,12 @@ class InfoCommandsMixin:
     @work
     async def show_price(self, card_name: str) -> None:
         """Show price for a card (prices shown in focus view)."""
-        if not self._scryfall:
-            self._show_message("[red]Scryfall database not available for prices[/]")
+        if not self._db:
+            self._show_message("[red]Database not available for prices[/]")
             return
 
         try:
-            result = await images.get_card_price(self._scryfall, card_name)
+            result = await images.get_card_price(self._db, card_name)
 
             # Format price info for notification
             lines = []
@@ -71,15 +70,15 @@ class InfoCommandsMixin:
     @work
     async def show_art(self, card_name: str) -> None:
         """Show card art with all printings."""
-        if not self._scryfall:
-            self._show_message("[red]Scryfall database not available for images[/]")
+        if not self._db:
+            self._show_message("[red]Database not available for images[/]")
             return
 
         from ..widgets import CardPanel
 
         try:
             panel = self.query_one("#card-panel", CardPanel)
-            await panel.load_printings(self._scryfall, self._db, card_name)
+            await panel.load_printings(self._db, card_name)
 
         except CardNotFoundError:
             self._show_message(f"[red]Card not found: {card_name}[/]")

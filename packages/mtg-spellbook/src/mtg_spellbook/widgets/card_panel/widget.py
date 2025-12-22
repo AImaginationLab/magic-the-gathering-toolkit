@@ -13,7 +13,7 @@ from textual.events import Key
 from ..art_navigator import EnhancedArtNavigator
 
 if TYPE_CHECKING:
-    from mtg_core.data.database import MTGDatabase, ScryfallDatabase
+    from mtg_core.data.database import UnifiedDatabase
     from mtg_core.data.models.responses import CardDetail, PrintingInfo
 
     from ...collection_manager import CollectionManager
@@ -99,7 +99,7 @@ class CardPanel(Vertical, can_focus=True):
         """Update the displayed card with synergy information."""
         self._card = card
 
-    async def load_legalities(self, db: MTGDatabase, card_name: str) -> None:
+    async def load_legalities(self, db: UnifiedDatabase, card_name: str) -> None:
         """Load and pass legalities to the focus view."""
         try:
             from mtg_core.exceptions import CardNotFoundError
@@ -115,8 +115,7 @@ class CardPanel(Vertical, can_focus=True):
 
     async def load_printings(
         self,
-        scryfall: ScryfallDatabase | None,
-        mtg_db: MTGDatabase | None,
+        db: UnifiedDatabase,
         card_name: str,
         flavor_name: str | None = None,
         target_set: str | None = None,
@@ -125,7 +124,7 @@ class CardPanel(Vertical, can_focus=True):
         """Load all printings for a card."""
         from . import loaders
 
-        printings, error = await loaders.load_printings(scryfall, mtg_db, card_name)
+        printings, error = await loaders.load_printings(db, card_name)
         if error:
             return
 

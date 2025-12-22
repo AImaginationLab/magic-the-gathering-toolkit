@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
+import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from mtg_core.data.database import UserDatabase
@@ -10,7 +13,10 @@ from mtg_core.data.models import Card
 from mtg_core.exceptions import CardNotFoundError
 
 if TYPE_CHECKING:
-    from mtg_core.data.database import MTGDatabase, ScryfallDatabase
+    from mtg_core.data.database import UnifiedDatabase
+
+# Default cache location
+PRICE_CACHE_PATH = Path.home() / ".mtg-spellbook" / "price_cache.json"
 
 
 @dataclass
@@ -81,15 +87,85 @@ class ImportResult:
 class CollectionManager:
     """Manages collection operations with full card data."""
 
+    # Price cache TTL in seconds (1 hour - longer since it persists to disk)
+    PRICE_CACHE_TTL = 3600.0
+
     def __init__(
         self,
         user_db: UserDatabase,
-        mtg_db: MTGDatabase,
-        scryfall: ScryfallDatabase | None = None,
+        db: UnifiedDatabase,
+        cache_path: Path | None = None,
     ):
         self.user = user_db
-        self.mtg = mtg_db
-        self.scryfall = scryfall
+        self.db = db
+        self._cache_path = cache_path or PRICE_CACHE_PATH
+        # Price cache: dict of price_key -> (usd, usd_foil)
+        self._price_cache: dict[str, tuple[float | None, float | None]] = {}
+        self._price_cache_time: float = 0.0
+        # Load from disk on init
+        self._load_cache_from_disk()
+
+    def _load_cache_from_disk(self) -> None:
+        """Load price cache from disk if it exists and is valid."""
+        if not self._cache_path.exists():
+            return
+
+        try:
+            with self._cache_path.open() as f:
+                data = json.load(f)
+
+            cache_time = data.get("timestamp", 0)
+            # Check if cache is still valid
+            if time.time() - cache_time > self.PRICE_CACHE_TTL:
+                # Cache is stale, delete it
+                self._cache_path.unlink(missing_ok=True)
+                return
+
+            # Load prices - JSON stores tuples as arrays, convert back
+            prices = data.get("prices", {})
+            self._price_cache = {k: (v[0], v[1]) for k, v in prices.items()}
+            self._price_cache_time = cache_time
+        except (json.JSONDecodeError, KeyError, OSError):
+            # Corrupted cache, delete it
+            self._cache_path.unlink(missing_ok=True)
+
+    def _save_cache_to_disk(self) -> None:
+        """Save price cache to disk."""
+        if not self._price_cache:
+            return
+
+        try:
+            self._cache_path.parent.mkdir(parents=True, exist_ok=True)
+            data = {
+                "timestamp": self._price_cache_time,
+                "prices": self._price_cache,
+            }
+            with self._cache_path.open("w") as f:
+                json.dump(data, f)
+        except OSError:
+            pass  # Silently fail if we can't write cache
+
+    def invalidate_price_cache(self) -> None:
+        """Invalidate the price cache (call after adding cards or changing printings)."""
+        self._price_cache = {}
+        self._price_cache_time = 0.0
+        # Delete disk cache
+        self._cache_path.unlink(missing_ok=True)
+
+    def get_cached_prices(self) -> dict[str, tuple[float | None, float | None]] | None:
+        """Get cached prices if still valid, or None if cache is stale."""
+        if not self._price_cache:
+            return None
+        if time.time() - self._price_cache_time > self.PRICE_CACHE_TTL:
+            self.invalidate_price_cache()
+            return None
+        return self._price_cache
+
+    def set_cached_prices(self, prices: dict[str, tuple[float | None, float | None]]) -> None:
+        """Cache price data (in memory and on disk)."""
+        self._price_cache = prices
+        self._price_cache_time = time.time()
+        self._save_cache_to_disk()
 
     async def add_card(
         self,
@@ -111,28 +187,22 @@ class CollectionManager:
 
         # If set_code and collector_number provided, look up by those first
         if set_code and collector_number:
-            # Try regular cards first
-            card = await self.mtg.get_card_by_set_and_number(set_code, collector_number)
-            # Fall back to tokens table (includes art series)
-            if card is None:
-                card = await self.mtg.get_token_by_set_and_number(set_code, collector_number)
+            # Unified database handles both regular cards and tokens
+            card = await self.db.get_card_by_set_and_number(set_code, collector_number)
             if card is None:
                 return AddToCollectionResult(
                     success=False,
                     error=f"Card not found: {set_code.upper()} #{collector_number}",
                 )
         elif card_name:
-            # Look up by name
+            # Look up by name (include_extras=True gets tokens too)
             try:
-                card = await self.mtg.get_card_by_name(card_name)
+                card = await self.db.get_card_by_name(card_name, include_extras=True)
             except CardNotFoundError:
-                # Fall back to token lookup
-                card = await self.mtg.get_token_by_name(card_name)
-                if card is None:
-                    return AddToCollectionResult(
-                        success=False,
-                        error=f"Card not found: {card_name}",
-                    )
+                return AddToCollectionResult(
+                    success=False,
+                    error=f"Card not found: {card_name}",
+                )
         else:
             return AddToCollectionResult(
                 success=False,
@@ -210,7 +280,7 @@ class CollectionManager:
         if row is None:
             return None
 
-        card = await self.mtg.get_card_by_name(card_name)
+        card = await self.db.get_card_by_name(card_name, include_extras=True)
         deck_usage = await self.user.get_card_deck_usage(card_name)
         in_deck_count = sum(qty for _, qty in deck_usage)
 
@@ -243,7 +313,7 @@ class CollectionManager:
 
         # Batch load card data
         card_names = [row.card_name for row in rows]
-        cards_by_name = await self.mtg.get_cards_by_names(card_names)
+        cards_by_name = await self.db.get_cards_by_names(card_names)
 
         # Batch load deck usage (single query instead of N+1)
         deck_usage_by_card = await self.user.get_cards_deck_usage_batch(card_names)
@@ -298,7 +368,7 @@ class CollectionManager:
         return owned, in_decks, deck_usage
 
     async def import_from_text(self, text: str) -> ImportResult:
-        """Import cards from text format (one card per line).
+        """Import cards from text format with set context support.
 
         Supported formats:
         - "4 Lightning Bolt" or "4x Lightning Bolt"
@@ -308,34 +378,33 @@ class CollectionManager:
         - "4 FIN 0012" or "4 FIN 12 foil" - set code + collector number lookup
         - "fca 27" or "2 fca 27" - set code + collector number (quantity optional)
 
+        Set context format (group cards by set):
+            fin:
+            345
+            239
+            2x 421 *f*
+            mkm:
+            123
+
         Returns ImportResult with added count, errors, and cards needing printing selection.
         """
-        from .collection.parser import parse_card_input
+        from .collection.parser import parse_card_list
 
         added = 0
         errors: list[str] = []
         cards_with_printings: list[ImportedCard] = []
 
-        for line in text.strip().split("\n"):
-            line = line.strip()
-            if not line or line.startswith("//") or line.startswith("#"):
-                continue
+        # Parse all lines with set context support
+        parsed_cards = parse_card_list(text)
 
-            # Parse the line using shared parser
-            parsed = parse_card_input(line)
-
+        for parsed in parsed_cards:
             # If SET NUMBER format, look up the card
             card_name = parsed.card_name
             if parsed.set_code and parsed.collector_number and not card_name:
-                # Try regular cards first
-                looked_up_card = await self.mtg.get_card_by_set_and_number(
+                # Unified database handles both regular cards and tokens
+                looked_up_card = await self.db.get_card_by_set_and_number(
                     parsed.set_code, parsed.collector_number
                 )
-                # Fall back to tokens table (includes art series)
-                if not looked_up_card:
-                    looked_up_card = await self.mtg.get_token_by_set_and_number(
-                        parsed.set_code, parsed.collector_number
-                    )
                 if looked_up_card:
                     card_name = looked_up_card.name
                 else:
@@ -345,7 +414,7 @@ class CollectionManager:
                     continue
 
             if not card_name:
-                errors.append(f"Could not parse: {line}")
+                # Should not happen since parse_card_list filters out unparseable lines
                 continue
 
             result = await self.add_card(
@@ -360,7 +429,7 @@ class CollectionManager:
                 # Only check for multiple printings if user didn't specify a printing
                 if not parsed.set_code:
                     try:
-                        printings = await self.mtg.get_all_printings(result.card.name)
+                        printings = await self.db.get_all_printings(result.card.name)
                         if len(printings) > 1:
                             cards_with_printings.append(
                                 ImportedCard(

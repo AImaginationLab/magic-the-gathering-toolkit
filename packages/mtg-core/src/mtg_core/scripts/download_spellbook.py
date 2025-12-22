@@ -10,6 +10,7 @@ Usage:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import sqlite3
 from pathlib import Path
@@ -33,6 +34,8 @@ app = typer.Typer(help="Download Commander Spellbook combo database")
 
 BASE_URL = "https://backend.commanderspellbook.com"
 PAGE_SIZE = 100
+# Delay between API requests (seconds) - be respectful to the API
+REQUEST_DELAY = 0.15
 
 
 def create_database(db_path: Path) -> sqlite3.Connection:
@@ -195,6 +198,8 @@ async def fetch_all_variants(client: httpx.AsyncClient) -> list[dict[str, Any]]:
         )
 
         while offset < total:
+            # Rate limit to be respectful to the API
+            await asyncio.sleep(REQUEST_DELAY)
             response = await client.get(
                 f"{BASE_URL}/variants/",
                 params={"limit": PAGE_SIZE, "offset": offset},
@@ -216,7 +221,6 @@ def download(
     ] = Path("resources"),
 ) -> None:
     """Download Commander Spellbook combo database."""
-    import asyncio
 
     async def _download() -> None:
         db_path = output_dir / "combos.sqlite"

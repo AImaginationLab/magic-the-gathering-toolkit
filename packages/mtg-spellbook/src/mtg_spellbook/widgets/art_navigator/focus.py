@@ -26,7 +26,7 @@ class FocusView(Vertical, can_focus=True):
     """Immersive single-card view with maximized image and rich metadata."""
 
     BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
-        Binding("enter", "browse_artist", "Browse Artist", show=False),
+        Binding("e", "browse_artist", "Explore Artist", show=True),
     ]
 
     show_art_crop: reactive[bool] = reactive(False)
@@ -164,10 +164,7 @@ class FocusView(Vertical, can_focus=True):
         # Update artist
         artist_widget = self.query_one("#focus-artist", Static)
         if printing.artist:
-            artist_widget.update(
-                f"🎨 [italic underline {ui_colors.GOLD}]{printing.artist}[/] "
-                f"[dim](Enter to explore)[/]"
-            )
+            artist_widget.update(f"🎨 [italic underline {ui_colors.GOLD}]{printing.artist}[/]")
         else:
             artist_widget.update("")
 
@@ -282,6 +279,8 @@ class FocusView(Vertical, can_focus=True):
         if printing.price_usd is not None:
             price_color = get_price_color(printing.price_usd)
             price_parts.append(f"[{price_color}]${printing.price_usd:.2f}[/]")
+        if printing.price_usd_foil is not None:
+            price_parts.append(f"[yellow]${printing.price_usd_foil:.2f} ✨[/]")
         if printing.price_eur is not None:
             price_parts.append(f"[dim]€{printing.price_eur:.2f}[/]")
 

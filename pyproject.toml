@@ -44,19 +44,29 @@ known-first-party = ["mtg_core", "mtg_mcp_server", "mtg_spellbook"]
 python_version = "3.11"
 strict = true
 ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
+explicit_package_bases = true
+mypy_path = ["packages/mtg-core/src", "packages/mtg-spellbook/src", "packages/mtg-mcp-server/src"]
+exclude = ["tests/", "tests_core/", "tests_spellbook/"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
 
 [[tool.mypy.overrides]]
-module = ["tests.*"]
+module = ["tests.*", "mtg_spellbook.tests.*"]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 warn_return_any = false
 check_untyped_defs = false
-disable_error_code = ["var-annotated", "comparison-overlap"]
+disable_error_code = ["var-annotated", "comparison-overlap", "call-arg"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-testpaths = ["tests"]
+testpaths = ["packages/mtg-core/tests_core", "packages/mtg-spellbook/tests_spellbook"]
+pythonpath = ["packages/mtg-core/src", "packages/mtg-spellbook/src"]
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]

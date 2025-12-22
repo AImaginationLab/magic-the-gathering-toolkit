@@ -10,9 +10,9 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.css.query import NoMatches
 from textual.events import Key
-from textual.screen import Screen
 from textual.widgets import ListView, Static
 
+from ..screens import BaseScreen
 from ..ui.theme import ui_colors
 from .card_item import RecommendationCardItem
 from .detail_panel import RecommendationDetailPanel
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from ..deck_manager import DeckManager, DeckWithCards
 
 
-class RecommendationScreen(Screen[None]):
+class RecommendationScreen(BaseScreen[None]):
     """Full-screen recommendations view with filtering and sorting.
 
     Three-pane layout:
@@ -40,7 +40,7 @@ class RecommendationScreen(Screen[None]):
     - Right (30%): Detail view with score breakdown
     """
 
-    BINDINGS: ClassVar[list[Binding]] = [  # type: ignore[assignment]
+    BINDINGS: ClassVar[list[Binding]] = [
         Binding("escape,q", "close_screen", "Close", show=True),
         Binding("tab", "toggle_focus", "Switch Pane", show=False),
         Binding("f", "cycle_filter", "Filter", show=True),
@@ -57,6 +57,9 @@ class RecommendationScreen(Screen[None]):
         Binding("home", "first", "First", show=False),
         Binding("end", "last_item", "Last", show=False),
     ]
+
+    # Don't show footer - this screen has its own status bar
+    show_footer: ClassVar[bool] = False
 
     CSS = """
     RecommendationScreen {
@@ -158,7 +161,7 @@ class RecommendationScreen(Screen[None]):
         self._active_sort = SortOrder.SCORE
         self._active_pane = "list"
 
-    def compose(self) -> ComposeResult:
+    def compose_content(self) -> ComposeResult:
         deck_name = self._deck.name if self._deck else "Unknown"
         yield Static(
             f'[bold {ui_colors.GOLD}]{chr(0x2728)} RECOMMENDATIONS FOR[/] "{deck_name}"',
@@ -181,7 +184,7 @@ class RecommendationScreen(Screen[None]):
 
         yield Static(self._render_statusbar(), id="rec-statusbar")
 
-    def on_mount(self) -> None:
+    async def on_mount(self) -> None:
         """Load recommendations on mount."""
         self._load_recommendations()
 

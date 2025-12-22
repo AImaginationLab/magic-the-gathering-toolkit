@@ -26,7 +26,7 @@ class PrintingsCarousel(Vertical, can_focus=True):
     BINDINGS: ClassVar[list[Binding]] = [  # type: ignore[assignment]
         Binding("h,left", "prev", "Previous", show=False),
         Binding("l,right", "next", "Next", show=False),
-        Binding("enter", "browse_artist", "Artist"),
+        Binding("e", "browse_artist", "Explore Artist"),
     ]
 
     DEFAULT_CSS = """

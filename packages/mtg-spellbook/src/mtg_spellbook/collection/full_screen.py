@@ -14,10 +14,10 @@ from textual.containers import Horizontal, Vertical
 from textual.css.query import NoMatches
 from textual.events import Key
 from textual.reactive import reactive
-from textual.screen import Screen
 from textual.widgets import Input, ListItem, ListView, Static
 
 from ..deck.messages import AddToDeckRequested
+from ..screens import BaseScreen
 from ..ui.theme import ui_colors
 from .card_preview import CollectionCardPreview
 from .deck_suggestions_screen import (
@@ -37,7 +37,7 @@ from .modals import (
 from .stats_panel import CollectionStatsPanel
 
 if TYPE_CHECKING:
-    from mtg_core.data.database import MTGDatabase, ScryfallDatabase
+    from mtg_core.data.database import UnifiedDatabase
 
     from ..collection_manager import CollectionCardWithData, CollectionManager
 
@@ -132,7 +132,7 @@ class CollectionCardItem(ListItem):
         return f"{base_format}\n{avail_line}"
 
 
-class FullCollectionScreen(Screen[None]):
+class FullCollectionScreen(BaseScreen[None]):
     """Full-screen collection browser with filtering and sorting.
 
     Features:
@@ -144,7 +144,7 @@ class FullCollectionScreen(Screen[None]):
     - Keyboard shortcuts for quick navigation
     """
 
-    BINDINGS: ClassVar[list[Binding]] = [  # type: ignore[assignment]
+    BINDINGS: ClassVar[list[Binding]] = [
         Binding("escape,q", "exit_collection", "Exit", show=True),
         Binding("tab", "toggle_focus", "Switch Pane", show=False),
         Binding("slash", "focus_search", "Search", show=True),
@@ -165,13 +165,22 @@ class FullCollectionScreen(Screen[None]):
         Binding("end", "last_item", "Last", show=False),
     ]
 
+    # Don't show footer - this screen has its own status bar
+    show_footer: ClassVar[bool] = False
+
     CSS = """
     FullCollectionScreen {
         background: #0d0d0d;
     }
 
+    /* Override screen-content to use grid for proper height distribution */
+    FullCollectionScreen #screen-content {
+        layout: grid;
+        grid-size: 1;
+        grid-rows: 4 1fr;
+    }
+
     #collection-header {
-        height: 3;
         background: #0a0a14;
         border-bottom: heavy #c9a227;
         padding: 0 2;
@@ -180,7 +189,6 @@ class FullCollectionScreen(Screen[None]):
 
     #collection-main {
         width: 100%;
-        height: 1fr;
     }
 
     #collection-stats-pane {
@@ -196,6 +204,10 @@ class FullCollectionScreen(Screen[None]):
         height: 100%;
         background: #0a0a14;
         border-right: solid #3d3d3d;
+        /* Grid layout so child ListView can use 1fr */
+        layout: grid;
+        grid-size: 1;
+        grid-rows: auto auto 1fr auto;
     }
 
     #collection-filter-row {
@@ -287,13 +299,11 @@ class FullCollectionScreen(Screen[None]):
     def __init__(
         self,
         manager: CollectionManager,
-        db: MTGDatabase,
-        scryfall: ScryfallDatabase | None = None,
+        db: UnifiedDatabase,
     ) -> None:
         super().__init__()
         self._manager = manager
         self._db = db
-        self._scryfall = scryfall
         self._cards: list[CollectionCardWithData] = []
         self._filtered_cards: list[CollectionCardWithData] = []
         self._current_card: CollectionCardWithData | None = None
@@ -304,7 +314,7 @@ class FullCollectionScreen(Screen[None]):
         self._population_cancelled = False
         self._prices: dict[str, tuple[float | None, float | None]] = {}
 
-    def compose(self) -> ComposeResult:
+    def compose_content(self) -> ComposeResult:
         # Header
         yield Static(
             f"[bold {ui_colors.GOLD}]📦 MY COLLECTION[/]",
@@ -424,8 +434,13 @@ class FullCollectionScreen(Screen[None]):
         self._load_collection()
 
     @work
-    async def _load_collection(self) -> None:
-        """Load all collection cards."""
+    async def _load_collection(self, *, reload_prices: bool = True) -> None:
+        """Load all collection cards.
+
+        Args:
+            reload_prices: If False, reuse existing price data instead of re-fetching.
+                          Use False for quantity changes and removals where prices don't change.
+        """
         self._population_cancelled = False
 
         # Get all cards
@@ -441,9 +456,12 @@ class FullCollectionScreen(Screen[None]):
             stats_panel = self.query_one("#collection-stats", CollectionStatsPanel)
             stats_panel.update_stats(stats, self._cards)
 
-            # Load price data from Scryfall (in background to not block UI)
-            if self._scryfall:
+            if reload_prices:
+                # Load price data fresh (in background to not block UI)
                 self._load_price_data()
+            elif self._prices:
+                # Reuse existing prices, just recalculate total value
+                stats_panel.update_value(self._prices, self._cards)
         except NoMatches:
             pass
 
@@ -471,61 +489,80 @@ class FullCollectionScreen(Screen[None]):
 
     @work(exclusive=True, group="price_data")
     async def _load_price_data(self) -> None:
-        """Load price data for all collection cards from Scryfall.
+        """Load price data for all collection cards.
 
-        Uses specific set_code/collector_number when available to get the correct
-        printing's price (important for basic lands and cards with many printings).
+        Uses optimized price-only queries that fetch just 4 columns instead of 40+.
+        Cards with specific printings use get_prices_by_set_and_numbers(),
+        cards without use get_prices_by_names().
+
+        Prices are cached in the CollectionManager for 5 minutes to avoid
+        repeated database queries when reopening the collection screen.
         """
-        if not self._scryfall or not self._cards:
+        if not self._cards:
+            return
+
+        # Check for cached prices first
+        cached = self._manager.get_cached_prices()
+        if cached:
+            self._prices = cached
+            # Update stats panel with cached prices
+            try:
+                stats_panel = self.query_one("#collection-stats", CollectionStatsPanel)
+                stats_panel.update_value(cached, self._cards)
+            except NoMatches:
+                pass
             return
 
         # Build price dict: price_key -> (usd_price, usd_foil_price)
         price_data: dict[str, tuple[float | None, float | None]] = {}
 
         # Separate cards with specific printings from those without
+        printings_to_fetch: list[tuple[str, str]] = []
         cards_with_printing: list[CollectionCardWithData] = []
         cards_without_printing: list[CollectionCardWithData] = []
 
         for card_data in self._cards:
             if card_data.set_code and card_data.collector_number:
                 cards_with_printing.append(card_data)
+                printings_to_fetch.append((card_data.set_code, card_data.collector_number))
             else:
                 cards_without_printing.append(card_data)
 
-        # For cards with specific printings, look up individually to get correct price
-        for card_data in cards_with_printing:
-            image = await self._scryfall.get_card_image(
-                card_data.card_name,
-                set_code=card_data.set_code,
-                collector_number=card_data.collector_number,
-            )
-            if image:
-                key = self._price_key(
-                    card_data.card_name, card_data.set_code, card_data.collector_number
-                )
-                price_data[key] = (
-                    image.get_price_usd(),
-                    image.get_price_usd_foil(),
-                )
+        # Fetch prices only (not full card objects) - much faster
+        if printings_to_fetch:
+            prices_by_printing = await self._db.get_prices_by_set_and_numbers(printings_to_fetch)
 
-        # For cards without specific printings, batch fetch by name
-        if cards_without_printing:
-            card_names = [c.card_name for c in cards_without_printing]
-            card_images = await self._scryfall.get_card_images_batch(card_names)
-
-            for card_data in cards_without_printing:
-                image = card_images.get(card_data.card_name.lower())
-                if image:
+            for card_data in cards_with_printing:
+                assert card_data.set_code is not None
+                assert card_data.collector_number is not None
+                lookup_key = (card_data.set_code.upper(), card_data.collector_number)
+                price_tuple = prices_by_printing.get(lookup_key)
+                if price_tuple:
                     key = self._price_key(
                         card_data.card_name, card_data.set_code, card_data.collector_number
                     )
-                    price_data[key] = (
-                        image.get_price_usd(),
-                        image.get_price_usd_foil(),
-                    )
+                    price_usd = price_tuple[0] / 100.0 if price_tuple[0] else None
+                    price_usd_foil = price_tuple[1] / 100.0 if price_tuple[1] else None
+                    price_data[key] = (price_usd, price_usd_foil)
 
-        # Store prices for sorting
+        # Fetch prices by name for cards without specific printings
+        if cards_without_printing:
+            card_names = [c.card_name for c in cards_without_printing]
+            prices_by_name = await self._db.get_prices_by_names(card_names)
+
+            for card_data in cards_without_printing:
+                price_tuple = prices_by_name.get(card_data.card_name.lower())
+                if price_tuple:
+                    key = self._price_key(
+                        card_data.card_name, card_data.set_code, card_data.collector_number
+                    )
+                    price_usd = price_tuple[0] / 100.0 if price_tuple[0] else None
+                    price_usd_foil = price_tuple[1] / 100.0 if price_tuple[1] else None
+                    price_data[key] = (price_usd, price_usd_foil)
+
+        # Store prices for sorting and cache for future opens
         self._prices = price_data
+        self._manager.set_cached_prices(price_data)
 
         # Update stats panel
         try:
@@ -781,7 +818,6 @@ class FullCollectionScreen(Screen[None]):
             preview.update_card(card_data, deck_usage)
             # Load printing info and image (pass stored set_code/collector_number for exact printing)
             await preview.load_printing(
-                self._scryfall,
                 self._db,
                 card_data.card_name,
                 card_data.set_code,
@@ -1156,6 +1192,8 @@ class FullCollectionScreen(Screen[None]):
             collector_number=data.collector_number,
         )
         if result.success and result.card:
+            # Invalidate price cache since we added a new card
+            self._manager.invalidate_price_cache()
             # Show appropriate message based on input type
             if data.set_code and data.collector_number:
                 msg = f"Added {data.quantity}x {result.card.name} ({data.set_code.upper()} #{data.collector_number})"
@@ -1186,6 +1224,8 @@ class FullCollectionScreen(Screen[None]):
         errors = result.errors
 
         if added > 0:
+            # Invalidate price cache since we added new cards
+            self._manager.invalidate_price_cache()
             msg = f"Imported {added} card{'s' if added != 1 else ''}"
             if errors:
                 msg += f" ({len(errors)} not found)"
@@ -1219,6 +1259,8 @@ class FullCollectionScreen(Screen[None]):
         """Apply the selected printings to collection cards."""
         updated = await self._manager.apply_printing_selections(selections)
         if updated > 0:
+            # Invalidate price cache since different printings have different prices
+            self._manager.invalidate_price_cache()
             self.notify(f"Updated printings for {updated} card{'s' if updated != 1 else ''}")
             self._load_collection()
 
@@ -1257,4 +1299,5 @@ class FullCollectionScreen(Screen[None]):
         removed = await self._manager.remove_card(card_name)
         if removed:
             self.notify(f"Removed {card_name}")
-            self._load_collection()
+            # Prices don't change on removal, just recalculate total
+            self._load_collection(reload_prices=False)

@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from textual import work
-from textual.widgets import Static
 
 from mtg_core.exceptions import CardNotFoundError
 from mtg_core.tools import cards, synergy
@@ -31,7 +30,6 @@ class SynergyCommandsMixin:
         from ..collection_manager import CollectionManager
 
         _db: Any
-        _scryfall: Any
         _current_results: list[Any]
         _current_card: Any
         _synergy_mode: bool
@@ -57,7 +55,7 @@ class SynergyCommandsMixin:
         self._synergy_info = {}
 
         try:
-            source_card = await cards.get_card(self._db, self._scryfall, name=card_name)
+            source_card = await cards.get_card(self._db, name=card_name)
         except CardNotFoundError:
             self._show_message(f"[red]Card not found: {card_name}[/]")
             self._synergy_mode = False
@@ -135,34 +133,23 @@ class SynergyCommandsMixin:
         if not self._db:
             return
 
-        self._show_synergy_panel()
-
         result = await synergy.detect_combos(self._db, card_name=card_name)
 
-        content = self.query_one("#synergy-content", Static)
-
-        lines = [f"[bold]🔗 Combos involving {card_name}[/]", ""]
+        lines: list[str] = []
 
         if result.combos:
             lines.append(f"[bold green]Complete Combos ({len(result.combos)}):[/]")
             for combo in result.combos:
-                lines.append(f"  [bold cyan]{combo.id}[/] [{combo.combo_type}]")
-                lines.append(f"    {combo.description}")
-                for card in combo.cards:
-                    lines.append(f"      • [cyan]{card.name}[/] — {card.role}")
-                lines.append("")
+                lines.append(f"  {combo.id} [{combo.combo_type}]: {combo.description}")
 
         if result.potential_combos:
             lines.append(f"[bold yellow]Potential Combos ({len(result.potential_combos)}):[/]")
             for combo in result.potential_combos:
                 missing = result.missing_cards.get(combo.id, [])
-                lines.append(f"  [bold cyan]{combo.id}[/] [{combo.combo_type}]")
-                lines.append(f"    {combo.description}")
-                if missing:
-                    lines.append(f"    [red]Missing:[/] {', '.join(missing)}")
-                lines.append("")
+                missing_str = f" (missing: {', '.join(missing)})" if missing else ""
+                lines.append(f"  {combo.id}: {combo.description}{missing_str}")
 
-        if not result.combos and not result.potential_combos:
-            lines.append("[dim]No known combos found for this card.[/]")
-
-        content.update("\n".join(lines))
+        if lines:
+            self._show_message("\n".join(lines))
+        else:
+            self._show_message(f"[dim]No known combos found for {card_name}[/]")

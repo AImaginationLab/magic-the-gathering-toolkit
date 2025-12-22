@@ -12,8 +12,6 @@ from textual.widgets import Static
 from ..ui.theme import ui_colors
 
 if TYPE_CHECKING:
-    from mtg_core.data.database import ScryfallDatabase
-
     from ..deck_manager import DeckWithCards
 
 # Mana colors with improved contrast
@@ -124,16 +122,10 @@ class DeckStatsBar(Vertical):
         self,
         *,
         id: str | None = None,
-        scryfall: ScryfallDatabase | None = None,
     ) -> None:
         super().__init__(id=id)
         self._deck: DeckWithCards | None = None
-        self._scryfall = scryfall
         self._prices: dict[str, float] = {}  # card_name -> price_usd
-
-    def set_scryfall(self, scryfall: ScryfallDatabase | None) -> None:
-        """Set the Scryfall database for price lookups."""
-        self._scryfall = scryfall
 
     def compose(self) -> ComposeResult:
         yield Static(

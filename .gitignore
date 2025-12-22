@@ -36,6 +36,7 @@ env/
 data/*.db
 resources/*.sqlite
 resources/*.sqlite*
+resources/*.db
 
 # But track smaller generated databases
 !resources/limited_stats.sqlite
@@ -55,7 +56,17 @@ test_db.sqlite-*
 .pytest_cache/
 .coverage
 htmlcov/
+packages/mtg-spellbook/tests/__snapshots__*
+packages/mtg-spellbook/tests/screenshots/__snapshots__*
+
+# TODO: Remove these temporary test artifacts
+packages/mtg-spellbook/tests/art_panel_ux_test*
+docs/*
+snapshot_report.html
 
 # OS
 .DS_Store
 Thumbs.db
+
+.claude
+CLAUDE*

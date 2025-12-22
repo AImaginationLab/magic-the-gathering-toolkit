@@ -12,7 +12,7 @@ from .spellbook_combos import SpellbookComboDetector, get_spellbook_detector
 from .tfidf import CardRecommender
 
 if TYPE_CHECKING:
-    from mtg_core.data.database import MTGDatabase
+    from mtg_core.data.database import UnifiedDatabase
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +132,45 @@ class ComboPieceDetector:
         return scores.get(combo_type, 0.3)
 
 
+# Land count targets by deck size (approximate)
+# Commander: 99 cards (+commander) typically needs 35-40 lands
+# 60-card: typically needs 22-26 lands
+def get_target_land_count(deck_size: int) -> tuple[int, int]:
+    """Calculate target land count range based on deck size.
+
+    Returns:
+        Tuple of (min_lands, max_lands) for healthy mana base.
+    """
+    if deck_size >= 90:  # Commander-like (99+1)
+        return (35, 40)
+    elif deck_size >= 60:  # Standard 60-card
+        return (22, 26)
+    elif deck_size >= 40:  # Limited/Draft
+        return (16, 18)
+    else:  # Small deck
+        return (max(deck_size // 4, 1), max(deck_size // 3, 2))
+
+
+def calculate_land_need(deck_size: int, current_land_count: int) -> float:
+    """Calculate how urgently the deck needs lands (0.0 to 1.0+).
+
+    Returns:
+        0.0 = deck has enough lands
+        0.5 = deck could use more lands
+        1.0+ = deck critically needs lands
+    """
+    min_lands, _max_lands = get_target_land_count(deck_size)
+
+    if current_land_count >= min_lands:
+        return 0.0  # Deck has enough lands
+
+    # How far below minimum are we?
+    lands_needed = min_lands - current_land_count
+    # Normalize: 10+ lands needed = maximum urgency
+    urgency = min(lands_needed / 10.0, 1.5)
+    return urgency
+
+
 @dataclass
 class ScoredRecommendation:
     """A recommendation with detailed scoring breakdown."""
@@ -145,6 +184,7 @@ class ScoredRecommendation:
     popularity_score: float = 0.0
     combo_score: float = 0.0  # Bonus for completing combos
     limited_score: float = 0.0  # 17lands GIH WR based score
+    land_score: float = 0.0  # Bonus for lands when deck needs them
     uuid: str | None = None
     type_line: str | None = None
     mana_cost: str | None = None
@@ -394,14 +434,16 @@ class HybridRecommender:
     _initialized: bool = False
     _init_time: float = 0.0
 
-    # Weights for combining scores (now sum to 1.0)
+    # Weights for combining scores
+    # Note: land_score is dynamic (0.0 when deck doesn't need lands, up to 1.0)
     tfidf_weight: float = 0.20
-    synergy_weight: float = 0.35
+    synergy_weight: float = 0.30
     popularity_weight: float = 0.10
-    combo_weight: float = 0.20  # Bonus weight for combo completion
-    limited_weight: float = 0.15  # 17lands Limited performance
+    combo_weight: float = 0.15  # Bonus weight for combo completion
+    limited_weight: float = 0.10  # 17lands Limited performance
+    land_weight: float = 0.15  # Weight for land recommendations when deck needs them
 
-    async def initialize(self, db: MTGDatabase) -> float:
+    async def initialize(self, db: UnifiedDatabase) -> float:
         """Initialize both TF-IDF and structured features."""
         if self._initialized:
             return self._init_time
@@ -488,10 +530,35 @@ class HybridRecommender:
         deck_features = self._deck_encoder.encode(deck_cards)
         deck_card_names = {c.get("name", "") for c in deck_cards}
 
+        # Calculate land need for the deck
+        deck_size = deck_features.card_count
+        current_lands = deck_features.land_count
+        land_need = calculate_land_need(deck_size, current_lands)
+        min_lands, max_lands = get_target_land_count(deck_size)
+
+        if land_need > 0:
+            logger.debug(
+                f"Deck has {current_lands} lands, needs {min_lands}-{max_lands} "
+                f"(urgency: {land_need:.2f})"
+            )
+
         # Get TF-IDF candidates (broader pool)
         tfidf_results = self._tfidf.find_similar_to_cards(
             list(deck_card_names), n=200, exclude_input=True
         )
+
+        # If deck needs lands, inject land candidates that TF-IDF might have missed
+        if land_need > 0.3:  # More than ~3 lands needed
+            land_candidates = self._get_land_candidates(
+                deck_features.color_identity,
+                deck_card_names,
+                max_lands=min_lands - current_lands + 5,  # A few extra options
+            )
+            # Add to results (will be scored and sorted later)
+            existing_names = {r.name for r in tfidf_results}
+            for land_rec in land_candidates:
+                if land_rec.name not in existing_names:
+                    tfidf_results.append(land_rec)
 
         # Detect missing combo pieces (prefer Spellbook's 73K+ combos)
         missing_card_to_combos: dict[str, list[str]] = {}
@@ -597,6 +664,32 @@ class HybridRecommender:
                     if explain and limited_tier in ("S", "A"):
                         reasons.append(f"Limited powerhouse ({limited_tier}-tier)")
 
+            # Calculate land score - boost lands when deck needs them
+            land_score = 0.0
+            if candidate_features.is_land and land_need > 0:
+                # Base land score from land need urgency
+                land_score = min(land_need, 1.0)
+
+                # Bonus for lands that match deck's color identity
+                if candidate_features.color_identity:
+                    matching_colors = (
+                        candidate_features.color_identity & deck_features.color_identity
+                    )
+                    if matching_colors:
+                        # Better score for lands that produce colors the deck uses
+                        color_match_bonus = len(matching_colors) / max(
+                            len(deck_features.color_identity), 1
+                        )
+                        land_score = min(land_score + color_match_bonus * 0.3, 1.5)
+
+                # Additional bonus for utility lands with relevant effects
+                if candidate_features.synergy_themes & set(deck_features.dominant_themes):
+                    land_score = min(land_score + 0.2, 1.5)
+
+                if explain:
+                    lands_needed = min_lands - current_lands
+                    reasons.append(f"Deck needs {lands_needed}+ more lands")
+
             # Combine scores
             total = (
                 tfidf_rec.score * self.tfidf_weight
@@ -604,6 +697,7 @@ class HybridRecommender:
                 + popularity_score * self.popularity_weight
                 + combo_score * self.combo_weight
                 + limited_score * self.limited_weight
+                + land_score * self.land_weight
             )
 
             scored.append(
@@ -615,6 +709,7 @@ class HybridRecommender:
                     popularity_score=popularity_score,
                     combo_score=combo_score,
                     limited_score=limited_score,
+                    land_score=land_score,
                     uuid=tfidf_rec.uuid,
                     type_line=tfidf_rec.type_line,
                     mana_cost=tfidf_rec.mana_cost,
@@ -629,6 +724,76 @@ class HybridRecommender:
         # Sort by total score
         scored.sort(key=lambda x: -x.total_score)
         return scored[:n]
+
+    def _get_land_candidates(
+        self,
+        deck_colors: set[str],
+        exclude_names: set[str],
+        max_lands: int = 20,
+    ) -> list[Any]:
+        """Get land candidates that match the deck's color identity.
+
+        This ensures lands are included in recommendations even if TF-IDF
+        doesn't find them (since TF-IDF is based on text similarity).
+
+        Args:
+            deck_colors: Color identity of the deck (e.g., {"W", "U", "B"})
+            exclude_names: Card names already in the deck
+            max_lands: Maximum number of land candidates to return
+
+        Returns:
+            List of TfidfRecommendation-like objects for lands
+        """
+        from dataclasses import dataclass
+
+        @dataclass
+        class LandCandidate:
+            name: str
+            score: float
+            uuid: str | None
+            type_line: str | None
+            mana_cost: str | None
+            colors: list[str] | None
+
+        lands: list[LandCandidate] = []
+
+        for card_name, card_data in self._card_data.items():
+            if card_name in exclude_names:
+                continue
+
+            type_line = card_data.get("type") or ""
+            if "Land" not in type_line:
+                continue
+
+            # Check color identity compatibility
+            card_identity = set(card_data.get("colorIdentity") or [])
+            if card_identity and deck_colors and not card_identity.issubset(deck_colors):
+                continue  # Land doesn't fit deck's color identity
+
+            # Prioritize by EDHRec rank (lower = better)
+            edhrec_rank = card_data.get("edhrecRank") or 50000
+            score = max(0, 1.0 - edhrec_rank / 30000.0)
+
+            # Bonus for lands that produce multiple colors the deck uses
+            if card_identity and deck_colors:
+                matching = len(card_identity & deck_colors)
+                if matching > 1:
+                    score += 0.2 * (matching - 1)
+
+            lands.append(
+                LandCandidate(
+                    name=card_name,
+                    score=score,
+                    uuid=card_data.get("uuid"),
+                    type_line=type_line,
+                    mana_cost=None,
+                    colors=list(card_identity) if card_identity else None,
+                )
+            )
+
+        # Sort by score and return top candidates
+        lands.sort(key=lambda x: -x.score)
+        return lands[:max_lands]
 
     def get_near_combos(
         self,
@@ -722,7 +887,7 @@ def get_hybrid_recommender() -> HybridRecommender:
     return _hybrid_recommender
 
 
-async def initialize_hybrid_recommender(db: MTGDatabase) -> float:
+async def initialize_hybrid_recommender(db: UnifiedDatabase) -> float:
     """Initialize the global hybrid recommender."""
     recommender = get_hybrid_recommender()
     return await recommender.initialize(db)

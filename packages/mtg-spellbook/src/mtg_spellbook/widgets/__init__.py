@@ -44,7 +44,7 @@ from .dashboard import (
     SetClicked,
 )
 from .goto_page_modal import GoToPageModal
-from .help_screen import HelpScreen
+from .menu import MenuActionRequested, MenuBar, MenuToggled
 from .pagination_header import PaginationHeader
 from .results_list import ResultsList
 from .set_detail import (
@@ -90,7 +90,9 @@ __all__ = [
     "EnhancedArtNavigator",
     "EnhancedSynergyPanel",
     "GoToPageModal",
-    "HelpScreen",
+    "MenuActionRequested",
+    "MenuBar",
+    "MenuToggled",
     "PaginationHeader",
     "RefreshDashboard",
     "ResultsList",

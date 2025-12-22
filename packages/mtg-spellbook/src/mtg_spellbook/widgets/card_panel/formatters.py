@@ -65,6 +65,16 @@ def render_card_text(card: CardDetail, keywords: set[str]) -> str:
         lines.append("")
         lines.append(" · ".join(footer_parts))
 
+    # PRICES
+    if card.prices:
+        price_parts = []
+        if card.prices.usd:
+            price_parts.append(f"[green]${card.prices.usd:.2f}[/]")
+        if card.prices.usd_foil:
+            price_parts.append(f"[yellow]${card.prices.usd_foil:.2f} ✨[/]")
+        if price_parts:
+            lines.append("[dim]💰[/] " + " · ".join(price_parts))
+
     return "\n".join(lines)
 
 

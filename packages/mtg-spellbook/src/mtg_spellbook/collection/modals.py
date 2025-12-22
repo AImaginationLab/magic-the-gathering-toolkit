@@ -310,7 +310,7 @@ class ImportCollectionModal(ModalScreen[str | None]):
     #import-dialog {
         width: 70;
         height: auto;
-        max-height: 30;
+        max-height: 35;
         padding: 1 2;
         background: $surface;
         border: thick $primary;
@@ -341,7 +341,10 @@ class ImportCollectionModal(ModalScreen[str | None]):
         with Vertical(id="import-dialog"):
             yield Label(f"[bold {ui_colors.GOLD_DIM}]Import Cards[/]")
             yield Label(
-                "[dim]Format: '4 Lightning Bolt' one per line. Add *F* or (foil) for foils.[/]"
+                "[dim]Formats: '4 Lightning Bolt', 'fin 345', or group by set:[/]\n"
+                "[dim]  fin:    (set context)[/]\n"
+                "[dim]  345     (collector #)[/]\n"
+                "[dim]  2x 421  (with quantity)[/]"
             )
             yield TextArea(id="import-text-area")
             with Horizontal(id="import-buttons"):

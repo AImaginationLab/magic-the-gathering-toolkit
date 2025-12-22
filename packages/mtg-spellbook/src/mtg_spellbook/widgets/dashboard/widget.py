@@ -14,7 +14,7 @@ from .quick_links import QuickLinksBar
 from .search_bar import SearchBar
 
 if TYPE_CHECKING:
-    from mtg_core.data.database import MTGDatabase, ScryfallDatabase
+    from mtg_core.data.database import UnifiedDatabase
     from mtg_core.data.models.responses import ArtistSummary
 
 
@@ -67,8 +67,7 @@ class Dashboard(Vertical, can_focus=False):
         classes: str | None = None,
     ) -> None:
         super().__init__(id=id, classes=classes)
-        self._db: MTGDatabase | None = None
-        self._scryfall: ScryfallDatabase | None = None
+        self._db: UnifiedDatabase | None = None
         self._artist: ArtistSummary | None = None
 
     def compose(self) -> ComposeResult:
@@ -88,20 +87,12 @@ class Dashboard(Vertical, can_focus=False):
         """Focus search input on mount."""
         self.call_after_refresh(self.focus_search)
 
-    def set_database(self, db: MTGDatabase) -> None:
+    def set_database(self, db: UnifiedDatabase) -> None:
         """Set database connection."""
         self._db = db
         # Also set on search bar
         search_bar = self.query_one("#dashboard-search-bar", SearchBar)
-        search_bar.set_databases(db, self._scryfall)
-
-    def set_scryfall(self, scryfall: ScryfallDatabase | None) -> None:
-        """Set scryfall database connection."""
-        self._scryfall = scryfall
-        # Also set on search bar if db is already set
-        if self._db:
-            search_bar = self.query_one("#dashboard-search-bar", SearchBar)
-            search_bar.set_databases(self._db, scryfall)
+        search_bar.set_database(db)
 
     @work
     async def load_dashboard(self) -> None:

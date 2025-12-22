@@ -1,6 +1,6 @@
 # Magic: The Gathering Toolkit
 
-A comprehensive toolkit for Magic: The Gathering players featuring a terminal UI deck builder, card collection manager, synergy finder, and MCP server for AI integration. Search 33,000+ cards, browse artwork and artist profiles, get deck recommendations based on your collection, and more.
+A comprehensive toolkit for Magic: The Gathering players featuring a terminal UI deck builder, card collection manager, synergy finder, and MCP server for AI integration. Search 33,000+ cards, import your collection, discover deck and synergy recommendations, browse artist profiles, and more.
 
 <img src="https://iili.io/f0va8kg.png" alt="Collection View" width="800"/>
 
@@ -48,10 +48,6 @@ git clone https://github.com/AImaginationLab/magic-the-gathering-toolkit.git
 cd magic-the-gathering-toolkit
 uv sync
 
-# Download card databases (~500MB)
-# If launching the terminal UI, this is done automatically at startup.
-uv run create-datasources
-
 # Launch the terminal UI
 uv run mtg-spellbook
 ```
@@ -88,7 +84,7 @@ The terminal UI is designed to be navigated through with keyboard shortcuts, tab
 | Key | Action |
 |-----|--------|
 | `Esc` | Focus search / go back |
-| `?` | Help screen |
+| `Ctrl+H` | Help screen |
 | `a` | Browse artists |
 | `s` | Browse sets |
 | `d` | Browse decks |
@@ -109,7 +105,7 @@ The terminal UI is designed to be navigated through with keyboard shortcuts, tab
 
 ## MCP Server
 
-Integrate with Claude Desktop or other MCP-compatible clients for AI-powered assistance.
+Integrate with MCP-compatible clients for AI-powered assistance.
 
 ```bash
 uv run mtg-mcp
@@ -201,21 +197,19 @@ Add to Claude Desktop config (`~/Library/Application Support/Claude/claude_deskt
 
 | Database | Source | Contents |
 |----------|--------|----------|
-| `AllPrintings.sqlite` | [MTGJson](https://mtgjson.com/) | Cards, rules, legalities |
-| `scryfall.sqlite` | [Scryfall](https://scryfall.com/) | Images, prices, purchase links |
+| `mtg.sqlite` | [MTGJson](https://mtgjson.com/) + [Scryfall](https://scryfall.com/) | Cards, rules, legalities, images, prices |
 
-Databases are downloaded automatically with `uv run create-datasources`. To refresh:
+The unified database is downloaded automatically with `uv run create-datasources`. To refresh:
 
 ```bash
-uv run create-datasources          # Re-download databases
+uv run create-datasources          # Re-download database
 uv run create-datasources clear-cache  # Clear cached data
 ```
 
 ### Environment Variables
 
 ```bash
-MTG_DB_PATH=resources/AllPrintings.sqlite
-SCRYFALL_DB_PATH=resources/scryfall.sqlite
+MTG_DB_PATH=resources/mtg.sqlite
 LOG_LEVEL=INFO
 
 # Cache settings

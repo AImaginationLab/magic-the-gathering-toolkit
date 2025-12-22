@@ -9,13 +9,13 @@ from typing import ClassVar
 from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal
 from textual.css.query import NoMatches
-from textual.screen import Screen
 from textual.widgets import Button, ListItem, ListView, Static
 
 from mtg_core.tools.recommendations.deck_finder import DeckSuggestion
 
+from ..screens import BaseScreen
 from ..ui.theme import ui_colors
 
 
@@ -54,13 +54,13 @@ class SuggestionListItem(ListItem):
         yield Static(self._content)
 
 
-class DeckSuggestionsScreen(Screen[CreateDeckResult | None]):
+class DeckSuggestionsScreen(BaseScreen[CreateDeckResult | None]):
     """Full-screen deck suggestions based on collection.
 
     Shows what decks can be built from the user's collection.
     """
 
-    BINDINGS: ClassVar[list[Binding]] = [  # type: ignore[assignment]
+    BINDINGS: ClassVar[list[Binding]] = [
         Binding("escape,q", "close", "Back", show=True),
         Binding("c", "show_commander", "Commander", show=True),
         Binding("s", "show_standard", "Standard", show=True),
@@ -71,16 +71,22 @@ class DeckSuggestionsScreen(Screen[CreateDeckResult | None]):
         Binding("pagedown", "page_down", show=False),
     ]
 
+    # Don't show footer - this screen has its own status bar
+    show_footer: ClassVar[bool] = False
+
     CSS = """
     DeckSuggestionsScreen {
         background: #0d0d0d;
+    }
+
+    /* Override screen-content to use grid for proper height distribution */
+    DeckSuggestionsScreen #screen-content {
         layout: grid;
         grid-size: 1;
-        grid-rows: auto auto 1fr auto;
+        grid-rows: 3 3 1fr 2;  /* header, format-bar, list, statusbar */
     }
 
     #suggestions-header {
-        height: 3;
         background: #0a0a14;
         border-bottom: heavy #c9a227;
         padding: 0 2;
@@ -88,7 +94,6 @@ class DeckSuggestionsScreen(Screen[CreateDeckResult | None]):
     }
 
     #format-bar {
-        height: 3;
         background: #121218;
         padding: 0 2;
         border-bottom: solid #2a2a4e;
@@ -112,13 +117,9 @@ class DeckSuggestionsScreen(Screen[CreateDeckResult | None]):
         text-style: bold;
     }
 
-    #suggestions-main {
-        height: 100%;
-    }
-
     #suggestions-list {
         width: 100%;
-        height: 100%;
+        height: 1fr;
         scrollbar-color: #c9a227;
     }
 
@@ -140,7 +141,6 @@ class DeckSuggestionsScreen(Screen[CreateDeckResult | None]):
     }
 
     #suggestions-statusbar {
-        height: 2;
         padding: 0 2;
         background: #1a1a1a;
         border-top: solid #3d3d3d;
@@ -163,7 +163,7 @@ class DeckSuggestionsScreen(Screen[CreateDeckResult | None]):
         self._suggestions: list[DeckSuggestion] = []
         self._selected_suggestion: DeckSuggestion | None = None
 
-    def compose(self) -> ComposeResult:
+    def compose_content(self) -> ComposeResult:
         yield Static(
             f"[bold {ui_colors.GOLD}]SUGGEST DECKS[/]  "
             f"[{ui_colors.TEXT_DIM}]({len(self._card_info_list)} cards in collection)[/]",
@@ -174,12 +174,11 @@ class DeckSuggestionsScreen(Screen[CreateDeckResult | None]):
             yield Button("Commander", id="btn-commander", classes="format-btn -active")
             yield Button("Standard", id="btn-standard", classes="format-btn")
 
-        with Vertical(id="suggestions-main"):
-            yield ListView(id="suggestions-list")
+        yield ListView(id="suggestions-list")
 
         yield Static(self._render_statusbar(), id="suggestions-statusbar")
 
-    def on_mount(self) -> None:
+    async def on_mount(self) -> None:
         """Load suggestions on mount."""
         # Delay loading until after the screen is fully mounted
         self.call_after_refresh(self._load_suggestions)

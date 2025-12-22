@@ -24,7 +24,6 @@ class ArtistCommandsMixin:
 
     if TYPE_CHECKING:
         _db: Any
-        _scryfall: Any
         _current_results: list[CardDetail]
         _current_card: CardDetail | None
         _pagination: PaginationState | None
@@ -68,7 +67,11 @@ class ArtistCommandsMixin:
             return
 
         # Show results container, hide dashboard
-        self._show_results_view()
+        # Use _hide_dashboard from main app to properly track state
+        if hasattr(self, "_hide_dashboard"):
+            self._hide_dashboard()
+        else:
+            self._show_results_view()
 
         # Set artist mode
         self._artist_mode = True
@@ -113,10 +116,10 @@ class ArtistCommandsMixin:
                 uuid = self._artist_card_uuids.get(global_idx)
                 if uuid:
                     # Use UUID to get the exact printing by this artist
-                    detail = await card_tools.get_card(self._db, self._scryfall, uuid=uuid)
+                    detail = await card_tools.get_card(self._db, uuid=uuid)
                 else:
                     # Fallback to name lookup
-                    detail = await card_tools.get_card(self._db, self._scryfall, name=summary.name)
+                    detail = await card_tools.get_card(self._db, name=summary.name)
                 self._current_results.append(detail)
             except Exception:
                 logger.debug("Failed to load card detail for %s", summary.name, exc_info=True)
@@ -138,6 +141,10 @@ class ArtistCommandsMixin:
             self._current_card = self._current_results[select_index_on_page]
         else:
             self._current_card = self._current_results[0]
+
+        # Update menu card state if available
+        if hasattr(self, "_update_menu_card_state"):
+            self._update_menu_card_state()
 
         self._update_card_panel(self._current_card)
         await self._load_card_extras(self._current_card)
