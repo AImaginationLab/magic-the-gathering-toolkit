@@ -36,6 +36,7 @@ from .deck import (
     NewDeckModal,
 )
 from .pagination import PaginationState
+from .recommendations import AddCardToDeck
 from .styles import APP_CSS
 from .ui.theme import ui_colors
 from .widgets import (
@@ -275,6 +276,7 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
         """Pre-initialize the combo detector in background thread."""
         try:
             from mtg_core.tools.recommendations.spellbook_combos import get_spellbook_detector
+
             detector = get_spellbook_detector()
             if detector.is_available:
                 detector.initialize()
@@ -867,6 +869,17 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
     def on_card_added_to_deck(self, _event: CardAddedToDeck) -> None:
         """Handle card added to deck."""
         self._refresh_deck_list()
+
+    @on(AddCardToDeck)
+    def on_add_card_to_deck_from_recommendations(self, _event: AddCardToDeck) -> None:
+        """Handle card added from recommendation screen - refresh deck UI."""
+        from .deck import FullDeckScreen
+
+        # Find any FullDeckScreen in the screen stack and reload it
+        for screen in self.screen_stack:
+            if isinstance(screen, FullDeckScreen) and screen._current_deck:
+                screen._load_deck(screen._current_deck.id)
+                break
 
     @on(MenuActionRequested)
     def on_menu_action_requested(self, event: MenuActionRequested) -> None:

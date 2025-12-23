@@ -32,7 +32,6 @@ MANA = {
 }
 
 
-
 @dataclass
 class DeckAnalysis:
     """Complete deck analysis results."""
@@ -371,7 +370,9 @@ class DeckAnalysisPanel(VerticalScroll):
         # Archetype with confidence bar
         conf_len = 5
         conf_filled = int((a.archetype_confidence / 100) * conf_len)
-        conf_bar = f"[{ui_colors.GOLD}]{'●' * conf_filled}[/][dim]{'○' * (conf_len - conf_filled)}[/]"
+        conf_bar = (
+            f"[{ui_colors.GOLD}]{'●' * conf_filled}[/][dim]{'○' * (conf_len - conf_filled)}[/]"
+        )
         lines.append(f"🎯 [{ui_colors.GOLD}]{a.archetype}[/] {conf_bar} {a.archetype_confidence}%")
 
         # Format
@@ -418,7 +419,9 @@ class DeckAnalysisPanel(VerticalScroll):
 
         if identity_symbols:
             lines.append("")
-            lines.append(f"Identity: {' '.join(identity_symbols)}  [{ui_colors.TEXT_DIM}]{total_pips} pips[/]")
+            lines.append(
+                f"Identity: {' '.join(identity_symbols)}  [{ui_colors.TEXT_DIM}]{total_pips} pips[/]"
+            )
 
         return "\n".join(lines)
 
@@ -464,7 +467,7 @@ class DeckAnalysisPanel(VerticalScroll):
 
         for i, match in enumerate(a.combos[:5]):
             combo = match.combo
-            score = getattr(match, '_score', 0)
+            score = getattr(match, "_score", 0)
 
             # Score color based on value
             if score >= 70:
@@ -484,12 +487,11 @@ class DeckAnalysisPanel(VerticalScroll):
             else:
                 status = f"[dim]{match.missing_count} away[/]"
 
-            lines.append(f"[bold]#{i+1}[/] {status}  [{score_color}]{score:.0f}[/][dim]/100[/]")
+            lines.append(f"[bold]#{i + 1}[/] {status}  [{score_color}]{score:.0f}[/][dim]/100[/]")
 
             # Show cards you have (green checkmark) with rarity colors
             present_str = ", ".join(
-                f"[{get_rarity_color(name)}]{name}[/]"
-                for name in match.present_cards[:3]
+                f"[{get_rarity_color(name)}]{name}[/]" for name in match.present_cards[:3]
             )
             if len(match.present_cards) > 3:
                 present_str += f" [dim]+{len(match.present_cards) - 3}[/]"
@@ -498,8 +500,7 @@ class DeckAnalysisPanel(VerticalScroll):
             # Show missing cards (red X) with rarity colors
             if match.missing_cards:
                 missing_str = ", ".join(
-                    f"[{get_rarity_color(name)}]{name}[/]"
-                    for name in match.missing_cards[:2]
+                    f"[{get_rarity_color(name)}]{name}[/]" for name in match.missing_cards[:2]
                 )
                 if len(match.missing_cards) > 2:
                     missing_str += f" [dim]+{len(match.missing_cards) - 2}[/]"
@@ -742,7 +743,14 @@ class DeckAnalysisPanel(VerticalScroll):
         # Health metrics with gauges
         metrics = [
             ("🏔 Lands", a.lands, 24, land_pct, 35 <= land_pct <= 42, 30 <= land_pct <= 45),
-            ("💥 Interaction", a.interaction_count, 15, None, a.interaction_count >= 10, a.interaction_count >= 6),
+            (
+                "💥 Interaction",
+                a.interaction_count,
+                15,
+                None,
+                a.interaction_count >= 10,
+                a.interaction_count >= 6,
+            ),
             ("📚 Card Draw", a.draw_count, 12, None, a.draw_count >= 8, a.draw_count >= 4),
             ("🌱 Ramp", a.ramp_count, 12, None, a.ramp_count >= 8, a.ramp_count >= 4),
         ]
@@ -1202,7 +1210,11 @@ class DeckAnalysisPanel(VerticalScroll):
                 for card_data in deck.mainboard:
                     pairs = db.get_synergy_pairs(card_data.card_name)
                     for pair in pairs:
-                        if pair.card_b in card_names and pair.synergy_lift and pair.synergy_lift > 0.02:
+                        if (
+                            pair.card_b in card_names
+                            and pair.synergy_lift
+                            and pair.synergy_lift > 0.02
+                        ):
                             lift_pct = int(pair.synergy_lift * 100)
                             add_pair(
                                 pair.card_a,
@@ -1287,7 +1299,7 @@ class DeckAnalysisPanel(VerticalScroll):
             for match in matches:
                 match._score = detector.get_combo_score(match.combo)  # type: ignore[attr-defined]
 
-            matches.sort(key=lambda m: (m.missing_count, -getattr(m, '_score', 0)))
+            matches.sort(key=lambda m: (m.missing_count, -getattr(m, "_score", 0)))
 
             return matches[:10]  # Return top 10
         except (ImportError, Exception):
@@ -1350,9 +1362,7 @@ class DeckAnalysisPanel(VerticalScroll):
                     tier = stats.tier.upper()
                     tier_counts[tier] = tier_counts.get(tier, 0) + card_data.quantity
                     if tier in ("S", "A") and len(top_cards) < 5:
-                        top_cards.append(
-                            (card_data.card_name, tier, stats.gih_wr)
-                        )
+                        top_cards.append((card_data.card_name, tier, stats.gih_wr))
         except (ImportError, Exception):
             pass
 

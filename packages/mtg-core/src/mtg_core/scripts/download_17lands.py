@@ -1226,11 +1226,9 @@ def download(
         )
 
         with progress_ctx as progress:
-            # Create a dummy task_id for quiet mode
-            if quiet:
-                progress = None  # type: ignore[assignment]
-                task_id = None  # type: ignore[assignment]
-            else:
+            # Create a task_id only when not in quiet mode
+            task_id: TaskID | None = None
+            if not quiet and progress is not None:
                 task_id = progress.add_task(f"{set_code}: Downloading...", total=steps_per_set)
 
             # Download phase - capture loop vars via default args
@@ -1259,7 +1257,7 @@ def download(
                 set_code, db_path, downloaded, skip_pairs, show_stats, progress, task_id
             )
 
-            if progress:
+            if progress and task_id is not None:
                 progress.update(
                     task_id,
                     description=f"{set_code}: [green]Done![/] {cards} cards, {games:,} games",

@@ -190,7 +190,9 @@ class RecommendationDetailPanel(Vertical):
             if rec.limited_tier:
                 tier_color = self._get_tier_color(rec.limited_tier)
                 tier_desc = self._get_tier_description(rec.limited_tier)
-                lines.append(f"[#4ECDC4]│[/] [{tier_color}]★ Tier {rec.limited_tier}[/] [dim]{tier_desc}[/]")
+                lines.append(
+                    f"[#4ECDC4]│[/] [{tier_color}]★ Tier {rec.limited_tier}[/] [dim]{tier_desc}[/]"
+                )
             if rec.limited_gih_wr:
                 wr_color = self._get_winrate_color(rec.limited_gih_wr)
                 wr_desc = self._get_winrate_description(rec.limited_gih_wr)
@@ -236,28 +238,18 @@ class RecommendationDetailPanel(Vertical):
                 "⚡ [bold]Elite synergy[/] - this card amplifies multiple deck strategies"
             )
         elif rec.synergy_score >= 0.5:
-            insights.append(
-                "🔗 Strong mechanical synergy with your deck's core themes"
-            )
+            insights.append("🔗 Strong mechanical synergy with your deck's core themes")
         elif rec.synergy_score >= 0.3:
-            insights.append(
-                "↗ Moderate synergy - supports your overall strategy"
-            )
+            insights.append("↗ Moderate synergy - supports your overall strategy")
 
         # Popularity insight with percentile (skip for basic lands)
         if not is_basic_land:
             if rec.popularity_score >= 0.9:
-                insights.append(
-                    "🏆 [bold]Format staple[/] - top 10% most played in Commander"
-                )
+                insights.append("🏆 [bold]Format staple[/] - top 10% most played in Commander")
             elif rec.popularity_score >= 0.7:
-                insights.append(
-                    "📈 Very popular - top 30% on EDHRec for similar decks"
-                )
+                insights.append("📈 Very popular - top 30% on EDHRec for similar decks")
             elif rec.popularity_score >= 0.5:
-                insights.append(
-                    "👍 Commonly played in decks with similar strategies"
-                )
+                insights.append("👍 Commonly played in decks with similar strategies")
 
         # Enhanced combo insight
         if rec.combo_score >= 0.7:
@@ -271,25 +263,19 @@ class RecommendationDetailPanel(Vertical):
                     "💥 [bold]Combo piece[/] - completes an infinite or game-winning combo"
                 )
         elif rec.combo_score >= 0.3:
-            insights.append(
-                "🔄 Enables powerful interactions with cards you already run"
-            )
+            insights.append("🔄 Enables powerful interactions with cards you already run")
 
         # Mana curve insight with CMC context
         if rec.curve_score >= 0.7:
             cmc = self._get_cmc_from_mana(rec.mana_cost) if rec.mana_cost else None
             if cmc is not None:
-                insights.append(
-                    f"📊 [bold]Curve filler[/] - your deck needs more {cmc}-drops"
-                )
+                insights.append(f"📊 [bold]Curve filler[/] - your deck needs more {cmc}-drops")
             else:
                 insights.append(
                     "📊 [bold]Perfect curve fit[/] - fills a critical gap in your mana curve"
                 )
         elif rec.curve_score >= 0.4:
-            insights.append(
-                "📉 Helps smooth out your mana curve distribution"
-            )
+            insights.append("📉 Helps smooth out your mana curve distribution")
 
         # Enhanced tribal insight
         if rec.tribal_score >= 0.8:
@@ -297,9 +283,7 @@ class RecommendationDetailPanel(Vertical):
                 "👥 [bold]Tribal all-star[/] - shares creature types with your core tribe"
             )
         elif rec.tribal_score >= 0.5:
-            insights.append(
-                "🦎 Tribal synergy - benefits from your creature type lords/effects"
-            )
+            insights.append("🦎 Tribal synergy - benefits from your creature type lords/effects")
 
         # Enhanced Limited insight with win rate context
         if rec.limited_gih_wr and rec.limited_gih_wr >= 0.58:
@@ -309,28 +293,18 @@ class RecommendationDetailPanel(Vertical):
                 f"(+{delta:.1f}% above average)"
             )
         elif rec.limited_score >= 0.7:
-            insights.append(
-                "🎮 Proven Limited performer - reliable in draft/sealed"
-            )
+            insights.append("🎮 Proven Limited performer - reliable in draft/sealed")
         elif rec.limited_tier and rec.limited_tier in ("S", "A"):
-            insights.append(
-                f"🏅 Tier {rec.limited_tier} in Limited - high pick priority"
-            )
+            insights.append(f"🏅 Tier {rec.limited_tier} in Limited - high pick priority")
 
         # Card type insights
         if rec.type_line:
             if "Creature" in rec.type_line and "Legendary" in rec.type_line:
-                insights.append(
-                    "👑 Legendary creature - potential commander or clone target"
-                )
+                insights.append("👑 Legendary creature - potential commander or clone target")
             elif "Planeswalker" in rec.type_line:
-                insights.append(
-                    "⭐ Planeswalker - high value threat that demands answers"
-                )
+                insights.append("⭐ Planeswalker - high value threat that demands answers")
             elif "Artifact" in rec.type_line and "Equipment" in rec.type_line:
-                insights.append(
-                    "⚔️ Equipment - reusable value that survives creature removal"
-                )
+                insights.append("⚔️ Equipment - reusable value that survives creature removal")
 
         # Land insight
         if rec.land_score > 0:
@@ -339,15 +313,11 @@ class RecommendationDetailPanel(Vertical):
                     "🌍 [bold]Critical mana fix[/] - your deck urgently needs more lands"
                 )
             elif rec.land_score >= 0.5:
-                insights.append(
-                    "🏔 Mana upgrade - improves color consistency"
-                )
+                insights.append("🏔 Mana upgrade - improves color consistency")
 
         # Collection insight
         if rec.in_collection:
-            insights.append(
-                "✅ [green]Already owned[/] - no acquisition needed!"
-            )
+            insights.append("✅ [green]Already owned[/] - no acquisition needed!")
 
         return insights
 
@@ -357,12 +327,13 @@ class RecommendationDetailPanel(Vertical):
             return None
         # Simple CMC calculation - count mana symbols
         import re
-        symbols = re.findall(r'\{([^}]+)\}', mana_cost)
+
+        symbols = re.findall(r"\{([^}]+)\}", mana_cost)
         cmc = 0
         for sym in symbols:
             if sym.isdigit():
                 cmc += int(sym)
-            elif sym not in ('X', 'Y', 'Z'):
+            elif sym not in ("X", "Y", "Z"):
                 cmc += 1
         return cmc
 
@@ -406,9 +377,7 @@ class RecommendationDetailPanel(Vertical):
                 if combo:
                     # Show card names (truncate if too many)
                     card_names = combo.card_names[:3]
-                    cards_str = " [dim]+[/] ".join(
-                        f"[#FFB86C]{name}[/]" for name in card_names
-                    )
+                    cards_str = " [dim]+[/] ".join(f"[#FFB86C]{name}[/]" for name in card_names)
                     if len(combo.card_names) > 3:
                         cards_str += f" [dim]+{len(combo.card_names) - 3} more[/]"
 

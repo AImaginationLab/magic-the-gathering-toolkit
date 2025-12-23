@@ -416,4 +416,3 @@ class EnhancedArtNavigator(Vertical, can_focus=True):
             results_list.focus()
         except (LookupError, AttributeError):
             pass
-

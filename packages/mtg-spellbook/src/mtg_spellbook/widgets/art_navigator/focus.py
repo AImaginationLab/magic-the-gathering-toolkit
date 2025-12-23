@@ -395,7 +395,11 @@ class FocusView(Vertical, can_focus=True):
 
             # Games sample size
             if stats.games_in_hand:
-                games_str = f"{stats.games_in_hand:,}" if stats.games_in_hand >= 1000 else str(stats.games_in_hand)
+                games_str = (
+                    f"{stats.games_in_hand:,}"
+                    if stats.games_in_hand >= 1000
+                    else str(stats.games_in_hand)
+                )
                 stat_parts.append(f"[dim]({games_str} games)[/]")
 
             if stat_parts:

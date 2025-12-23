@@ -199,9 +199,7 @@ class RecommendationDetailView(Vertical, can_focus=False):
 
         # Text similarity insight
         if rec.tfidf_score >= 0.5:
-            insights.append(
-                f"🎯 [bold]High text match[/] ({int(rec.tfidf_score * 100)}%)"
-            )
+            insights.append(f"🎯 [bold]High text match[/] ({int(rec.tfidf_score * 100)}%)")
         elif rec.tfidf_score >= 0.3:
             insights.append(f"📝 Text similarity {int(rec.tfidf_score * 100)}%")
 

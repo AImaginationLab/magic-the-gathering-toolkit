@@ -311,7 +311,9 @@ def mock_app_with_database(
         mock_ctx.get_db = AsyncMock(return_value=mock_mtg_database)
         mock_ctx.get_deck_manager = AsyncMock(return_value=mock_deck_manager)
         mock_ctx.get_collection_manager = AsyncMock(return_value=None)
-        mock_ctx.get_keywords = AsyncMock(return_value=["Flying", "First Strike", "Trample", "Haste"])
+        mock_ctx.get_keywords = AsyncMock(
+            return_value=["Flying", "First Strike", "Trample", "Haste"]
+        )
         mock_ctx.close = AsyncMock()
         app._ctx = mock_ctx
         app._db = mock_mtg_database

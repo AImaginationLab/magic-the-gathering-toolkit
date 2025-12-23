@@ -1350,7 +1350,9 @@ class SplashScreen(App[bool]):
                             downloaded += len(chunk)
                             if total_size > 0:
                                 dl_progress = downloaded / total_size
-                                progress = base_progress + step_progress * (0.1 + dl_progress * 0.80)
+                                progress = base_progress + step_progress * (
+                                    0.1 + dl_progress * 0.80
+                                )
                                 self._update_progress(progress)
                                 if downloaded % (5 * 1024 * 1024) < 65536:
                                     mb_done = downloaded / (1024 * 1024)

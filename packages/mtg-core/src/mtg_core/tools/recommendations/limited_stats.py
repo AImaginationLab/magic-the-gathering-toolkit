@@ -158,7 +158,9 @@ class LimitedStatsDB:
         cursor = self._conn.cursor()
 
         # Build query based on parameters
-        base_cols = "card_name, set_code, format, games_in_hand, gih_wr, gih_wr_adjusted, oh_wr, iwd, tier"
+        base_cols = (
+            "card_name, set_code, format, games_in_hand, gih_wr, gih_wr_adjusted, oh_wr, iwd, tier"
+        )
 
         if set_code and format:
             cursor.execute(
@@ -432,7 +434,9 @@ class LimitedStatsDB:
             params.append(format)
         else:
             # Prefer draft synergies (more meaningful for archetype detection)
-            query += " ORDER BY CASE format WHEN 'draft' THEN 0 ELSE 1 END, synergy_lift DESC LIMIT 20"
+            query += (
+                " ORDER BY CASE format WHEN 'draft' THEN 0 ELSE 1 END, synergy_lift DESC LIMIT 20"
+            )
 
         if format:
             query += " ORDER BY synergy_lift DESC LIMIT 20"

@@ -332,6 +332,7 @@ class SpellbookComboDetector:
         # Popularity (0-40 pts) - log scale since distribution is very skewed
         # Top combos have ~250k, but most are under 1000
         import math
+
         if combo.popularity > 0:
             # log10(250000) ≈ 5.4, so divide by 5.4 to normalize
             pop_normalized = min(math.log10(combo.popularity + 1) / 5.4, 1.0)
