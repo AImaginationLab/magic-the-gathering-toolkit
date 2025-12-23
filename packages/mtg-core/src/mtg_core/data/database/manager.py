@@ -11,7 +11,6 @@ import aiosqlite
 
 from ...config import Settings, get_settings
 from .cache import CardCache
-from .combos import ComboDatabase
 from .unified import UnifiedDatabase
 from .user import UserDatabase
 
@@ -29,7 +28,6 @@ class DatabaseManager:
         self._conn: aiosqlite.Connection | None = None
         self._db: UnifiedDatabase | None = None
         self._user: UserDatabase | None = None
-        self._combos: ComboDatabase | None = None
         self._cache = CardCache(max_size=self._settings.cache_max_size)
 
     @property
@@ -43,11 +41,6 @@ class DatabaseManager:
     def user(self) -> UserDatabase | None:
         """Get the user database instance (may be None if not initialized)."""
         return self._user
-
-    @property
-    def combos(self) -> ComboDatabase | None:
-        """Get the combo database instance (may be None if not initialized)."""
-        return self._combos
 
     async def start(self) -> None:
         """Open the database connections."""
@@ -87,20 +80,9 @@ class DatabaseManager:
                     pass
             self._user = None
 
-        # Combo database (stores combo data)
-        combo_db = ComboDatabase(self._settings.combo_db_path, max_connections=max_conn)
-        try:
-            await combo_db.connect()
-            self._combos = combo_db
-        except (aiosqlite.Error, OSError):
-            logger.exception("Failed to open combo database at %s", self._settings.combo_db_path)
-            # CRITICAL: Close connection if opened to avoid orphaned threads
-            if combo_db._conn:
-                try:  # noqa: SIM105 - can't use suppress with await
-                    await combo_db.close()
-                except Exception:
-                    pass
-            self._combos = None
+        # NOTE: ComboDatabase is NOT initialized here because the combo database
+        # is managed by SpellbookComboDetector which uses a different schema
+        # (Commander Spellbook format downloaded from GitHub releases).
 
     async def start_user_db(self) -> UserDatabase:
         """Explicitly start user database. Used by apps that need deck management."""
@@ -130,10 +112,6 @@ class DatabaseManager:
         if self._user:
             await self._user.close()
             self._user = None
-
-        if self._combos:
-            await self._combos.close()
-            self._combos = None
 
         await self._cache.clear()
 
