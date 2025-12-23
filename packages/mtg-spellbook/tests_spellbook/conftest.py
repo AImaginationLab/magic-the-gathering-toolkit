@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
     from mtg_core.data.database import UnifiedDatabase
+    from mtg_core.data.models.card import Card
     from mtg_spellbook.deck_manager import DeckManager
 
 
@@ -74,6 +75,69 @@ async def cleanup_http_client() -> AsyncIterator[None]:
         with contextlib.suppress(Exception):
             await image_loader._http_client.aclose()
         image_loader._http_client = None
+
+
+@pytest.fixture
+def sample_card() -> Card:
+    """Sample Card model for database mocks (returns Card, not CardDetail)."""
+    from mtg_core.data.models.card import Card, CardLegality
+
+    return Card(
+        uuid="test-uuid-123",
+        name="Lightning Bolt",
+        mana_cost="{R}",
+        type="Instant",
+        text="Lightning Bolt deals 3 damage to any target.",
+        colors=["R"],
+        color_identity=["R"],
+        keywords=[],
+        cmc=1.0,
+        rarity="common",
+        set_code="LEA",
+        number="161",
+        artist="Christopher Rush",
+        legalities=[
+            CardLegality(format="standard", legality="Not Legal"),
+            CardLegality(format="modern", legality="Legal"),
+            CardLegality(format="legacy", legality="Legal"),
+            CardLegality(format="vintage", legality="Legal"),
+            CardLegality(format="commander", legality="Legal"),
+        ],
+        price_usd=250,  # In cents
+    )
+
+
+@pytest.fixture
+def sample_creature_card_model() -> Card:
+    """Sample creature Card model for database mocks."""
+    from mtg_core.data.models.card import Card, CardLegality
+
+    return Card(
+        uuid="test-uuid-456",
+        name="Birds of Paradise",
+        mana_cost="{G}",
+        type="Creature — Bird",
+        text="Flying\n{T}: Add one mana of any color.",
+        power="0",
+        toughness="1",
+        colors=["G"],
+        color_identity=["G"],
+        keywords=["Flying"],
+        cmc=1.0,
+        rarity="rare",
+        set_code="LEA",
+        number="162",
+        artist="Mark Poole",
+        edhrec_rank=100,
+        legalities=[
+            CardLegality(format="standard", legality="Not Legal"),
+            CardLegality(format="modern", legality="Not Legal"),
+            CardLegality(format="legacy", legality="Legal"),
+            CardLegality(format="vintage", legality="Legal"),
+            CardLegality(format="commander", legality="Legal"),
+        ],
+        price_usd=850,  # In cents
+    )
 
 
 @pytest.fixture
@@ -153,16 +217,22 @@ def sample_search_results(sample_card_detail: Any, sample_creature_card: Any) ->
 
 
 @pytest.fixture
-def mock_mtg_database(sample_card_detail: Any, sample_search_results: list[Any]) -> UnifiedDatabase:
-    """Mock UnifiedDatabase with common operations."""
+def mock_mtg_database(sample_card: Card, sample_search_results: list[Any]) -> UnifiedDatabase:
+    """Mock UnifiedDatabase with common operations.
+
+    Note: get_card_by_name and get_card_by_uuid return Card objects (not CardDetail)
+    because _card_to_detail is called on them in the tools layer.
+    """
     mock_db = AsyncMock()
 
-    mock_db.get_card_by_name = AsyncMock(return_value=sample_card_detail)
-    mock_db.get_card_by_uuid = AsyncMock(return_value=sample_card_detail)
+    # These return Card objects (not CardDetail) - they get converted by _card_to_detail
+    mock_db.get_card_by_name = AsyncMock(return_value=sample_card)
+    mock_db.get_card_by_uuid = AsyncMock(return_value=sample_card)
+    mock_db.get_random_card = AsyncMock(return_value=sample_card)
+
     mock_db.search_cards = AsyncMock(
         return_value=(sample_search_results, len(sample_search_results))
     )
-    mock_db.get_random_card = AsyncMock(return_value=sample_card_detail)
     mock_db.get_database_stats = AsyncMock(return_value={"unique_cards": 25000, "total_sets": 500})
     mock_db.get_all_keywords = AsyncMock(
         return_value={"Flying", "First Strike", "Trample", "Haste"}
@@ -236,6 +306,14 @@ def mock_app_with_database(
         from mtg_spellbook.app import MTGSpellbook
 
         app = MTGSpellbook()
+        # Mock the context to prevent real database connections in on_mount
+        mock_ctx = MagicMock()
+        mock_ctx.get_db = AsyncMock(return_value=mock_mtg_database)
+        mock_ctx.get_deck_manager = AsyncMock(return_value=mock_deck_manager)
+        mock_ctx.get_collection_manager = AsyncMock(return_value=None)
+        mock_ctx.get_keywords = AsyncMock(return_value=["Flying", "First Strike", "Trample", "Haste"])
+        mock_ctx.close = AsyncMock()
+        app._ctx = mock_ctx
         app._db = mock_mtg_database
         app._deck_manager = mock_deck_manager
         return app
