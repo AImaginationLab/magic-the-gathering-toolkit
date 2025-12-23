@@ -61,7 +61,6 @@ packages/mtg-spellbook/docs*
 docs/*
 snapshot_report.html
 test_*.sqlite*
-test_*
 
 # OS
 .DS_Store
