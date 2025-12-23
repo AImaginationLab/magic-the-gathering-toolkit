@@ -53,13 +53,35 @@ class TestBasicOrSimpleLand:
 
     def test_simple_mana_lands_detected(self) -> None:
         """Simple lands with only tap for mana should be detected."""
+        # These are simplified test fixtures, not actual oracle text.
+        # Real City of Brass has damage clause, Ancient Ziggurat has creature restriction.
         simple_lands = [
-            {"name": "Ancient Ziggurat", "type": "Land", "text": "{T}: Add one mana of any color."},
-            {"name": "City of Brass", "type": "Land", "text": "{T}: Add {C}."},
+            # Hypothetical simple land - just taps for mana with short text
+            {"name": "Test Mana Land", "type": "Land", "text": "{T}: Add {C}."},
+            {"name": "Exotic Orchard", "type": "Land", "text": "{T}: Add one mana of any color."},
         ]
         for land in simple_lands:
             # Short text with just mana production should be considered simple
             assert is_basic_or_simple_land(land), f"{land['name']} should be simple"
+
+    def test_complex_mana_lands_not_simple(self) -> None:
+        """Lands with restrictions or damage should NOT be detected as simple."""
+        complex_lands = [
+            # City of Brass deals damage when tapped
+            {
+                "name": "City of Brass",
+                "type": "Land",
+                "text": "Whenever City of Brass becomes tapped, it deals 1 damage to you.\n{T}: Add one mana of any color.",
+            },
+            # Ancient Ziggurat has creature spell restriction
+            {
+                "name": "Ancient Ziggurat",
+                "type": "Land",
+                "text": "{T}: Add one mana of any color. Spend this mana only to cast a creature spell.",
+            },
+        ]
+        for land in complex_lands:
+            assert not is_basic_or_simple_land(land), f"{land['name']} should NOT be simple"
 
     def test_utility_lands_not_detected(self) -> None:
         """Utility lands with special abilities should NOT be detected."""

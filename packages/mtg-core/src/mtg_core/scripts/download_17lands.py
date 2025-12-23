@@ -873,6 +873,10 @@ def save_abilities(db_path: Path) -> int:
     cursor = conn.cursor()
 
     def categorize(text: str, ability_id: int) -> str:
+        # WARNING: These ability IDs are tied to 17lands' internal numbering system
+        # and may change without notice. They represent common keyword abilities like
+        # Flying, Deathtouch, Trample, etc. If categorization breaks, verify against
+        # the abilities.csv from 17lands.
         if ability_id in {1, 2, 3, 6, 7, 8, 9, 10, 12, 13, 14, 15, 104}:
             return "keyword"
         if re.search(r"\{[^}]+\}.*:", text):

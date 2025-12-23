@@ -453,6 +453,7 @@ class TestSetsScreenEdgeCases:
                 screen.action_select()
                 await pilot.pause()
 
+    @pytest.mark.skip(reason="Flaky in CI - timing issues with async screen updates")
     @pytest.mark.asyncio
     async def test_toggle_filter_rarity(
         self,

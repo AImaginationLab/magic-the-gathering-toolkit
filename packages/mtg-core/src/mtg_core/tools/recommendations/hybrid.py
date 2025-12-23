@@ -836,7 +836,7 @@ class HybridRecommender:
 
         # Cap land recommendations to prevent land spam
         # Even when deck needs lands, limit to 10% of results max
-        max_land_recs = max(n // 10, 3)  # At least 3, max ~10%
+        max_land_recs = min(max(n // 10, 3), n)  # At least 3, max ~10%, but never exceed n
         land_recs: list[ScoredRecommendation] = []
         non_land_recs: list[ScoredRecommendation] = []
 
