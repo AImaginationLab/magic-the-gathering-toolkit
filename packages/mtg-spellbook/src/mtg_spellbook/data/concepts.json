@@ -1,0 +1,117 @@
+{
+  "concepts": [
+    {
+      "name": "The Stack",
+      "category": "timing",
+      "summary": "Where spells and abilities wait to resolve",
+      "content": "When you cast a spell or activate an ability, it goes on 'the stack' - a zone where things wait to happen. The stack resolves in LIFO order (last in, first out), meaning the most recent spell/ability resolves first.\n\nThis is why 'in response' works: if you cast Lightning Bolt and your opponent casts Counterspell, the Counterspell goes on the stack on top of your Bolt. The Counterspell resolves first, countering your Bolt before it ever resolves.\n\nThings that DON'T use the stack:\n- Playing a land (can't be responded to)\n- Mana abilities (tapping lands for mana)\n- Turning face-down creatures face up\n- Static abilities (they're always 'on')",
+      "related": ["Priority", "Instant Speed", "Responding"]
+    },
+    {
+      "name": "Priority",
+      "category": "timing",
+      "summary": "Determines who can act at any given moment",
+      "content": "Priority is the 'permission to act' that passes between players. Only the player with priority can cast spells or activate abilities.\n\nHow priority works:\n1. Active player (whose turn it is) gets priority first in each phase\n2. After they act (or pass), priority goes to the next player\n3. When all players pass in succession with nothing on the stack, the phase ends\n4. When all players pass with something on the stack, the top item resolves\n\nYou automatically pass priority when you have nothing to do. The game doesn't stop constantly - it flows naturally unless someone wants to respond.",
+      "related": ["The Stack", "Phases", "Instant Speed"]
+    },
+    {
+      "name": "Combat",
+      "category": "gameplay",
+      "summary": "How creatures attack and block",
+      "content": "Combat happens in steps:\n\n1. Beginning of Combat - Last chance to tap/remove creatures before attacks\n\n2. Declare Attackers - Active player chooses which creatures attack (they tap). Creatures with summoning sickness can't attack.\n\n3. Declare Blockers - Defending player chooses how to block. One blocker can only block one attacker, but multiple blockers can block the same attacker.\n\n4. Combat Damage - Damage is dealt simultaneously (except first strike). Attacking creature deals damage to blockers; unblocked creatures deal damage to the defending player/planeswalker.\n\n5. End of Combat - Cleanup phase for combat\n\nKey points:\n- Blocked creatures deal damage to blockers, not the player (even if blocker dies before damage)\n- First strike creatures deal damage in a separate, earlier step\n- Trample lets excess damage 'spill over' to the player",
+      "related": ["First Strike", "Trample", "Vigilance", "Blocking"]
+    },
+    {
+      "name": "Turn Structure",
+      "category": "gameplay",
+      "summary": "The phases and steps of a turn",
+      "content": "Each turn has these phases:\n\n1. BEGINNING PHASE\n   - Untap (untap your permanents, no spells allowed)\n   - Upkeep (triggers that say 'at the beginning of your upkeep')\n   - Draw (draw a card)\n\n2. FIRST MAIN PHASE\n   - Cast any spell type\n   - Play a land (once per turn total)\n   - Activate abilities\n\n3. COMBAT PHASE\n   - Beginning of Combat\n   - Declare Attackers\n   - Declare Blockers  \n   - Combat Damage (first strike, then regular)\n   - End of Combat\n\n4. SECOND MAIN PHASE\n   - Same as first main phase\n   - Good for casting creatures after combat\n\n5. ENDING PHASE\n   - End Step (triggers that say 'at the beginning of your end step')\n   - Cleanup (discard to hand size, damage wears off)",
+      "related": ["Combat", "Priority", "Instant Speed"]
+    },
+    {
+      "name": "Mana & Casting Costs",
+      "category": "fundamentals",
+      "summary": "How to pay for spells",
+      "content": "Mana is the resource you use to cast spells. It comes in 5 colors plus colorless:\n\n{W} White - Plains\n{U} Blue - Islands  \n{B} Black - Swamps\n{R} Red - Mountains\n{G} Green - Forests\n{C} Colorless - Special lands/artifacts\n\nReading mana costs:\n- {2}{R}{R} means pay 2 mana of any type + 2 red mana (4 total)\n- {X}{G} means pay X mana of any type + 1 green\n- Generic mana (numbers) can be paid with any color\n- Colored symbols MUST be paid with that exact color\n\nMana Value (formerly CMC):\nThe total mana required. {2}{R}{R} has mana value 4. {X} counts as 0 except on the stack.",
+      "related": ["Lands", "Color Identity", "Ramp"]
+    },
+    {
+      "name": "Card Types",
+      "category": "fundamentals",
+      "summary": "The different kinds of cards in Magic",
+      "content": "PERMANENT TYPES (stay on battlefield):\n- Creature - Has power/toughness, can attack and block\n- Artifact - Colorless items, equipment, vehicles\n- Enchantment - Ongoing magical effects\n- Planeswalker - Allies with loyalty abilities\n- Land - Produces mana, one per turn\n\nNON-PERMANENT TYPES:\n- Instant - Cast any time, then goes to graveyard\n- Sorcery - Cast only on your main phase, empty stack\n\nSUPERTYPES:\n- Legendary - Only one copy can be on your battlefield\n- Basic - Can have any number in deck (lands)\n- Snow - Has the snow supertype for synergies\n\nSUBTYPES:\n- Creature subtypes: Human, Elf, Goblin, etc.\n- Land subtypes: Plains, Island, Swamp, Mountain, Forest\n- Artifact subtypes: Equipment, Vehicle, etc.",
+      "related": ["Creature Types", "Legendary Rule"]
+    },
+    {
+      "name": "Zones",
+      "category": "fundamentals",
+      "summary": "Where cards can exist during a game",
+      "content": "Library - Your deck. Cards are face down. Draw from the top.\n\nHand - Cards you've drawn. Private zone (opponents can't see). Maximum 7 cards at end of turn.\n\nBattlefield - Where permanents exist. Public zone. Everything is face-up (usually).\n\nGraveyard - Your discard pile. Public zone - anyone can look. Many cards interact with the graveyard.\n\nExile - 'Removed from game' zone. Cards here are usually gone permanently unless they specify otherwise.\n\nStack - Where spells and abilities wait to resolve. Public zone.\n\nCommand Zone - For commanders, emblems, and other special objects.",
+      "related": ["The Stack", "Graveyard Strategies"]
+    },
+    {
+      "name": "Color Identity",
+      "category": "deckbuilding",
+      "summary": "Which colors a card belongs to (especially for Commander)",
+      "content": "Color identity includes:\n1. Colors in the mana cost\n2. Colors of any mana symbols in the rules text\n3. Color indicators (colored dots)\n\nExamples:\n- Alesha, Who Smiles at Death is a red creature but has {W}{B} in its ability, so its color identity is red-white-black\n- Transguild Courier has no colored mana symbols but its color indicator shows all 5 colors\n\nIn Commander, your deck can only contain cards within your commander's color identity. A colorless commander means only colorless cards.\n\nBasic lands have color identity matching the mana they produce (Plains = white identity).",
+      "related": ["Commander", "Mana & Casting Costs"]
+    },
+    {
+      "name": "Instant Speed",
+      "category": "timing",
+      "summary": "When you can cast spells and activate abilities",
+      "content": "INSTANT SPEED (any time you have priority):\n- Instant spells\n- Cards with Flash\n- Activated abilities (unless they say otherwise)\n- Triggered abilities (they trigger automatically)\n\nSORCERY SPEED (only during your main phase, empty stack):\n- Sorcery spells\n- Creature spells (usually)\n- Other permanents (artifacts, enchantments, planeswalkers)\n- Abilities that say 'activate only as a sorcery'\n- Special actions like playing a land\n\nTiming Tricks:\n- Cast creatures with Flash at end of opponent's turn\n- Activate planeswalkers only at sorcery speed\n- Equipment's Equip ability is sorcery speed",
+      "related": ["The Stack", "Priority", "Flash"]
+    },
+    {
+      "name": "Summoning Sickness",
+      "category": "gameplay",
+      "summary": "Why creatures can't act immediately",
+      "content": "Creatures can't attack or use abilities with the tap symbol ({T}) on the turn they come under your control. This is called 'summoning sickness.'\n\nWhat summoning sickness PREVENTS:\n- Attacking\n- Activating abilities that require {T} or {Q}\n\nWhat summoning sickness DOES NOT PREVENT:\n- Blocking\n- Activating abilities without {T}\n- Being tapped by other effects\n- Using static abilities\n\nHaste removes summoning sickness, letting creatures attack and tap immediately.\n\nNote: Summoning sickness cares about continuous control, not entering. If you gain control of an opponent's creature, it has summoning sickness unless it has haste.",
+      "related": ["Haste", "Combat", "Tap Abilities"]
+    },
+    {
+      "name": "State-Based Actions",
+      "category": "rules",
+      "summary": "Automatic game rules that are always checked",
+      "content": "State-based actions (SBAs) are rules the game checks constantly. They don't use the stack and can't be responded to.\n\nCommon SBAs:\n- Creature with 0 or less toughness dies\n- Creature with lethal damage marked dies\n- Player with 0 or less life loses\n- Player with 10+ poison counters loses\n- Player who can't draw loses\n- Legendary rule (keep one, sacrifice the rest)\n- Planeswalker with 0 loyalty is put into graveyard\n- +1/+1 and -1/-1 counters cancel out\n\nSBAs happen before any player gets priority. This is why damage and toughness reduction work differently - damage is marked and checked by SBAs, while -X/-X actually changes toughness.",
+      "related": ["Combat", "Damage", "Indestructible"]
+    },
+    {
+      "name": "Targeting",
+      "category": "rules",
+      "summary": "How spells and abilities choose what they affect",
+      "content": "If a spell or ability says 'target,' you must choose legal targets when you cast/activate it.\n\nTargeting rules:\n1. Targets must be legal when chosen AND when the spell resolves\n2. If all targets become illegal, the spell is countered\n3. Hexproof, Shroud, and Protection can make things untargetable\n4. 'Each,' 'all,' and 'any number of' are NOT targeting\n\nExamples:\n- 'Destroy target creature' - targets (can be countered by hexproof)\n- 'Destroy all creatures' - doesn't target (ignores hexproof)\n- 'Choose a creature' - doesn't target (sneaky wording)\n\nThis matters for protection, hexproof, and 'whenever targeted' triggers.",
+      "related": ["Hexproof", "Protection", "Shroud"]
+    },
+    {
+      "name": "Replacement Effects",
+      "category": "rules",
+      "summary": "Effects that modify how events happen",
+      "content": "Replacement effects change how something happens. They use words like 'instead' or 'as [X] enters.'\n\nExamples:\n- 'If you would draw a card, instead draw two' - replaces draws\n- 'As [creature] enters, choose a color' - replaces entering\n- 'If damage would be dealt, prevent it' - replaces damage\n\nKey rules:\n1. Each replacement effect applies only once per event\n2. The affected player/controller chooses order if multiple apply\n3. Replacement effects don't trigger abilities (they change the event itself)\n\nCommon replacement effects:\n- Prevention effects\n- 'Enters with counters' effects\n- 'If would die, instead exile' effects\n- Doubling effects",
+      "related": ["Triggered Abilities", "Prevention"]
+    },
+    {
+      "name": "Triggered vs Activated",
+      "category": "rules",
+      "summary": "Two types of abilities and how they work",
+      "content": "TRIGGERED ABILITIES:\n- Start with 'when,' 'whenever,' or 'at'\n- Happen automatically when condition is met\n- Go on the stack and can be responded to\n- Example: 'When this creature dies, draw a card'\n\nACTIVATED ABILITIES:\n- Written as [cost]: [effect]\n- You choose when to activate (and pay the cost)\n- Go on the stack and can be responded to\n- Example: '{2}{B}: Target creature gets -1/-1'\n\nMana abilities are special:\n- Activated abilities that produce mana\n- DON'T use the stack\n- Can't be responded to\n- Example: '{T}: Add {G}'\n\nStatic abilities are always 'on' and don't use the stack:\n- Example: 'Creatures you control have +1/+1'",
+      "related": ["The Stack", "Mana Abilities", "Priority"]
+    },
+    {
+      "name": "Commander Rules",
+      "category": "formats",
+      "summary": "Special rules for the Commander format",
+      "content": "Deck Construction:\n- 100 cards exactly (including commander)\n- Only one copy of each card (except basic lands)\n- All cards must be within commander's color identity\n- Commander starts in the command zone\n\nGameplay:\n- Start with 40 life\n- Commander can be cast from command zone\n- Commander tax: costs {2} more each time cast from command zone\n- If commander would go to graveyard or exile, you may put it in command zone instead\n- 21 combat damage from a single commander = that player loses\n\nMultiplayer:\n- Usually 4 players, free-for-all\n- Politics and alliances are part of the game\n- Games tend to be longer and more casual",
+      "related": ["Color Identity", "Partner", "Companion"]
+    }
+  ],
+  "categories": {
+    "timing": "Understanding when you can act",
+    "gameplay": "Core gameplay mechanics",
+    "fundamentals": "Basic concepts every player should know",
+    "deckbuilding": "Rules for building decks",
+    "rules": "Detailed rules knowledge",
+    "formats": "Format-specific rules"
+  }
+}

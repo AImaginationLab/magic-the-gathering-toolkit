@@ -1,0 +1,156 @@
+{
+  "formats": [
+    {
+      "name": "Standard",
+      "summary": "Rotating format with the most recent sets. Fast-paced, accessible competitive play.",
+      "deck_rules": {
+        "min_deck_size": 60,
+        "max_deck_size": "No limit",
+        "copies_allowed": 4,
+        "sideboard_size": 15
+      },
+      "legal_sets": "Most recent 5-8 Standard-legal sets (rotates annually)",
+      "banned_cards": [],
+      "tips": "Standard rotates each fall. Check the official banned list before major events. Great format for newer players."
+    },
+    {
+      "name": "Modern",
+      "summary": "Non-rotating format from 8th Edition forward. High power level with diverse archetypes.",
+      "deck_rules": {
+        "min_deck_size": 60,
+        "max_deck_size": "No limit",
+        "copies_allowed": 4,
+        "sideboard_size": 15
+      },
+      "legal_sets": "All sets from 8th Edition (2003) forward",
+      "banned_cards": ["Ancient Den", "Arcum's Astrolabe", "Birthing Pod", "Blazing Shoal", "Chrome Mox", "Cloudpost", "Dark Depths", "Deathrite Shaman", "Dig Through Time", "Dread Return", "Eye of Ugin", "Faithless Looting", "Field of the Dead", "Glimpse of Nature", "Gitaxian Probe", "Golgari Grave-Troll", "Great Furnace", "Green Sun's Zenith", "Hogaak, Arisen Necropolis", "Hypergenesis", "Krark-Clan Ironworks", "Mental Misstep", "Mox Opal", "Mycosynth Lattice", "Oko, Thief of Crowns", "Once Upon a Time", "Ponder", "Preordain", "Punishing Fire", "Rite of Flame", "Seat of the Synod", "Second Sunrise", "Seething Song", "Sensei's Divining Top", "Simian Spirit Guide", "Skullclamp", "Splinter Twin", "Summer Bloom", "Tibalt's Trickery", "Treasure Cruise", "Tree of Tales", "Umezawa's Jitte", "Uro, Titan of Nature's Wrath", "Vault of Whispers", "Yorion, Sky Nomad"],
+      "tips": "Modern has a high entry cost but cards hold value. Fetch lands and shock lands are format staples."
+    },
+    {
+      "name": "Legacy",
+      "summary": "Eternal format with nearly all cards legal. Extremely powerful and skill-intensive.",
+      "deck_rules": {
+        "min_deck_size": 60,
+        "max_deck_size": "No limit",
+        "copies_allowed": 4,
+        "sideboard_size": 15
+      },
+      "legal_sets": "All Magic sets",
+      "banned_cards": ["Ancestral Recall", "Balance", "Bazaar of Baghdad", "Black Lotus", "Channel", "Chaos Orb", "Demonic Consultation", "Demonic Tutor", "Earthcraft", "Falling Star", "Fastbond", "Flash", "Frantic Search", "Goblin Recruiter", "Gush", "Hermit Druid", "Imperial Seal", "Library of Alexandria", "Lurrus of the Dream-Den", "Mana Crypt", "Mana Drain", "Mana Vault", "Memory Jar", "Mental Misstep", "Mind Twist", "Mind's Desire", "Mishra's Workshop", "Mox Emerald", "Mox Jet", "Mox Pearl", "Mox Ruby", "Mox Sapphire", "Mystical Tutor", "Necropotence", "Oath of Druids", "Shahrazad", "Skullclamp", "Sol Ring", "Strip Mine", "Survival of the Fittest", "Time Vault", "Time Walk", "Timetwister", "Tinker", "Tolarian Academy", "Treasure Cruise", "Underworld Breach", "Vampiric Tutor", "Wheel of Fortune", "Windfall", "Yawgmoth's Bargain", "Yawgmoth's Will"],
+      "tips": "Force of Will and Brainstorm define the format. Reserve List cards make some decks expensive."
+    },
+    {
+      "name": "Vintage",
+      "summary": "The most powerful format. Nearly everything is legal, with Power Nine restricted.",
+      "deck_rules": {
+        "min_deck_size": 60,
+        "max_deck_size": "No limit",
+        "copies_allowed": 4,
+        "sideboard_size": 15
+      },
+      "legal_sets": "All Magic sets",
+      "restricted_cards": ["Ancestral Recall", "Balance", "Black Lotus", "Brainstorm", "Chalice of the Void", "Channel", "Demonic Consultation", "Demonic Tutor", "Dig Through Time", "Flash", "Gitaxian Probe", "Gush", "Imperial Seal", "Library of Alexandria", "Lion's Eye Diamond", "Lodestone Golem", "Lotus Petal", "Mana Crypt", "Mana Vault", "Memory Jar", "Mental Misstep", "Merchant Scroll", "Mind's Desire", "Monastery Mentor", "Mox Emerald", "Mox Jet", "Mox Pearl", "Mox Ruby", "Mox Sapphire", "Mystic Forge", "Mystical Tutor", "Necropotence", "Ponder", "Sol Ring", "Thorn of Amethyst", "Time Vault", "Time Walk", "Timetwister", "Tinker", "Tolarian Academy", "Treasure Cruise", "Trinisphere", "Vampiric Tutor", "Wheel of Fortune", "Windfall", "Yawgmoth's Will"],
+      "banned_cards": ["Chaos Orb", "Falling Star", "Shahrazad", "Lurrus of the Dream-Den"],
+      "tips": "Restricted means only 1 copy allowed. Many games are decided by turn 1-2. Proxy tournaments are common."
+    },
+    {
+      "name": "Commander",
+      "summary": "Multiplayer format with 100-card singleton decks led by a legendary creature.",
+      "deck_rules": {
+        "min_deck_size": 100,
+        "max_deck_size": 100,
+        "copies_allowed": 1,
+        "sideboard_size": 0
+      },
+      "special_rules": "Choose a legendary creature as your commander. Your deck can only contain cards within your commander's color identity. Commanders start in a special command zone and can be cast from there (with increasing costs). Players start at 40 life. 21 commander damage from a single commander is lethal.",
+      "banned_cards": ["Ancestral Recall", "Balance", "Biorhythm", "Black Lotus", "Braids, Cabal Minion", "Channel", "Chaos Orb", "Coalition Victory", "Emrakul, the Aeons Torn", "Erayo, Soratami Ascendant", "Falling Star", "Fastbond", "Flash", "Gifts Ungiven", "Golos, Tireless Pilgrim", "Griselbrand", "Hullbreacher", "Iona, Shield of Emeria", "Karakas", "Leovold, Emissary of Trest", "Library of Alexandria", "Limited Resources", "Lutri, the Spellchaser", "Mox Emerald", "Mox Jet", "Mox Pearl", "Mox Ruby", "Mox Sapphire", "Painter's Servant", "Panoptic Mirror", "Paradox Engine", "Primeval Titan", "Prophet of Kruphix", "Recurring Nightmare", "Rofellos, Llanowar Emissary", "Shahrazad", "Sundering Titan", "Sway of the Stars", "Sylvan Primordial", "Time Vault", "Time Walk", "Tinker", "Tolarian Academy", "Trade Secrets", "Upheaval", "Worldfire", "Yawgmoth's Bargain"],
+      "tips": "Social format - discuss power level with your playgroup. Rule 0 allows groups to customize banned list. Great for casual play and self-expression."
+    },
+    {
+      "name": "Pioneer",
+      "summary": "Non-rotating format from Return to Ravnica forward. Bridge between Standard and Modern.",
+      "deck_rules": {
+        "min_deck_size": 60,
+        "max_deck_size": "No limit",
+        "copies_allowed": 4,
+        "sideboard_size": 15
+      },
+      "legal_sets": "All sets from Return to Ravnica (2012) forward",
+      "banned_cards": ["Balustrade Spy", "Bloodstained Mire", "Felidar Guardian", "Field of the Dead", "Flooded Strand", "Inverter of Truth", "Kethis, the Hidden Hand", "Leyline of Abundance", "Lurrus of the Dream-Den", "Nexus of Fate", "Oko, Thief of Crowns", "Once Upon a Time", "Polluted Delta", "Smuggler's Copter", "Teferi, Time Raveler", "Undercity Informer", "Underworld Breach", "Uro, Titan of Nature's Wrath", "Veil of Summer", "Walking Ballista", "Wilderness Reclamation", "Windswept Heath", "Wooded Foothills"],
+      "tips": "No fetch lands means different mana bases than Modern. Growing competitive scene with Regional Championships."
+    },
+    {
+      "name": "Pauper",
+      "summary": "Budget-friendly format using only commons. Surprisingly deep and competitive.",
+      "deck_rules": {
+        "min_deck_size": 60,
+        "max_deck_size": "No limit",
+        "copies_allowed": 4,
+        "sideboard_size": 15
+      },
+      "legal_sets": "All cards printed at common rarity in any set",
+      "banned_cards": ["Arcum's Astrolabe", "Atog", "Bonder's Ornament", "Chatterstorm", "Cloud of Faeries", "Cloudpost", "Cranial Plating", "Daze", "Empty the Warrens", "Fall from Favor", "Frantic Search", "Galvanic Relay", "Gitaxian Probe", "Grapeshot", "Gush", "High Tide", "Hymn to Tourach", "Invigorate", "Monastery Swiftspear", "Mystic Sanctuary", "Peregrine Drake", "Prophetic Prism", "Sinkhole", "Sojourner's Companion", "Temporal Fissure", "Treasure Cruise"],
+      "tips": "Very affordable entry point. Common-rarity printings from any set count, so some powerful old cards are legal."
+    },
+    {
+      "name": "Historic",
+      "summary": "Digital-only format on MTG Arena. Pioneer-like with digital-only cards.",
+      "deck_rules": {
+        "min_deck_size": 60,
+        "max_deck_size": 250,
+        "copies_allowed": 4,
+        "sideboard_size": 15
+      },
+      "legal_sets": "All sets on MTG Arena plus Historic Anthologies",
+      "tips": "Arena-only format with unique digital cards. Includes rebalanced cards and conjure mechanics."
+    },
+    {
+      "name": "Brawl",
+      "summary": "Commander variant on MTG Arena with Standard-legal cards.",
+      "deck_rules": {
+        "min_deck_size": 60,
+        "max_deck_size": 60,
+        "copies_allowed": 1,
+        "sideboard_size": 0
+      },
+      "special_rules": "60-card singleton deck with a legendary creature or planeswalker as commander. Standard card pool. 25 starting life (30 in multiplayer).",
+      "tips": "Great way to play Commander-style games on Arena. Rotates with Standard."
+    },
+    {
+      "name": "Limited (Draft)",
+      "summary": "Open booster packs and build a deck on the spot. Tests card evaluation skills.",
+      "deck_rules": {
+        "min_deck_size": 40,
+        "max_deck_size": "No limit",
+        "copies_allowed": "No limit",
+        "sideboard_size": "All unpicked cards"
+      },
+      "special_rules": "Open 3 boosters, pick one card from each pack, pass the rest. Build a 40-card deck from your picks plus basic lands.",
+      "tips": "Prioritize removal and creatures. Curve matters - have plays at 2-4 mana. Signals from passed packs indicate open colors."
+    },
+    {
+      "name": "Limited (Sealed)",
+      "summary": "Build a deck from 6 booster packs. Tests deck building and adaptation.",
+      "deck_rules": {
+        "min_deck_size": 40,
+        "max_deck_size": "No limit",
+        "copies_allowed": "No limit",
+        "sideboard_size": "All unopened cards"
+      },
+      "special_rules": "Open 6 boosters and build a 40-card deck from your pool plus basic lands.",
+      "tips": "Usually play 2 colors. Look for synergies and bombs. 17 lands is standard. Sideboarding between games is key."
+    },
+    {
+      "name": "Oathbreaker",
+      "summary": "Commander variant with planeswalker commanders and signature spells.",
+      "deck_rules": {
+        "min_deck_size": 60,
+        "max_deck_size": 60,
+        "copies_allowed": 1,
+        "sideboard_size": 0
+      },
+      "special_rules": "58-card singleton deck plus a planeswalker Oathbreaker and instant/sorcery Signature Spell in command zone. 20 starting life. Multiplayer focused.",
+      "tips": "Signature Spell must match Oathbreaker's color identity. Games tend to be faster than Commander."
+    }
+  ]
+}

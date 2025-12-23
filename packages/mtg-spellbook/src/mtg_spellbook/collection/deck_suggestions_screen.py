@@ -257,11 +257,11 @@ class DeckSuggestionsScreen(BaseScreen[CreateDeckResult | None]):
         # Color indicators
         color_str = " ".join(s.colors) if s.colors else ""
 
-        # Completion bar
+        # Completion bar (capped at 100%)
         bar_width = 12
-        filled = int(s.completion_pct * bar_width)
+        filled = min(bar_width, int(s.completion_pct * bar_width))
         bar = "\u2588" * filled + "\u2591" * (bar_width - filled)
-        pct = int(s.completion_pct * 100)
+        pct = min(100, int(s.completion_pct * 100))
 
         # Score color
         if s.completion_pct >= 0.7:

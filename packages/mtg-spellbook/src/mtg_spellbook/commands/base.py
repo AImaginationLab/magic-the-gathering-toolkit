@@ -47,7 +47,7 @@ class CommandRouterMixin:
         def load_legalities(self, card_name: str) -> None: ...
         def show_price(self, card_name: str) -> None: ...
         def show_art(self, card_name: str) -> None: ...
-        def show_help(self) -> None: ...
+        def show_help(self, keyword: str | None = None) -> None: ...
         def lookup_card(
             self,
             name: str,
@@ -136,7 +136,8 @@ class CommandRouterMixin:
             else:
                 self._show_message("[yellow]Usage: art <card name>[/]")
         elif cmd in ("help", "?"):
-            self.show_help()
+            # If args provided, open help with that keyword pre-selected
+            self.show_help(args if args else None)
         elif cmd in ("card", "c"):
             if args:
                 self.lookup_card(args)

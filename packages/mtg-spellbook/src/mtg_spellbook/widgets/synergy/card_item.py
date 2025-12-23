@@ -45,9 +45,9 @@ class SynergyCardItem(ListItem):
         """Render a compact single-line item."""
         syn = self.synergy
 
-        # Score with color
-        score_pct = int(syn.score * 100)
-        score_color = self._get_score_color(syn.score)
+        # Score with color (capped at 100% for display)
+        score_pct = min(100, int(syn.score * 100))
+        score_color = self._get_score_color(min(syn.score, 1.0))
 
         # Mana cost
         mana = prettify_mana(syn.mana_cost) if syn.mana_cost else ""

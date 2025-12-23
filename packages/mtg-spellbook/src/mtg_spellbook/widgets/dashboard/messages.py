@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 # Active messages for dashboard V4 (interactive dashboard)
-QuickLinkAction = Literal["artists", "sets", "decks", "collection", "random"]
+QuickLinkAction = Literal["artists", "sets", "decks", "collection", "random", "help"]
 
 
 class QuickLinkActivated(Message):

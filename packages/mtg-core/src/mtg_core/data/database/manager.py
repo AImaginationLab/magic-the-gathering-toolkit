@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
@@ -10,7 +11,6 @@ import aiosqlite
 
 from ...config import Settings, get_settings
 from .cache import CardCache
-from .combos import ComboDatabase
 from .unified import UnifiedDatabase
 from .user import UserDatabase
 
@@ -28,7 +28,6 @@ class DatabaseManager:
         self._conn: aiosqlite.Connection | None = None
         self._db: UnifiedDatabase | None = None
         self._user: UserDatabase | None = None
-        self._combos: ComboDatabase | None = None
         self._cache = CardCache(max_size=self._settings.cache_max_size)
 
     @property
@@ -42,11 +41,6 @@ class DatabaseManager:
     def user(self) -> UserDatabase | None:
         """Get the user database instance (may be None if not initialized)."""
         return self._user
-
-    @property
-    def combos(self) -> ComboDatabase | None:
-        """Get the combo database instance (may be None if not initialized)."""
-        return self._combos
 
     async def start(self) -> None:
         """Open the database connections."""
@@ -72,20 +66,23 @@ class DatabaseManager:
         logger.info("Unified MTG database loaded from %s", db_path)
 
         # User database (always created, stores decks/collections)
+        user_db = UserDatabase(self._settings.user_db_path, max_connections=max_conn)
         try:
-            self._user = UserDatabase(self._settings.user_db_path, max_connections=max_conn)
-            await self._user.connect()
+            await user_db.connect()
+            self._user = user_db
         except (aiosqlite.Error, OSError):
             logger.exception("Failed to open user database at %s", self._settings.user_db_path)
+            # CRITICAL: Close connection if opened to avoid orphaned threads
+            if user_db._conn:
+                try:  # noqa: SIM105 - can't use suppress with await
+                    await user_db.close()
+                except Exception:
+                    pass
             self._user = None
 
-        # Combo database (stores combo data)
-        try:
-            self._combos = ComboDatabase(self._settings.combo_db_path, max_connections=max_conn)
-            await self._combos.connect()
-        except (aiosqlite.Error, OSError):
-            logger.exception("Failed to open combo database at %s", self._settings.combo_db_path)
-            self._combos = None
+        # NOTE: ComboDatabase is NOT initialized here because the combo database
+        # is managed by SpellbookComboDetector which uses a different schema
+        # (Commander Spellbook format downloaded from GitHub releases).
 
     async def start_user_db(self) -> UserDatabase:
         """Explicitly start user database. Used by apps that need deck management."""
@@ -100,15 +97,22 @@ class DatabaseManager:
     async def stop(self) -> None:
         """Close the database connections."""
         if self._conn:
+            # Save reference to thread before closing
+            conn_thread = self._conn if hasattr(self._conn, "join") else None
             await self._conn.close()
+
+            # Wait for aiosqlite thread to terminate to avoid hang on exit
+            if conn_thread is not None:
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, conn_thread.join, 2.0)
+
             self._conn = None
             self._db = None
+
         if self._user:
             await self._user.close()
             self._user = None
-        if self._combos:
-            await self._combos.close()
-            self._combos = None
+
         await self._cache.clear()
 
 

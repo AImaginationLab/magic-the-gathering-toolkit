@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
+import contextlib
 import re
 from collections import Counter
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar
 
+from textual import work
 from textual.app import ComposeResult
-from textual.containers import Vertical, VerticalScroll
+from textual.containers import VerticalScroll
 from textual.widgets import Static
 
-from ..ui.theme import ui_colors
+from ..ui.theme import rarity_colors, ui_colors
 
 if TYPE_CHECKING:
     from mtg_core.tools.recommendations.spellbook_combos import SpellbookComboMatch
@@ -57,9 +59,12 @@ class DeckAnalysis:
     # Theme detection
     archetype: str
     archetype_confidence: int
-    dominant_themes: list[str]
+    dominant_themes: list[tuple[str, int]]  # theme name, card count
     dominant_tribe: str | None
     keywords: list[tuple[str, int]]  # keyword -> count
+
+    # Card synergies: (card1, card2, synergy_type)
+    synergy_pairs: list[tuple[str, str, str]]
 
     # Combos
     combos: list[SpellbookComboMatch]
@@ -76,17 +81,55 @@ class DeckAnalysis:
     total_price: float
     expensive_cards: list[tuple[str, float]]
 
+    # Card rarities for display (card_name -> rarity)
+    card_rarities: dict[str, str]
+
+
+# Theme descriptions - short and practical
+THEME_DESCRIPTIONS: dict[str, str] = {
+    "Tokens": "Go wide, trigger on creature ETB/death",
+    "Graveyard": "Use graveyard as second hand",
+    "Counters": "+1/+1 counters, proliferate payoffs",
+    "Sacrifice": "Sac outlets + death triggers",
+    "Lifegain": "Lifegain triggers, life as resource",
+    "Artifacts": "Artifact synergies, metalcraft",
+    "Enchantments": "Enchantress draws, constellation",
+    "Spellslinger": "Prowess, magecraft, storm",
+    "Tribal": "Creature type synergies",
+    "Blink": "Flicker for repeated ETBs",
+    "Landfall": "Land ETB triggers",
+    "Control": "Answers and card advantage",
+    "Aggro": "Fast clock, low curve",
+    "Reanimator": "Cheat big creatures into play",
+    "Voltron": "Suit up one creature, swing big",
+    "Stax": "Resource denial, tax effects",
+}
+
+# Matchup advantages: theme -> (good against, weak against)
+THEME_MATCHUPS: dict[str, tuple[list[str], list[str]]] = {
+    "Tokens": (["Control", "Voltron"], ["Sacrifice", "Board wipes"]),
+    "Graveyard": (["Control", "Aggro"], ["Graveyard hate", "Exile effects"]),
+    "Counters": (["Midrange", "Control"], ["Mass removal", "Infect"]),
+    "Sacrifice": (["Tokens", "Midrange"], ["Graveyard hate", "Fast aggro"]),
+    "Lifegain": (["Aggro", "Burn"], ["Combo", "Infect"]),
+    "Artifacts": (["Control", "Midrange"], ["Artifact hate", "Stax"]),
+    "Enchantments": (["Midrange", "Control"], ["Enchantment hate"]),
+    "Spellslinger": (["Midrange", "Tokens"], ["Fast aggro", "Counterspells"]),
+    "Tribal": (["Midrange", "Control"], ["Board wipes", "Mass removal"]),
+    "Blink": (["Removal-heavy", "Control"], ["Fast combo", "Aggro"]),
+    "Landfall": (["Control", "Midrange"], ["Land destruction", "Fast aggro"]),
+    "Control": (["Midrange", "Combo"], ["Fast aggro", "Go-wide"]),
+    "Aggro": (["Control", "Combo"], ["Lifegain", "Board wipes"]),
+    "Reanimator": (["Control", "Midrange"], ["Graveyard hate", "Exile"]),
+    "Voltron": (["Control", "Combo"], ["Sacrifice", "Go-wide"]),
+    "Stax": (["Combo", "Ramp"], ["Fast aggro", "Already-established boards"]),
+}
+
 
 class DeckAnalysisPanel(VerticalScroll):
     """Full deck analysis panel showing combos, themes, stats.
 
-    This panel provides comprehensive deck insights:
-    - Overview with archetype detection
-    - Mana curve and color distribution
-    - Detected combos from Commander Spellbook
-    - 17Lands card ratings
-    - Collection coverage
-    - Deck health metrics
+    Uses a simple single-Static approach for reliable rendering.
     """
 
     DEFAULT_CSS = """
@@ -95,24 +138,13 @@ class DeckAnalysisPanel(VerticalScroll):
         height: 100%;
         background: #0d0d0d;
         scrollbar-color: #c9a227;
+        padding: 1 2;
     }
 
-    DeckAnalysisPanel .section-header {
+    DeckAnalysisPanel #analysis-content {
         width: 100%;
-        height: 2;
-        background: #151520;
-        padding: 0 1;
-        text-style: bold;
-        border-bottom: solid #2a2a4e;
-    }
-
-    DeckAnalysisPanel .section-content {
-        padding: 1;
         height: auto;
-    }
-
-    DeckAnalysisPanel .stat-row {
-        height: auto;
+        padding: 0;
     }
 
     DeckAnalysisPanel #analysis-empty {
@@ -123,12 +155,21 @@ class DeckAnalysisPanel(VerticalScroll):
     """
 
     TIER_COLORS: ClassVar[dict[str, str]] = {
-        "S": "#FFD700",  # Gold
-        "A": "#7EC850",  # Green
-        "B": "#4A9FD8",  # Blue
-        "C": "#A0A0A0",  # Gray
-        "D": "#E86A58",  # Red
-        "F": "#9B4D4D",  # Dark red
+        "S": "#FFD700",
+        "A": "#7EC850",
+        "B": "#4A9FD8",
+        "C": "#A0A0A0",
+        "D": "#E86A58",
+        "F": "#9B4D4D",
+    }
+
+    GRADE_COLORS: ClassVar[dict[str, str]] = {
+        "S": "#FFD700",
+        "A": "#50FA7B",
+        "B": "#8BE9FD",
+        "C": "#F1FA8C",
+        "D": "#FFB86C",
+        "F": "#FF5555",
     }
 
     def __init__(self, *, id: str | None = None) -> None:
@@ -137,10 +178,17 @@ class DeckAnalysisPanel(VerticalScroll):
         self._deck: DeckWithCards | None = None
 
     def compose(self) -> ComposeResult:
+        # Create both widgets upfront - show/hide as needed
+        yield Static("", id="analysis-content")
         yield Static(
             "[dim]Select a deck to view analysis[/]",
             id="analysis-empty",
         )
+
+    def on_mount(self) -> None:
+        """Hide content initially."""
+        with contextlib.suppress(Exception):
+            self.query_one("#analysis-content", Static).display = False
 
     def update_analysis(
         self,
@@ -148,37 +196,723 @@ class DeckAnalysisPanel(VerticalScroll):
         collection_cards: set[str] | None = None,
         prices: dict[str, float] | None = None,
     ) -> None:
-        """Analyze deck and update display."""
+        """Analyze deck and update display (non-blocking)."""
         self._deck = deck
 
         if deck is None or deck.mainboard_count == 0:
             self._show_empty()
             return
 
-        # Perform analysis
-        self._analysis = self._analyze_deck(deck, collection_cards, prices)
+        # Show loading state immediately
+        self._show_loading()
 
-        # Rebuild display
-        self._rebuild_display()
+        # Run analysis in background
+        self._run_analysis(deck, collection_cards, prices)
 
-    def _show_empty(self) -> None:
-        """Show empty state."""
-        # Check if already showing empty state
+    def _show_loading(self) -> None:
+        """Show loading state while analysis runs."""
         try:
-            self.query_one("#analysis-empty", Static)
-            # Already showing empty state
-            return
+            content = self.query_one("#analysis-content", Static)
+            empty = self.query_one("#analysis-empty", Static)
+            empty.display = False
+            content.display = True
+            content.update(
+                f"[bold {ui_colors.GOLD}]━━━ ⏳ Analyzing ━━━[/]\n\n"
+                f"[dim]Loading deck analysis...[/]\n\n"
+                f"[dim italic]Detecting combos, synergies, themes...[/]"
+            )
         except Exception:
             pass
 
-        # Remove any existing children and show empty state
-        self.remove_children()
-        self.mount(
-            Static(
-                "[dim]Select a deck to view analysis[/]",
-                id="analysis-empty",
-            )
+    @work(exclusive=True, group="deck_analysis", thread=True)
+    def _run_analysis(
+        self,
+        deck: DeckWithCards,
+        collection_cards: set[str] | None,
+        prices: dict[str, float] | None,
+    ) -> None:
+        """Run deck analysis in background thread."""
+        # Perform analysis (CPU-bound work) in thread
+        self._analysis = self._analyze_deck(deck, collection_cards, prices)
+
+        # Schedule UI update on main thread
+        self.app.call_from_thread(self._update_content)
+
+    def _show_empty(self) -> None:
+        """Show empty state."""
+        try:
+            self.query_one("#analysis-content", Static).display = False
+            self.query_one("#analysis-empty", Static).display = True
+        except Exception:
+            pass
+
+    def _update_content(self) -> None:
+        """Update the content Static with all analysis text."""
+        if not self._analysis or not self._deck:
+            return
+
+        try:
+            content = self.query_one("#analysis-content", Static)
+            empty = self.query_one("#analysis-empty", Static)
+
+            # Hide empty, show content
+            empty.display = False
+            content.display = True
+
+            # Build the full text content
+            text = self._build_all_content()
+            content.update(text)
+        except Exception:
+            pass
+
+    def _build_all_content(self) -> str:
+        """Build all analysis content as a single text block."""
+        if not self._analysis or not self._deck:
+            return ""
+
+        a = self._analysis
+        deck = self._deck
+        lines: list[str] = []
+
+        # OVERVIEW - first for context
+        lines.append(self._build_overview_text(a, deck))
+        lines.append("")
+
+        # DECK SCORE
+        lines.append(self._build_score_text(a, deck))
+        lines.append("")
+
+        # MANA CURVE
+        lines.append(self._build_curve_text(a, deck))
+        lines.append("")
+
+        # KEYWORDS (if present)
+        if a.keywords:
+            lines.append(self._build_keywords_text(a))
+            lines.append("")
+
+        # DECK THEMES (if present)
+        if a.dominant_themes or a.dominant_tribe:
+            lines.append(self._build_deck_themes_text(a))
+            lines.append("")
+
+        # MATCHUPS (if themes detected)
+        if a.dominant_themes or a.archetype in THEME_MATCHUPS:
+            lines.append(self._build_matchups_text(a))
+            lines.append("")
+
+        # COMBOS (if present)
+        if a.combos:
+            lines.append(self._build_combos_text(a))
+            lines.append("")
+
+        # SYNERGIES (if present)
+        if a.synergy_pairs:
+            lines.append(self._build_synergies_text(a))
+            lines.append("")
+
+        # 17LANDS DATA (if present)
+        if a.tier_counts:
+            lines.append(self._build_17lands_text(a))
+            lines.append("")
+
+        # DECK HEALTH
+        lines.append(self._build_health_text(a))
+        lines.append("")
+
+        # COLOR IDENTITY
+        lines.append(self._build_colors_text(a))
+        lines.append("")
+
+        # KEY METRICS
+        lines.append(self._build_metrics_text(a))
+        lines.append("")
+
+        # COLLECTION (if relevant)
+        if a.needed_count > 0 or a.owned_count > 0:
+            lines.append(self._build_collection_text(a))
+            lines.append("")
+
+        # PRICE (if available)
+        if a.total_price > 0:
+            lines.append(self._build_price_text(a))
+
+        return "\n".join(lines)
+
+    def _build_score_text(self, a: DeckAnalysis, deck: DeckWithCards) -> str:
+        """Build deck score section text with compact grade display."""
+        score = self._calculate_score(a, deck)
+        grade = self._get_grade(score)
+        grade_color = self.GRADE_COLORS.get(grade, ui_colors.TEXT_DIM)
+
+        # Score bar
+        bar_len = 20
+        filled = int((score / 100) * bar_len)
+        bar = f"[{grade_color}]{'█' * filled}[/][dim]{'░' * (bar_len - filled)}[/]"
+
+        # Expected deck size based on format
+        expected = 60
+        if deck.format and deck.format.lower() == "commander":
+            expected = 99 if deck.commander else 100
+
+        return f"""[bold {ui_colors.GOLD}]━━━ ⚔ Deck Score ━━━[/]
+
+[bold {grade_color}]{grade}[/]  [bold {grade_color}]{score}[/][dim]/100[/]  {bar}
+
+📊 {a.card_count}/{expected} cards"""
+
+    def _build_overview_text(self, a: DeckAnalysis, deck: DeckWithCards) -> str:
+        """Build overview section with deck identity."""
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 📋 Overview ━━━[/]", ""]
+        lines.append(f"[bold {ui_colors.WHITE}]{deck.name}[/]")
+        lines.append("")
+
+        # Archetype with confidence bar
+        conf_len = 5
+        conf_filled = int((a.archetype_confidence / 100) * conf_len)
+        conf_bar = (
+            f"[{ui_colors.GOLD}]{'●' * conf_filled}[/][dim]{'○' * (conf_len - conf_filled)}[/]"
         )
+        lines.append(f"🎯 [{ui_colors.GOLD}]{a.archetype}[/] {conf_bar} {a.archetype_confidence}%")
+
+        # Format
+        format_name = (deck.format or "Custom").title()
+        lines.append(f"📖 Format: {format_name}")
+
+        # Commander if present
+        if deck.commander:
+            lines.append(f"👑 Commander: [{ui_colors.GOLD}]{deck.commander}[/]")
+
+        return "\n".join(lines)
+
+    def _build_colors_text(self, a: DeckAnalysis) -> str:
+        """Build color identity section with mana symbols."""
+        # Mana symbols and display colors
+        mana_symbols = {
+            "W": ("☀", "#F8E7B9", "white"),
+            "U": ("💧", "#0E86D4", "blue"),
+            "B": ("💀", "#9B7BB8", "black"),
+            "R": ("🔥", "#E86A58", "red"),
+            "G": ("🌲", "#7EC850", "green"),
+        }
+
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 🎨 Color Identity ━━━[/]", ""]
+
+        total_pips = sum(a.colors.values()) or 1
+
+        for color in ["W", "U", "B", "R", "G"]:
+            count = a.colors.get(color, 0)
+            if count > 0:
+                symbol, hex_color, _name = mana_symbols[color]
+                pct = int((count / total_pips) * 100)
+                bar_len = 12
+                filled = max(1, int((count / total_pips) * bar_len))
+                bar = f"[{hex_color}]{'█' * filled}[/][dim]{'░' * (bar_len - filled)}[/]"
+                lines.append(f"{symbol} {color} {bar} {pct:>3}% ({count})")
+
+        # Color identity wheel visualization
+        identity_symbols = []
+        for c in ["W", "U", "B", "R", "G"]:
+            if a.colors.get(c, 0) > 0:
+                symbol, hex_color, _ = mana_symbols[c]
+                identity_symbols.append(f"[{hex_color}]●[/]")
+
+        if identity_symbols:
+            lines.append("")
+            lines.append(
+                f"Identity: {' '.join(identity_symbols)}  [{ui_colors.TEXT_DIM}]{total_pips} pips[/]"
+            )
+
+        return "\n".join(lines)
+
+    def _build_metrics_text(self, a: DeckAnalysis) -> str:
+        """Build key metrics section with visual bars and icons."""
+        # Type icons and colors
+        types = [
+            ("⚔", "Creatures", a.creatures, "#7EC850"),
+            ("⚡", "Instants", a.instants, "#4A9FD8"),
+            ("🔥", "Sorceries", a.sorceries, "#E86A58"),
+            ("⚙", "Artifacts", a.artifacts, "#9A9A9A"),
+            ("✨", "Enchants", a.enchantments, "#B86FCE"),
+            ("🌟", "Planeswlk", a.planeswalkers, "#E6C84A"),
+            ("🏔", "Lands", a.lands, "#A67C52"),
+        ]
+
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 📊 Key Metrics ━━━[/]", ""]
+
+        # Calculate max for bar scaling
+        total = sum(t[2] for t in types) or 1
+        max_count = max(t[2] for t in types) or 1
+        bar_width = 10
+
+        for icon, name, count, color in types:
+            if count > 0:
+                bar_len = max(1, int((count / max_count) * bar_width))
+                bar = f"[{color}]{'█' * bar_len}[/][dim]{'░' * (bar_width - bar_len)}[/]"
+                pct = int((count / total) * 100)
+                lines.append(f"{icon} {name:9} {bar} {count:>2} ({pct:>2}%)")
+            else:
+                lines.append(f"[dim]{icon} {name:9} {'░' * bar_width}  0[/]")
+
+        return "\n".join(lines)
+
+    def _build_combos_text(self, a: DeckAnalysis) -> str:
+        """Build combos section showing complete and near-complete combos."""
+        lines = [f"[bold {ui_colors.GOLD}]━━━ ⚡ Combos ({len(a.combos)}) ━━━[/]", ""]
+
+        def get_rarity_color(card_name: str) -> str:
+            """Get rarity color for a card name."""
+            rarity = a.card_rarities.get(card_name, "").lower()
+            return getattr(rarity_colors, rarity.upper(), rarity_colors.DEFAULT)
+
+        for i, match in enumerate(a.combos[:5]):
+            combo = match.combo
+            score = getattr(match, "_score", 0)
+
+            # Score color based on value
+            if score >= 70:
+                score_color = "#50FA7B"  # Green - excellent
+            elif score >= 50:
+                score_color = "#F1FA8C"  # Yellow - good
+            elif score >= 30:
+                score_color = "#FFB86C"  # Orange - okay
+            else:
+                score_color = "#6272A4"  # Dim - weak
+
+            # Show completion status with score
+            if match.is_complete:
+                status = "[bold green]✓ COMPLETE[/]"
+            elif match.missing_count == 1:
+                status = "[yellow]1 away[/]"
+            else:
+                status = f"[dim]{match.missing_count} away[/]"
+
+            lines.append(f"[bold]#{i + 1}[/] {status}  [{score_color}]{score:.0f}[/][dim]/100[/]")
+
+            # Show cards you have (green checkmark) with rarity colors
+            present_str = ", ".join(
+                f"[{get_rarity_color(name)}]{name}[/]" for name in match.present_cards[:3]
+            )
+            if len(match.present_cards) > 3:
+                present_str += f" [dim]+{len(match.present_cards) - 3}[/]"
+            lines.append(f"   [green]✓[/] {present_str}")
+
+            # Show missing cards (red X) with rarity colors
+            if match.missing_cards:
+                missing_str = ", ".join(
+                    f"[{get_rarity_color(name)}]{name}[/]" for name in match.missing_cards[:2]
+                )
+                if len(match.missing_cards) > 2:
+                    missing_str += f" [dim]+{len(match.missing_cards) - 2}[/]"
+                lines.append(f"   [red]✗[/] {missing_str}")
+
+            # Result
+            produces = ", ".join(combo.produces[:2]) if combo.produces else "Value"
+            lines.append(f"   [dim]→[/] [italic #7EC850]{produces}[/]")
+            lines.append("")
+
+        if len(a.combos) > 5:
+            lines.append(f"[dim]...and {len(a.combos) - 5} more combos[/]")
+
+        return "\n".join(lines)
+
+    def _build_17lands_text(self, a: DeckAnalysis) -> str:
+        """Build 17lands data section with tier distribution."""
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 📊 Gameplay Data ━━━[/]", ""]
+
+        # Tier distribution with visual boxes
+        tier_line = "  "
+        for tier in ["S", "A", "B", "C", "D", "F"]:
+            count = a.tier_counts.get(tier, 0)
+            color = self.TIER_COLORS.get(tier, "#888")
+            if count > 0:
+                tier_line += f"[{color} on #1a1a1a] {tier}:{count:>2} [/] "
+            else:
+                tier_line += f"[dim] {tier}:·  [/] "
+        lines.append(tier_line)
+        lines.append("")
+
+        # Top performers with stars
+        if a.top_cards:
+            lines.append("[dim]★ Top performers:[/]")
+            for name, tier, wr in a.top_cards[:4]:
+                tier_color = self.TIER_COLORS.get(tier, "#888")
+                wr_str = f" [{ui_colors.GOLD}]{wr:.0%}[/]" if wr else ""
+                short_name = name[:18] if len(name) > 18 else name
+                lines.append(f"  [{tier_color}]★{tier}[/] {short_name}{wr_str}")
+
+        return "\n".join(lines)
+
+    def _build_deck_themes_text(self, a: DeckAnalysis) -> str:
+        """Build deck themes section."""
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 🎭 Deck Themes ━━━[/]", ""]
+
+        # Tribal
+        if a.dominant_tribe:
+            lines.append(f"👥 Tribal: [{ui_colors.GOLD}]{a.dominant_tribe}[/]")
+            tribe_desc = THEME_DESCRIPTIONS.get("Tribal", "")
+            if tribe_desc:
+                lines.append(f"   [italic dim]{tribe_desc}[/]")
+            lines.append("")
+
+        # Themes with engaging descriptions and counts
+        if a.dominant_themes:
+            for theme, count in a.dominant_themes[:4]:
+                desc = THEME_DESCRIPTIONS.get(theme, "")
+                lines.append(f"  [{ui_colors.GOLD}]{theme}[/] [dim]({count} cards)[/]")
+                if desc:
+                    lines.append(f"    [italic dim]{desc}[/]")
+
+        return "\n".join(lines)
+
+    def _build_matchups_text(self, a: DeckAnalysis) -> str:
+        """Build matchups section based on themes and archetype."""
+        lines = [f"[bold {ui_colors.GOLD}]━━━ ⚔ Matchups ━━━[/]", ""]
+
+        strengths: set[str] = set()
+        weaknesses: set[str] = set()
+
+        # Add archetype matchups
+        if a.archetype in THEME_MATCHUPS:
+            good, bad = THEME_MATCHUPS[a.archetype]
+            strengths.update(good[:2])
+            weaknesses.update(bad[:2])
+
+        # Add theme matchups
+        for theme, _ in a.dominant_themes[:3]:
+            if theme in THEME_MATCHUPS:
+                good, bad = THEME_MATCHUPS[theme]
+                strengths.update(good[:2])
+                weaknesses.update(bad[:2])
+
+        if strengths:
+            strength_str = ", ".join(sorted(strengths)[:4])
+            lines.append(f"  [green]✓ Strong vs:[/] {strength_str}")
+        if weaknesses:
+            weak_str = ", ".join(sorted(weaknesses)[:4])
+            lines.append(f"  [red]✗ Weak to:[/] {weak_str}")
+
+        if not strengths and not weaknesses:
+            lines.append(f"  [{ui_colors.TEXT_DIM}]No specific matchup data[/]")
+
+        return "\n".join(lines)
+
+    def _build_synergies_text(self, a: DeckAnalysis) -> str:
+        """Build synergies section with grouped card synergies and keywords."""
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 🔗 Synergies ━━━[/]", ""]
+
+        # Group synergies by type for cleaner display
+        if a.synergy_pairs:
+            # Categorize synergies
+            synergy_icons = {
+                "Gameplay Data": ("📊", "#50FA7B"),  # Data-driven - green
+                "death": ("💀", "#9B7BB8"),
+                "Flying": ("🕊", "#8BE9FD"),
+                "Lifelink": ("❤", "#FF79C6"),
+                "ETB": ("✨", "#F1FA8C"),
+                "sacrifice": ("🩸", "#FF5555"),
+                "token": ("👥", "#FFB86C"),
+                "counter": ("⬆", "#50FA7B"),
+                "draw": ("📚", "#8BE9FD"),
+            }
+
+            # Group by normalized reason
+            grouped: dict[str, list[tuple[str, str]]] = {}
+            for card1, card2, reason in a.synergy_pairs:
+                # Normalize reason to category
+                reason_lower = reason.lower()
+                if "gameplay" in reason_lower or "wr together" in reason_lower:
+                    category = "Gameplay Data"
+                elif "death" in reason_lower or "dies" in reason_lower:
+                    category = "Death triggers"
+                elif "flying" in reason_lower:
+                    category = "Flying"
+                elif "lifelink" in reason_lower or "life gain" in reason_lower:
+                    category = "Lifegain"
+                elif "etb" in reason_lower or "enters" in reason_lower:
+                    category = "ETB effects"
+                elif "sacrifice" in reason_lower:
+                    category = "Sacrifice"
+                elif "token" in reason_lower:
+                    category = "Tokens"
+                elif "counter" in reason_lower:
+                    category = "Counters"
+                else:
+                    category = reason.split(":")[0] if ":" in reason else "Other"
+
+                if category not in grouped:
+                    grouped[category] = []
+                # Avoid duplicate pairs
+                pair = (min(card1, card2), max(card1, card2))
+                if pair not in [(min(c1, c2), max(c1, c2)) for c1, c2 in grouped[category]]:
+                    grouped[category].append((card1, card2))
+
+            # Display grouped synergies - sorted by pair count descending
+            sorted_groups = sorted(grouped.items(), key=lambda x: len(x[1]), reverse=True)
+            for category, pairs in sorted_groups[:6]:
+                # Get icon and color for category
+                icon, color = "⚡", ui_colors.SYNERGY_STRONG
+                for key, (i, c) in synergy_icons.items():
+                    if key.lower() in category.lower():
+                        icon, color = i, c
+                        break
+
+                lines.append(f"{icon} [{color}]{category}[/] [dim]({len(pairs)} pairs)[/]")
+                for card1, card2 in pairs[:3]:  # Show max 3 pairs per category
+                    c1 = card1[:16] + "…" if len(card1) > 17 else card1
+                    c2 = card2[:16] + "…" if len(card2) > 17 else card2
+                    lines.append(f"   [{ui_colors.TEXT_DIM}]{c1} + {c2}[/]")
+                if len(pairs) > 3:
+                    lines.append(f"   [dim]...+{len(pairs) - 3} more[/]")
+            lines.append("")
+
+        return "\n".join(lines)
+
+    def _build_keywords_text(self, a: DeckAnalysis) -> str:
+        """Build keywords section."""
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 🔑 Keywords ━━━[/]", ""]
+
+        for kw, count in a.keywords[:8]:
+            bar_len = min(8, count)
+            bar = f"[{ui_colors.GOLD}]{'▪' * bar_len}[/]"
+            lines.append(f"  {kw:14} {bar} {count}")
+
+        return "\n".join(lines)
+
+    def _build_curve_text(self, a: DeckAnalysis, deck: DeckWithCards) -> str:
+        """Build mana curve with visual vertical bar chart."""
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 📈 Mana Curve ━━━[/]", ""]
+
+        # Calculate curve
+        curve: dict[int, int] = dict.fromkeys(range(8), 0)
+        for card in deck.mainboard:
+            if card.card and "Land" not in (card.card.type or ""):
+                cmc = min(int(card.card.cmc or 0), 7)
+                curve[cmc] += card.quantity
+
+        max_count = max(curve.values()) if curve.values() else 1
+        bar_height = 6
+
+        # Count row at top
+        count_row = "  "
+        for cmc in range(8):
+            count = curve[cmc]
+            if count > 0:
+                count_row += f"[{ui_colors.GOLD}]{count:>2}[/] "
+            else:
+                count_row += "[dim] ·[/] "
+        lines.append(count_row)
+
+        # Build visual bars from top to bottom
+        for level in range(bar_height, 0, -1):
+            row = "  "
+            for cmc in range(8):
+                count = curve[cmc]
+                fill_level = (count / max_count) * bar_height if max_count > 0 else 0
+                if fill_level >= level:
+                    row += f"[bold {ui_colors.GOLD}]██[/] "
+                elif fill_level >= level - 0.5 and count > 0:
+                    row += f"[{ui_colors.GOLD}]▄▄[/] "
+                else:
+                    row += "[dim]░░[/] "
+            lines.append(row)
+
+        # X-axis labels
+        lines.append("  0  1  2  3  4  5  6  7+")
+
+        # Average CMC with visual indicator
+        lines.append("")
+        avg_bar_pos = int(min(a.avg_cmc, 7) * 3) + 2
+        avg_indicator = " " * avg_bar_pos + f"[{ui_colors.GOLD}]▲[/]"
+        lines.append(avg_indicator)
+        lines.append(f"  Average: [{ui_colors.GOLD}]{a.avg_cmc:.2f}[/] CMC")
+
+        # Spell count
+        spell_count = sum(curve.values())
+        lines.append(f"  Spells: {spell_count}")
+
+        return "\n".join(lines)
+
+    def _build_health_text(self, a: DeckAnalysis) -> str:
+        """Build deck health section with visual gauges."""
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 🏥 Deck Health ━━━[/]", ""]
+
+        total = a.card_count
+        land_pct = int((a.lands / total) * 100) if total > 0 else 0
+
+        # Health metrics with gauges
+        metrics = [
+            ("🏔 Lands", a.lands, 24, land_pct, 35 <= land_pct <= 42, 30 <= land_pct <= 45),
+            (
+                "💥 Interaction",
+                a.interaction_count,
+                15,
+                None,
+                a.interaction_count >= 10,
+                a.interaction_count >= 6,
+            ),
+            ("📚 Card Draw", a.draw_count, 12, None, a.draw_count >= 8, a.draw_count >= 4),
+            ("🌱 Ramp", a.ramp_count, 12, None, a.ramp_count >= 8, a.ramp_count >= 4),
+        ]
+
+        for label, count, max_val, pct_val, is_good, is_ok in metrics:
+            # Gauge bar
+            gauge_len = 8
+            filled = min(gauge_len, int((count / max_val) * gauge_len)) if max_val > 0 else 0
+
+            if is_good:
+                icon = "[green]✓[/]"
+                bar_color = "green"
+                status = ""
+            elif is_ok:
+                icon = "[yellow]~[/]"
+                bar_color = "yellow"
+                status = ""
+            else:
+                icon = "[red]✗[/]"
+                bar_color = "red"
+                status = " [dim](low)[/]"
+
+            bar = f"[{bar_color}]{'█' * filled}[/][dim]{'░' * (gauge_len - filled)}[/]"
+            pct_str = f" ({pct_val}%)" if pct_val is not None else ""
+            lines.append(f"{icon} {label:12} {bar} {count:>2}{pct_str}{status}")
+
+        return "\n".join(lines)
+
+    def _build_collection_text(self, a: DeckAnalysis) -> str:
+        """Build collection section with progress visualization."""
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 📦 Collection ━━━[/]", ""]
+
+        total = a.owned_count + a.needed_count
+        owned_pct = int((a.owned_count / total) * 100) if total > 0 else 0
+
+        # Large progress bar
+        bar_len = 24
+        filled = int((a.owned_count / total) * bar_len) if total > 0 else 0
+
+        # Color based on completion
+        if owned_pct >= 90:
+            bar_color = "green"
+        elif owned_pct >= 50:
+            bar_color = "yellow"
+        else:
+            bar_color = "red"
+
+        bar = f"[{bar_color}]{'█' * filled}[/][dim]{'░' * (bar_len - filled)}[/]"
+        lines.append(f"  {bar} {owned_pct}%")
+        lines.append("")
+
+        lines.append(f"  [green]✓[/] {a.owned_count} owned")
+
+        if a.needed_count == 0:
+            lines.append("  [bold green]🎉 Complete![/]")
+        else:
+            lines.append(f"  [yellow]⚠[/] {a.needed_count} cards needed")
+
+        return "\n".join(lines)
+
+    def _build_price_text(self, a: DeckAnalysis) -> str:
+        """Build price section with cost breakdown."""
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 💰 Price ━━━[/]", ""]
+
+        # Price tier colors
+        if a.total_price < 50:
+            price_color = "#7EC850"
+            tier = "Budget"
+        elif a.total_price < 150:
+            price_color = "#E6C84A"
+            tier = "Moderate"
+        elif a.total_price < 500:
+            price_color = "#FFB86C"
+            tier = "Expensive"
+        else:
+            price_color = "#FF5555"
+            tier = "Premium"
+
+        lines.append(f"  [bold {price_color}]${a.total_price:.0f}[/] [dim]({tier})[/]")
+        lines.append("")
+
+        if a.expensive_cards:
+            lines.append("[dim]💎 Most expensive:[/]")
+            for name, price in a.expensive_cards[:4]:
+                short = name[:18] if len(name) > 18 else name
+                lines.append(f"  ${price:>6.0f}  {short}")
+
+        return "\n".join(lines)
+
+    def _calculate_score(self, a: DeckAnalysis, _deck: DeckWithCards) -> int:
+        """Calculate overall deck score 0-100."""
+        score = 0
+
+        # Card count (max 20 points)
+        if a.card_count >= 60:
+            score += 20
+        else:
+            score += int((a.card_count / 60) * 20)
+
+        # Land ratio (max 15 points)
+        land_ratio = a.lands / a.card_count if a.card_count > 0 else 0
+        if 0.35 <= land_ratio <= 0.42:
+            score += 15
+        elif 0.30 <= land_ratio <= 0.45:
+            score += 10
+        else:
+            score += 5
+
+        # Mana curve (max 15 points)
+        if a.avg_cmc <= 3.5:
+            score += 15
+        elif a.avg_cmc <= 4.0:
+            score += 10
+        else:
+            score += 5
+
+        # Interaction (max 15 points)
+        if a.interaction_count >= 10:
+            score += 15
+        elif a.interaction_count >= 6:
+            score += 10
+        else:
+            score += int((a.interaction_count / 10) * 15)
+
+        # Draw (max 10 points)
+        if a.draw_count >= 8:
+            score += 10
+        else:
+            score += int((a.draw_count / 8) * 10)
+
+        # Ramp (max 10 points)
+        if a.ramp_count >= 8:
+            score += 10
+        else:
+            score += int((a.ramp_count / 8) * 10)
+
+        # Combos (max 10 points)
+        if a.combos:
+            score += min(10, len(a.combos) * 3)
+
+        # 17Lands quality (max 5 points)
+        high_tier = a.tier_counts.get("S", 0) + a.tier_counts.get("A", 0)
+        if high_tier >= 10:
+            score += 5
+        elif high_tier >= 5:
+            score += 3
+
+        return min(100, score)
+
+    def _get_grade(self, score: int) -> str:
+        """Convert score to letter grade."""
+        if score >= 90:
+            return "S"
+        elif score >= 80:
+            return "A"
+        elif score >= 70:
+            return "B"
+        elif score >= 60:
+            return "C"
+        elif score >= 50:
+            return "D"
+        return "F"
 
     def _analyze_deck(
         self,
@@ -190,58 +924,184 @@ class DeckAnalysisPanel(VerticalScroll):
         prices = prices or {}
         collection_cards = collection_cards or set()
 
-        # Basic stats
+        # Basic counts
         card_count = deck.mainboard_count
-        colors = self._calc_colors(deck)
-        avg_cmc = self._calc_avg_cmc(deck)
+        land_count = 0
+        total_cmc: float = 0.0
+        spell_count = 0
 
         # Type counts
-        types = self._calc_types(deck)
-        creatures = types.get("Creature", 0)
-        instants = types.get("Instant", 0)
-        sorceries = types.get("Sorcery", 0)
-        artifacts = types.get("Artifact", 0)
-        enchantments = types.get("Enchantment", 0)
-        planeswalkers = types.get("Planeswalker", 0)
-        lands = types.get("Land", 0)
+        creatures = 0
+        instants = 0
+        sorceries = 0
+        artifacts = 0
+        enchantments = 0
+        planeswalkers = 0
+        lands = 0
 
-        # Deck health
-        interaction = self._count_interaction(deck)
-        draw = self._count_draw(deck)
-        ramp = self._count_ramp(deck)
+        # Color counts
+        colors: dict[str, int] = {"W": 0, "U": 0, "B": 0, "R": 0, "G": 0}
+
+        # Health metrics
+        interaction_count = 0
+        draw_count = 0
+        ramp_count = 0
+
+        # Keywords
+        keyword_counter: Counter[str] = Counter()
+
+        # Tribe detection
+        tribe_counter: Counter[str] = Counter()
+
+        # Collection tracking
+        owned_count = 0
+        needed_count = 0
+
+        # Price tracking
+        total_price = 0.0
+        card_prices: list[tuple[str, float]] = []
+
+        # Process each card
+        for card_data in deck.mainboard:
+            card = card_data.card
+            qty = card_data.quantity
+
+            if not card:
+                continue
+
+            card_type = card.type or ""
+
+            # Type classification
+            if "Land" in card_type:
+                lands += qty
+                land_count += qty
+            else:
+                if card.cmc is not None:
+                    total_cmc += card.cmc * qty
+                    spell_count += qty
+
+            if "Creature" in card_type:
+                creatures += qty
+            if "Instant" in card_type:
+                instants += qty
+            if "Sorcery" in card_type:
+                sorceries += qty
+            if "Artifact" in card_type:
+                artifacts += qty
+            if "Enchantment" in card_type:
+                enchantments += qty
+            if "Planeswalker" in card_type:
+                planeswalkers += qty
+
+            # Color pips
+            if card.mana_cost:
+                for color in "WUBRG":
+                    colors[color] += card.mana_cost.count(f"{{{color}}}") * qty
+
+            # Keywords
+            if card.keywords:
+                for kw in card.keywords:
+                    keyword_counter[kw] += qty
+
+            # Tribe detection
+            if "Creature" in card_type and card.type and "—" in card.type:
+                subtypes = card.type.split("—")[1].strip().split()
+                for subtype in subtypes:
+                    if subtype not in ("Legendary", "Token", "Basic"):
+                        tribe_counter[subtype] += qty
+
+            # Health detection
+            text = (card.text or "").lower()
+
+            # Interaction
+            if any(
+                word in text
+                for word in [
+                    "destroy",
+                    "exile",
+                    "counter",
+                    "damage",
+                    "return",
+                    "-1/-1",
+                    "sacrifice",
+                ]
+            ):
+                interaction_count += qty
+
+            # Draw
+            if any(word in text for word in ["draw", "scry", "look at"]):
+                draw_count += qty
+
+            # Ramp
+            if any(
+                word in text
+                for word in [
+                    "add {",
+                    "add one mana",
+                    "search your library for a",
+                    "mana of any",
+                ]
+            ):
+                ramp_count += qty
+
+            # Collection status
+            if card_data.card_name in collection_cards:
+                owned_count += qty
+            else:
+                needed_count += qty
+
+            # Price
+            price = prices.get(card_data.card_name, 0)
+            if price > 0:
+                total_price += price * qty
+                card_prices.append((card_data.card_name, price))
+
+        # Calculate averages
+        avg_cmc = total_cmc / spell_count if spell_count > 0 else 0
+
+        # Archetype detection
+        archetype, confidence = self._detect_archetype(
+            creatures, instants, sorceries, lands, avg_cmc, card_count
+        )
 
         # Theme detection
-        archetype, conf = self._detect_archetype(deck, types, avg_cmc, interaction, draw)
         themes = self._detect_themes(deck)
-        tribe = self._detect_tribe(deck)
-        keywords = self._count_keywords(deck)
 
-        # Combo detection
+        # Card synergy detection
+        synergy_pairs = self._detect_synergies(deck)
+
+        # Dominant tribe
+        dominant_tribe = tribe_counter.most_common(1)[0][0] if tribe_counter else None
+        if dominant_tribe and tribe_counter[dominant_tribe] < 8:
+            dominant_tribe = None
+
+        # Top keywords
+        top_keywords = keyword_counter.most_common(10)
+
+        # Build card rarities dict from deck cards
+        card_rarities: dict[str, str] = {}
+        for card_data in deck.mainboard:
+            if card_data.card and card_data.card.rarity:
+                card_rarities[card_data.card_name] = card_data.card.rarity
+
+        # Get combos
         combos = self._detect_combos(deck)
 
-        # 17Lands tiers
-        tier_counts, top_cards = self._get_17lands_stats(deck)
+        # Look up rarities for any missing combo cards not in the deck
+        self._fill_missing_rarities(combos, card_rarities)
 
-        # Collection coverage
-        owned_count = sum(1 for c in deck.mainboard if c.card_name in collection_cards)
-        needed_count = card_count - owned_count if collection_cards else 0
+        # 17Lands data
+        tier_counts, top_cards = self._get_17lands_data(deck)
 
-        # Price
-        total_price = 0.0
-        expensive: list[tuple[str, float]] = []
-        for card in deck.mainboard:
-            price = prices.get(card.card_name, 0.0)
-            card_total = price * card.quantity
-            total_price += card_total
-            if price > 1.0:
-                expensive.append((card.card_name, price))
-        expensive.sort(key=lambda x: -x[1])
+        # Most expensive cards
+        card_prices.sort(key=lambda x: -x[1])
+        expensive_cards = card_prices[:5]
 
         return DeckAnalysis(
             card_count=card_count,
-            land_count=lands,
+            land_count=land_count,
             avg_cmc=avg_cmc,
-            colors=colors,
+            colors={c: v for c, v in colors.items() if v > 0},
             creatures=creatures,
             instants=instants,
             sorceries=sorceries,
@@ -249,635 +1109,261 @@ class DeckAnalysisPanel(VerticalScroll):
             enchantments=enchantments,
             planeswalkers=planeswalkers,
             lands=lands,
-            interaction_count=interaction,
-            draw_count=draw,
-            ramp_count=ramp,
+            interaction_count=interaction_count,
+            draw_count=draw_count,
+            ramp_count=ramp_count,
             archetype=archetype,
-            archetype_confidence=conf,
+            archetype_confidence=confidence,
             dominant_themes=themes,
-            dominant_tribe=tribe,
-            keywords=keywords,
+            dominant_tribe=dominant_tribe,
+            keywords=top_keywords,
+            synergy_pairs=synergy_pairs,
             combos=combos,
             tier_counts=tier_counts,
             top_cards=top_cards,
             owned_count=owned_count,
             needed_count=needed_count,
             total_price=total_price,
-            expensive_cards=expensive[:5],
+            expensive_cards=expensive_cards,
+            card_rarities=card_rarities,
         )
-
-    def _rebuild_display(self) -> None:
-        """Rebuild the analysis display."""
-        self.remove_children()
-
-        if not self._analysis or not self._deck:
-            self._show_empty()
-            return
-
-        a = self._analysis
-        deck = self._deck
-
-        # Overview section
-        self.mount(self._build_overview_section(a, deck))
-
-        # Mana curve section
-        self.mount(self._build_curve_section(a, deck))
-
-        # Colors section
-        self.mount(self._build_colors_section(a))
-
-        # Combos section (if any found)
-        if a.combos:
-            self.mount(self._build_combos_section(a))
-
-        # 17Lands section (if data available)
-        if a.tier_counts:
-            self.mount(self._build_17lands_section(a))
-
-        # Themes section
-        if a.dominant_themes or a.dominant_tribe:
-            self.mount(self._build_themes_section(a))
-
-        # Health metrics
-        self.mount(self._build_health_section(a, deck))
-
-        # Collection section (if relevant)
-        if a.needed_count > 0 or a.owned_count > 0:
-            self.mount(self._build_collection_section(a))
-
-        # Price section
-        if a.total_price > 0:
-            self.mount(self._build_price_section(a))
-
-    def _build_overview_section(self, a: DeckAnalysis, deck: DeckWithCards) -> Vertical:
-        """Build overview section."""
-        # Deck score
-        score = self._calc_score(a, deck)
-        score_color = "#7ec850" if score >= 80 else "#e6c84a" if score >= 60 else "#e86a58"
-        grade = (
-            "S"
-            if score >= 90
-            else "A"
-            if score >= 80
-            else "B"
-            if score >= 65
-            else "C"
-            if score >= 50
-            else "D"
-        )
-
-        # Format check
-        fmt = deck.format or "casual"
-        expected = 99 if fmt.lower() == "commander" else 60
-        count_ok = a.card_count >= expected
-
-        # Commander
-        commander_line = ""
-        if deck.commander:
-            commander_line = f"\n[dim]Commander:[/] [{ui_colors.GOLD}]{deck.commander}[/]"
-
-        content = f"""[bold {ui_colors.GOLD}]{deck.name}[/]{commander_line}
-[{a.archetype}] [{ui_colors.GOLD_DIM}]{a.archetype_confidence}% conf[/]
-
-[{score_color}]{grade}[/] [{score_color}]{score}[/]/100 {"[green]✓[/]" if count_ok else "[red]✗[/]"} {a.card_count}/{expected} cards"""
-
-        section = Vertical()
-        section.compose_add_child(
-            Static(f"[{ui_colors.GOLD}]OVERVIEW[/]", classes="section-header")
-        )
-        section.compose_add_child(Static(content, classes="section-content"))
-        return section
-
-    def _build_curve_section(self, a: DeckAnalysis, deck: DeckWithCards) -> Vertical:
-        """Build mana curve section with visual bars."""
-        curve = self._calc_curve(deck)
-        max_count = max(curve.values()) if curve else 1
-        total_spells = a.card_count - a.lands
-
-        # Sparkline
-        blocks = " ▁▂▃▄▅▆▇█"
-        sparkline = ""
-        for cmc in range(8):
-            count = curve.get(cmc, 0)
-            level = int((count / max_count) * 8) if max_count > 0 else 0
-            char = blocks[level]
-            if level > 0:
-                sparkline += f"[{ui_colors.GOLD}]{char}[/]"
-            else:
-                sparkline += f"[dim]{char}[/]"
-
-        # Average CMC color coding
-        cmc_color = "#7ec850" if a.avg_cmc <= 2.5 else "#e6c84a" if a.avg_cmc <= 3.5 else "#e86a58"
-
-        # Detailed breakdown
-        counts = " ".join(f"{curve.get(i, 0):>2}" for i in range(8))
-
-        content = f"""{sparkline}
-[dim]0  1  2  3  4  5  6 7+[/]
-{counts}
-
-[dim]Average:[/] [{cmc_color}]{a.avg_cmc:.2f}[/] CMC
-[dim]Spells:[/] {total_spells} non-land"""
-
-        section = Vertical()
-        section.compose_add_child(
-            Static(f"[{ui_colors.GOLD}]MANA CURVE[/]", classes="section-header")
-        )
-        section.compose_add_child(Static(content, classes="section-content"))
-        return section
-
-    def _build_colors_section(self, a: DeckAnalysis) -> Vertical:
-        """Build color distribution section."""
-        total = sum(a.colors.values()) if a.colors else 1
-        lines = []
-
-        for c in ["W", "U", "B", "R", "G"]:
-            count = a.colors.get(c, 0)
-            if count == 0:
-                continue
-            pct = int((count / total) * 100) if total > 0 else 0
-            bar_len = max(1, min(8, int((count / total) * 8))) if total > 0 else 0
-            bar = f"[{MANA[c]}]{'█' * bar_len}[/][dim]{'░' * (8 - bar_len)}[/]"
-            lines.append(f"[{MANA[c]}]{c}[/] {bar} {pct:>2}% ({count})")
-
-        if not lines:
-            lines.append("[dim]Colorless deck[/]")
-
-        # Color identity display
-        identity = "".join(c for c in "WUBRG" if a.colors.get(c, 0) > 0) or "C"
-        id_display = " ".join(f"[{MANA.get(c, '#888')}]●[/]" for c in identity)
-        lines.append(f"\n[dim]Identity:[/] {id_display}")
-
-        section = Vertical()
-        section.compose_add_child(Static(f"[{ui_colors.GOLD}]COLORS[/]", classes="section-header"))
-        section.compose_add_child(Static("\n".join(lines), classes="section-content"))
-        return section
-
-    def _build_combos_section(self, a: DeckAnalysis) -> Vertical:
-        """Build combos section showing detected combos."""
-        lines = []
-
-        # Count by completeness
-        complete = [c for c in a.combos if c.is_complete]
-        partial = [c for c in a.combos if not c.is_complete]
-
-        if complete:
-            lines.append(f"[green]✓ {len(complete)} COMPLETE[/]")
-            for match in complete[:3]:
-                combo = match.combo
-                # What it produces
-                produces = ", ".join(combo.produces[:2]) if combo.produces else "combo"
-                lines.append(f"  [bold]{combo.card_names[0]}[/] +{len(combo.card_names) - 1}")
-                lines.append(f"  [dim]→ {produces}[/]")
-
-        if partial:
-            lines.append(f"\n[yellow]⚠ {len(partial)} NEAR-COMPLETE[/]")
-            for match in partial[:3]:
-                combo = match.combo
-                missing = ", ".join(match.missing_cards[:2])
-                pct = int(match.completion_ratio * 100)
-                lines.append(
-                    f"  [{ui_colors.GOLD_DIM}]{pct}%[/] {combo.card_names[0]} +{len(combo.card_names) - 1}"
-                )
-                lines.append(f"  [dim]Need: {missing}[/]")
-
-        section = Vertical()
-        section.compose_add_child(
-            Static(f"[{ui_colors.GOLD}]⚡ COMBOS ({len(a.combos)})[/]", classes="section-header")
-        )
-        section.compose_add_child(Static("\n".join(lines), classes="section-content"))
-        return section
-
-    def _build_17lands_section(self, a: DeckAnalysis) -> Vertical:
-        """Build 17lands tier ratings section."""
-        lines = []
-
-        # Tier summary
-        tier_order = ["S", "A", "B", "C", "D", "F"]
-        tier_summary = []
-        for tier in tier_order:
-            count = a.tier_counts.get(tier, 0)
-            if count > 0:
-                color = self.TIER_COLORS.get(tier, "#888")
-                tier_summary.append(f"[{color}]{tier}:{count}[/]")
-
-        if tier_summary:
-            lines.append("  ".join(tier_summary))
-            lines.append("")
-
-        # Top cards by tier
-        lines.append("[dim]Top performers:[/]")
-        for name, tier, gih_wr in a.top_cards[:5]:
-            color = self.TIER_COLORS.get(tier, "#888")
-            short_name = name[:18] if len(name) > 18 else name
-            wr_str = f"{gih_wr:.0%}" if gih_wr else "N/A"
-            lines.append(f"[{color}]★ {tier}[/] {short_name} [{ui_colors.GOLD_DIM}]{wr_str}[/]")
-
-        section = Vertical()
-        section.compose_add_child(
-            Static(f"[{ui_colors.GOLD}]📊 17LANDS DATA[/]", classes="section-header")
-        )
-        section.compose_add_child(Static("\n".join(lines), classes="section-content"))
-        return section
-
-    def _build_themes_section(self, a: DeckAnalysis) -> Vertical:
-        """Build themes and synergies section."""
-        lines = []
-
-        if a.dominant_tribe:
-            lines.append(f"[bold]Tribal:[/] [{ui_colors.GOLD}]{a.dominant_tribe}[/]")
-
-        if a.dominant_themes:
-            lines.append(f"[bold]Themes:[/] {', '.join(a.dominant_themes[:4])}")
-
-        if a.keywords:
-            lines.append("\n[dim]Keywords:[/]")
-            for kw, count in a.keywords[:6]:
-                lines.append(f"  {kw}: {count}")
-
-        section = Vertical()
-        section.compose_add_child(
-            Static(f"[{ui_colors.GOLD}]SYNERGIES[/]", classes="section-header")
-        )
-        section.compose_add_child(Static("\n".join(lines), classes="section-content"))
-        return section
-
-    def _build_health_section(self, a: DeckAnalysis, deck: DeckWithCards) -> Vertical:  # noqa: ARG002
-        """Build deck health metrics section."""
-        # Land ratio
-        total = a.card_count
-        land_pct = int((a.lands / total) * 100) if total > 0 else 0
-        land_ok = 35 <= land_pct <= 42
-        land_color = "#7ec850" if land_ok else "#e6c84a"
-
-        # Type breakdown (compact)
-        type_parts = []
-        if a.creatures:
-            type_parts.append(f"[#7ec850]⚔{a.creatures}[/]")
-        if a.instants:
-            type_parts.append(f"[#4a9fd8]⚡{a.instants}[/]")
-        if a.sorceries:
-            type_parts.append(f"[#a855f7]✦{a.sorceries}[/]")
-        if a.artifacts:
-            type_parts.append(f"[#9a9a9a]⚙{a.artifacts}[/]")
-        if a.enchantments:
-            type_parts.append(f"[#b86fce]✧{a.enchantments}[/]")
-        if a.planeswalkers:
-            type_parts.append(f"[#e6c84a]★{a.planeswalkers}[/]")
-
-        # Health checks
-        checks = []
-        if a.interaction_count >= 10:
-            checks.append(f"[green]✓[/] Interaction: {a.interaction_count}")
-        elif a.interaction_count >= 6:
-            checks.append(f"[yellow]~[/] Interaction: {a.interaction_count}")
-        else:
-            checks.append(f"[red]✗[/] Interaction: {a.interaction_count} (low)")
-
-        if a.draw_count >= 8:
-            checks.append(f"[green]✓[/] Card draw: {a.draw_count}")
-        elif a.draw_count >= 4:
-            checks.append(f"[yellow]~[/] Card draw: {a.draw_count}")
-        else:
-            checks.append(f"[red]✗[/] Card draw: {a.draw_count} (low)")
-
-        if a.ramp_count >= 8:
-            checks.append(f"[green]✓[/] Ramp: {a.ramp_count}")
-        elif a.ramp_count >= 4:
-            checks.append(f"[yellow]~[/] Ramp: {a.ramp_count}")
-        else:
-            checks.append(f"[red]✗[/] Ramp: {a.ramp_count} (low)")
-
-        content = f"""[dim]Types:[/] {" ".join(type_parts)}
-[{land_color}]◆ {a.lands}[/] lands ({land_pct}%)
-
-{chr(10).join(checks)}"""
-
-        section = Vertical()
-        section.compose_add_child(
-            Static(f"[{ui_colors.GOLD}]DECK HEALTH[/]", classes="section-header")
-        )
-        section.compose_add_child(Static(content, classes="section-content"))
-        return section
-
-    def _build_collection_section(self, a: DeckAnalysis) -> Vertical:
-        """Build collection coverage section."""
-        total = a.owned_count + a.needed_count
-        owned_pct = int((a.owned_count / total) * 100) if total > 0 else 0
-
-        # Progress bar
-        bar_len = 20
-        filled = int((a.owned_count / total) * bar_len) if total > 0 else 0
-        bar = f"[green]{'█' * filled}[/][dim]{'░' * (bar_len - filled)}[/]"
-
-        if a.needed_count == 0:
-            status = "[green]✓ Complete![/]"
-        else:
-            status = f"[yellow]⚠ {a.needed_count} cards needed[/]"
-
-        content = f"""{bar}
-[green]✓ {a.owned_count}[/] owned ({owned_pct}%)
-{status}"""
-
-        section = Vertical()
-        section.compose_add_child(
-            Static(f"[{ui_colors.GOLD}]COLLECTION[/]", classes="section-header")
-        )
-        section.compose_add_child(Static(content, classes="section-content"))
-        return section
-
-    def _build_price_section(self, a: DeckAnalysis) -> Vertical:
-        """Build price analysis section."""
-        price_color = (
-            "#7ec850" if a.total_price < 50 else "#e6c84a" if a.total_price < 200 else "#e86a58"
-        )
-
-        lines = [f"[{price_color}]${a.total_price:.0f}[/] total"]
-
-        if a.expensive_cards:
-            lines.append("\n[dim]Most expensive:[/]")
-            for name, price in a.expensive_cards[:4]:
-                short = name[:16] if len(name) > 16 else name
-                lines.append(f"  {short} [dim]${price:.0f}[/]")
-
-        section = Vertical()
-        section.compose_add_child(Static(f"[{ui_colors.GOLD}]PRICE[/]", classes="section-header"))
-        section.compose_add_child(Static("\n".join(lines), classes="section-content"))
-        return section
-
-    # ===== Analysis helpers =====
-
-    def _calc_curve(self, deck: DeckWithCards) -> dict[int, int]:
-        """Calculate mana curve (non-land spells)."""
-        curve: dict[int, int] = {}
-        for card in deck.mainboard:
-            if card.card and card.card.type and "Land" not in card.card.type:
-                cmc = min(7, int(card.card.cmc or 0))
-                curve[cmc] = curve.get(cmc, 0) + card.quantity
-        return curve
-
-    def _calc_avg_cmc(self, deck: DeckWithCards) -> float:
-        """Calculate average CMC of non-land cards."""
-        total, count = 0.0, 0
-        for card in deck.mainboard:
-            if card.card and card.card.type and "Land" not in card.card.type:
-                total += (card.card.cmc or 0) * card.quantity
-                count += card.quantity
-        return total / count if count > 0 else 0
-
-    def _calc_colors(self, deck: DeckWithCards) -> dict[str, int]:
-        """Calculate color pip distribution from mana costs."""
-        colors: dict[str, int] = {}
-        for card in deck.mainboard:
-            if card.card and card.card.mana_cost:
-                for c in "WUBRG":
-                    colors[c] = (
-                        colors.get(c, 0) + card.card.mana_cost.count(f"{{{c}}}") * card.quantity
-                    )
-        return colors
-
-    def _calc_types(self, deck: DeckWithCards) -> dict[str, int]:
-        """Calculate type distribution."""
-        types: dict[str, int] = {}
-        priority = [
-            "Creature",
-            "Instant",
-            "Sorcery",
-            "Artifact",
-            "Enchantment",
-            "Planeswalker",
-            "Land",
-        ]
-        for card in deck.mainboard:
-            if card.card and card.card.type:
-                for t in priority:
-                    if t in card.card.type:
-                        types[t] = types.get(t, 0) + card.quantity
-                        break
-        return types
-
-    def _count_keywords(self, deck: DeckWithCards) -> list[tuple[str, int]]:
-        """Count keywords across all cards."""
-        keywords: dict[str, int] = {}
-        for card in deck.mainboard:
-            if card.card and card.card.keywords:
-                for kw in card.card.keywords:
-                    keywords[kw] = keywords.get(kw, 0) + card.quantity
-
-        return sorted(keywords.items(), key=lambda x: -x[1])
-
-    def _count_interaction(self, deck: DeckWithCards) -> int:
-        """Count removal and interaction spells."""
-        patterns = ["destroy", "exile", "counter target", "return target", r"deals.*damage to"]
-        count = 0
-        for card in deck.mainboard:
-            if card.card and card.card.text:
-                text = card.card.text.lower()
-                if any(re.search(p, text) for p in patterns):
-                    count += card.quantity
-        return count
-
-    def _count_draw(self, deck: DeckWithCards) -> int:
-        """Count card draw effects."""
-        patterns = ["draw a card", "draw cards", "draws a card", "draw two", "draw three"]
-        count = 0
-        for card in deck.mainboard:
-            if card.card and card.card.text:
-                text = card.card.text.lower()
-                if any(p in text for p in patterns):
-                    count += card.quantity
-        return count
-
-    def _count_ramp(self, deck: DeckWithCards) -> int:
-        """Count mana ramp effects."""
-        patterns = [
-            r"add \{",
-            "add one mana",
-            "add two mana",
-            "search your library for a basic land",
-            "search your library for a land",
-            r"put.*land.*onto the battlefield",
-        ]
-        count = 0
-        for card in deck.mainboard:
-            if card.card and card.card.type and "Land" not in card.card.type and card.card.text:
-                text = card.card.text.lower()
-                if any(re.search(p, text) for p in patterns):
-                    count += card.quantity
-        return count
 
     def _detect_archetype(
         self,
-        deck: DeckWithCards,
-        types: dict[str, int],
+        creatures: int,
+        instants: int,
+        sorceries: int,
+        _lands: int,
         avg_cmc: float,
-        interaction: int,
-        draw: int,
+        total: int,
     ) -> tuple[str, int]:
-        """Detect deck archetype based on card composition."""
-        creatures = types.get("Creature", 0)
-        instants = types.get("Instant", 0)
-        sorceries = types.get("Sorcery", 0)
-        lands = types.get("Land", 0)
+        """Detect deck archetype."""
+        if total == 0:
+            return "Unknown", 0
 
-        total_nonland = deck.mainboard_count - lands
-        creature_pct = (creatures / total_nonland * 100) if total_nonland > 0 else 0
-        spell_pct = ((instants + sorceries) / total_nonland * 100) if total_nonland > 0 else 0
+        creature_ratio = creatures / total
+        spell_ratio = (instants + sorceries) / total
 
-        if creature_pct > 60 and avg_cmc < 2.5:
+        if creature_ratio > 0.4 and avg_cmc < 2.5:
             return "Aggro", 85
-        elif creature_pct > 60 and avg_cmc >= 2.5:
-            return "Creature-Heavy", 75
-        elif interaction > 12 and creatures < 15:
-            return "Control", 80
-        elif spell_pct > 50:
-            return "Spellslinger", 75
-        elif draw > 10 and interaction > 8:
-            return "Draw-Go", 70
-        elif avg_cmc > 3.5 and creatures > 15:
-            return "Midrange", 70
-        elif avg_cmc < 2.5:
+        elif creature_ratio > 0.35 and avg_cmc < 3.0:
             return "Low Curve", 65
+        elif spell_ratio > 0.4:
+            return "Control", 70
+        elif creature_ratio > 0.3 and spell_ratio > 0.25:
+            return "Midrange", 60
+        elif avg_cmc > 4.0:
+            return "Ramp", 55
         else:
-            return "Balanced", 50
+            return "Mixed", 40
 
-    def _detect_themes(self, deck: DeckWithCards) -> list[str]:
-        """Detect dominant themes in the deck."""
+    def _detect_themes(self, deck: DeckWithCards) -> list[tuple[str, int]]:
+        """Detect deck themes from card text, returning theme and card count."""
         themes: Counter[str] = Counter()
-
         theme_patterns = {
-            "Landfall": ["landfall", "land enters", "whenever a land"],
-            "+1/+1 Counters": ["+1/+1 counter", "put a counter", "proliferate"],
-            "Tokens": ["create a", "token", "populate"],
-            "Sacrifice": ["sacrifice a", "when.*dies", "death trigger"],
-            "Graveyard": ["graveyard", "return from", "mill", "flashback"],
-            "Lifegain": ["gain life", "lifelink", "whenever you gain"],
-            "Artifacts": ["artifact", "metalcraft", "affinity"],
-            "Enchantments": ["enchantment", "constellation", "aura"],
-            "Spellslinger": ["instant or sorcery", "magecraft", "whenever you cast"],
-            "Tribal": ["creature type", "creatures you control"],
+            "Tokens": r"create.*token|token.*creature|populate",
+            "Graveyard": r"graveyard|return.*from.*graveyard|mill|flashback|unearth",
+            "Counters": r"\+1/\+1 counter|proliferate|counter.*creature",
+            "Sacrifice": r"sacrifice|when.*dies|whenever.*dies|aristocrat",
+            "Lifegain": r"gain.*life|lifelink|whenever you gain life",
+            "Artifacts": r"artifact.*enters|for each artifact|metalcraft|affinity",
+            "Enchantments": r"enchantment.*enters|constellation|whenever.*enchantment",
+            "Spellslinger": r"whenever you cast.*instant|whenever you cast.*sorcery|prowess|magecraft",
+            "Blink": r"exile.*return|flicker|enters the battlefield",
+            "Landfall": r"land.*enters|landfall|play.*additional land",
+            "Reanimator": r"return.*graveyard.*battlefield|reanimate|unearth",
+            "Voltron": r"equipment|aura|attach|equipped creature|enchanted creature",
         }
 
-        for card in deck.mainboard:
-            if card.card and card.card.text:
-                text = card.card.text.lower()
-                for theme, patterns in theme_patterns.items():
-                    if any(p in text for p in patterns):
-                        themes[theme] += card.quantity
+        for card_data in deck.mainboard:
+            if not card_data.card or not card_data.card.text:
+                continue
+            text = card_data.card.text.lower()
+            for theme, pattern in theme_patterns.items():
+                if re.search(pattern, text, re.IGNORECASE):
+                    themes[theme] += card_data.quantity
 
-        # Return top themes
-        return [t for t, _ in themes.most_common(4) if themes[t] >= 3]
+        # Return themes with at least 4 cards, as (theme, count) tuples
+        return [(theme, count) for theme, count in themes.most_common(4) if count >= 4]
 
-    def _detect_tribe(self, deck: DeckWithCards) -> str | None:
-        """Detect dominant creature type."""
-        subtypes: Counter[str] = Counter()
+    def _detect_synergies(self, deck: DeckWithCards) -> list[tuple[str, str, str]]:
+        """Detect card-to-card synergies using mtg_core and 17Lands data."""
+        synergies: list[tuple[str, str, str]] = []
+        seen_pairs: set[tuple[str, str]] = set()
 
-        for card in deck.mainboard:
-            if (
-                card.card
-                and card.card.type
-                and "Creature" in card.card.type
-                and " — " in card.card.type
-            ):
-                # Extract subtypes (after the dash)
-                subtype_part = card.card.type.split(" — ")[1]
-                for subtype in subtype_part.split():
-                    if subtype not in ["Creature", "Legendary", "Basic"]:
-                        subtypes[subtype] += card.quantity
+        def add_pair(card1: str, card2: str, reason: str) -> None:
+            """Add a synergy pair if not already seen."""
+            pair = (min(card1, card2), max(card1, card2))
+            if pair not in seen_pairs and card1 != card2:
+                seen_pairs.add(pair)
+                synergies.append((card1, card2, reason))
 
-        if subtypes:
-            top, count = subtypes.most_common(1)[0]
-            if count >= 5:  # At least 5 creatures of the type
-                return top
+        # 1. Check 17Lands synergy data first (data-driven synergies)
+        try:
+            from mtg_core.tools.recommendations.limited_stats import LimitedStatsDB
 
-        return None
+            db = LimitedStatsDB()
+            if db.is_available:
+                card_names = {c.card_name for c in deck.mainboard}
+
+                # Query synergy pairs that have both cards in the deck
+                for card_data in deck.mainboard:
+                    pairs = db.get_synergy_pairs(card_data.card_name)
+                    for pair in pairs:
+                        if (
+                            pair.card_b in card_names
+                            and pair.synergy_lift
+                            and pair.synergy_lift > 0.02
+                        ):
+                            lift_pct = int(pair.synergy_lift * 100)
+                            add_pair(
+                                pair.card_a,
+                                pair.card_b,
+                                f"Gameplay: +{lift_pct}% WR together",
+                            )
+        except (ImportError, AttributeError, Exception):
+            pass  # get_synergy_pairs may not exist yet
+
+        # 2. Pattern-based synergies from mtg_core
+        try:
+            from mtg_core.tools.synergy import ABILITY_SYNERGIES, KEYWORD_SYNERGIES
+        except ImportError:
+            return synergies[:12]
+
+        # Build card index: card_name -> text_lower
+        card_index: dict[str, str] = {}
+        for card_data in deck.mainboard:
+            if card_data.card and card_data.card.text:
+                card_index[card_data.card_name] = card_data.card.text.lower()
+
+        # Check each card for ability synergies
+        for card_data in deck.mainboard:
+            if not card_data.card or not card_data.card.text:
+                continue
+
+            card_name = card_data.card_name
+            card_text = card_data.card.text.lower()
+
+            # Check ability patterns
+            for pattern, search_terms in ABILITY_SYNERGIES.items():
+                if re.search(pattern, card_text, re.IGNORECASE):
+                    for search_term, reason in search_terms:
+                        for other_name, other_text in card_index.items():
+                            if other_name != card_name and re.search(
+                                search_term, other_text, re.IGNORECASE
+                            ):
+                                add_pair(card_name, other_name, reason)
+
+            # Check keyword synergies
+            if card_data.card.keywords:
+                for keyword in card_data.card.keywords:
+                    if keyword in KEYWORD_SYNERGIES:
+                        for search_term, reason in KEYWORD_SYNERGIES[keyword]:
+                            for other_name, other_text in card_index.items():
+                                if other_name != card_name and re.search(
+                                    search_term, other_text, re.IGNORECASE
+                                ):
+                                    add_pair(card_name, other_name, f"{keyword}: {reason}")
+
+        return synergies[:12]
 
     def _detect_combos(self, deck: DeckWithCards) -> list[SpellbookComboMatch]:
-        """Detect combos in the deck using Commander Spellbook."""
+        """Detect complete and near-complete combos in the deck.
+
+        Shows combos the user has or is close to completing (missing 1-2 cards).
+        This helps with deck building by suggesting what cards to add.
+        """
         try:
-            from mtg_core.tools.recommendations.spellbook_combos import get_spellbook_detector
+            from mtg_core.tools.recommendations.spellbook_combos import (
+                get_spellbook_detector,
+            )
 
             detector = get_spellbook_detector()
-            if not detector.is_available:
-                return []
-
             card_names = [c.card_name for c in deck.mainboard]
-            # find_missing_pieces returns (matches, missing_card_to_combos)
-            # We want combos with >= 60% completion (max_missing varies by combo size)
-            matches, _ = detector.find_missing_pieces(card_names, max_missing=3, min_present=2)
 
-            # Filter to min 60% completion and sort by completion ratio
-            filtered = [m for m in matches if m.completion_ratio >= 0.6]
-            return sorted(filtered, key=lambda m: (-int(m.is_complete), -m.completion_ratio))[:10]
+            # Include commander if present
+            if deck.commander:
+                card_names.append(deck.commander)
 
-        except Exception:
+            # Find combos missing 0-2 pieces (complete + near-complete)
+            # min_present=1 so 2-card combos show when you have 1 piece
+            matches, _ = detector.find_missing_pieces(
+                card_names,
+                max_missing=2,  # Show combos missing up to 2 cards
+                min_present=1,  # Include 2-card combos where you have 1 piece
+            )
+
+            # Score each combo and sort by: missing_count first, then score
+            # This way complete combos come first, but within each tier
+            # the best combos (by score) are shown
+            for match in matches:
+                match._score = detector.get_combo_score(match.combo)  # type: ignore[attr-defined]
+
+            matches.sort(key=lambda m: (m.missing_count, -getattr(m, "_score", 0)))
+
+            return matches[:10]  # Return top 10
+        except (ImportError, Exception):
             return []
 
-    def _get_17lands_stats(
+    def _fill_missing_rarities(
+        self, matches: list[SpellbookComboMatch], card_rarities: dict[str, str]
+    ) -> None:
+        """Look up rarities for missing combo cards from the card database."""
+        import sqlite3
+
+        from mtg_core.config import get_settings
+
+        # Collect all missing card names that we don't have rarity for
+        missing_names: set[str] = set()
+        for match in matches:
+            for card_name in match.missing_cards:
+                if card_name not in card_rarities:
+                    missing_names.add(card_name)
+
+        if not missing_names:
+            return
+
+        # Query the database for these cards
+        try:
+            db_path = get_settings().mtg_db_path
+            if not db_path.exists():
+                return
+
+            conn = sqlite3.connect(db_path)
+            placeholders = ",".join("?" * len(missing_names))
+            query = f"""
+                SELECT name, rarity
+                FROM cards
+                WHERE name IN ({placeholders})
+                AND rarity IS NOT NULL
+                GROUP BY name
+            """
+            cursor = conn.execute(query, list(missing_names))
+            for name, rarity in cursor:
+                card_rarities[name] = rarity
+            conn.close()
+        except Exception:
+            pass  # Fail silently, cards will just use default color
+
+    def _get_17lands_data(
         self, deck: DeckWithCards
     ) -> tuple[dict[str, int], list[tuple[str, str, float | None]]]:
-        """Get 17Lands tier data for cards in deck."""
+        """Get 17Lands tier data for deck cards."""
         tier_counts: dict[str, int] = {}
         top_cards: list[tuple[str, str, float | None]] = []
 
         try:
-            from mtg_core.tools.recommendations.limited_stats import get_limited_stats_db
+            from mtg_core.data.database.limited_stats import LimitedStatsDB
 
-            db = get_limited_stats_db()
-            if not db.is_available:
-                return tier_counts, top_cards
-
-            cards_with_stats: list[tuple[str, str, float | None]] = []
-
-            for card in deck.mainboard:
-                stats = db.get_card_stats(card.card_name)
-                if stats:
-                    tier_counts[stats.tier] = tier_counts.get(stats.tier, 0) + 1
-                    cards_with_stats.append((card.card_name, stats.tier, stats.gih_wr))
-
-            # Sort by tier (S > A > B...) then by win rate
-            tier_order = {"S": 0, "A": 1, "B": 2, "C": 3, "D": 4, "F": 5}
-            cards_with_stats.sort(key=lambda x: (tier_order.get(x[1], 99), -(x[2] or 0)))
-            top_cards = cards_with_stats[:8]
-
-        except Exception:
+            db = LimitedStatsDB()
+            for card_data in deck.mainboard:
+                stats = db.get_card_stats(card_data.card_name)
+                if stats and stats.tier:
+                    tier = stats.tier.upper()
+                    tier_counts[tier] = tier_counts.get(tier, 0) + card_data.quantity
+                    if tier in ("S", "A") and len(top_cards) < 5:
+                        top_cards.append((card_data.card_name, tier, stats.gih_wr))
+        except (ImportError, Exception):
             pass
 
         return tier_counts, top_cards
-
-    def _calc_score(self, a: DeckAnalysis, deck: DeckWithCards) -> int:
-        """Calculate deck health score (0-100)."""
-        score = 100
-        total = a.card_count
-        expected = 99 if (deck.format or "").lower() == "commander" else 60
-
-        # Card count penalty
-        if total < expected:
-            score -= min(30, (expected - total) * 2)
-
-        # Land ratio check
-        ratio = a.lands / total if total > 0 else 0
-        if ratio < 0.33 or ratio > 0.45:
-            score -= 15
-        elif ratio < 0.35 or ratio > 0.42:
-            score -= 5
-
-        # CMC check
-        if a.avg_cmc > 4.0:
-            score -= 15
-        elif a.avg_cmc > 3.5:
-            score -= 5
-
-        # Interaction check
-        if a.interaction_count < 6:
-            score -= 10
-        elif a.interaction_count < 10:
-            score -= 5
-
-        # Draw check
-        if a.draw_count < 4:
-            score -= 10
-        elif a.draw_count < 8:
-            score -= 5
-
-        return max(0, min(100, score))

@@ -2,14 +2,24 @@
 
 A comprehensive toolkit for Magic: The Gathering players featuring a terminal UI deck builder, card collection manager, synergy finder, and MCP server for AI integration. Search 33,000+ cards, import your collection, discover deck and synergy recommendations, browse artist profiles, and more.
 
-<img src="https://iili.io/f0va8kg.png" alt="Collection View" width="800"/>
+<img src="https://files.catbox.moe/k4zjmi.png" alt="Collection View" width="800"/>
 
 <details>
   <summary>More Screenshots</summary>
-  <p>Synergy Suggestions</p>
-  <img src="https://iili.io/f0vc49e.png" alt="Card search results"  width="800"/>
-  <p>Deck Addition Recommendations</p>
-  <img src="https://iili.io/f0vltzG.png" alt="Card details with artwork" width="800"/>
+  Synergy Suggestions
+  <img src="https://files.catbox.moe/80e4gu.png" alt="Synergy suggestions for cards"  width="800"/>
+  Deck Management and Analysis
+  <img src="https://files.catbox.moe/r9ur0a.png" alt="Manage and Analyze your deck"  width="800"/>
+  Deck Addition Recommendations
+  <img src="https://files.catbox.moe/vr0xc4.png" alt="Recommendations for your deck" width="800"/>
+  Search Card Results</p>
+  <img src="https://files.catbox.moe/4777nt.png" alt="Card details with artwork" width="800"/>
+  Artwork Gallery
+  <img src="https://files.catbox.moe/pjzex7.png" alt="Browse all printings artwork" width="800"/>
+  Artist Artwork Search
+  <img src="https://files.catbox.moe/bbgf1z.png" alt="Browse all artist artwork" width="800"/>
+  Help Menu and Knowledge Base of Magic
+  <img src="https://files.catbox.moe/shjcw8.png" alt="Help and Knowledge Base" width="800" />
 </details>
 
 ## Features

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from textual import work
 from textual.app import ComposeResult
 from textual.containers import Vertical
+from textual.css.query import NoMatches
 from textual.reactive import reactive
 from textual.widgets import Static
 
@@ -149,18 +150,27 @@ class Dashboard(Vertical, can_focus=False):
             f"[dim]to view full portfolio[/]\n"
         )
 
-        spotlight = self.query_one("#artist-spotlight-content", ArtistSpotlight)
-        spotlight.update(content)
+        try:
+            spotlight = self.query_one("#artist-spotlight-content", ArtistSpotlight)
+            spotlight.update(content)
+        except NoMatches:
+            pass
 
     def clear(self) -> None:
         """Clear dashboard content."""
         self.is_loading = True
         self._artist = None
         # Clear search bar
-        search_bar = self.query_one("#dashboard-search-bar", SearchBar)
-        search_bar.clear()
+        try:
+            search_bar = self.query_one("#dashboard-search-bar", SearchBar)
+            search_bar.clear()
+        except NoMatches:
+            pass
 
     def focus_search(self) -> None:
         """Focus the search input."""
-        search_bar = self.query_one("#dashboard-search-bar", SearchBar)
-        search_bar.focus_search()
+        try:
+            search_bar = self.query_one("#dashboard-search-bar", SearchBar)
+            search_bar.focus_search()
+        except NoMatches:
+            pass

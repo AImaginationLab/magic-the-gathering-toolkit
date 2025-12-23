@@ -9,7 +9,10 @@ import sqlite3
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import httpx
 
 from textual import work
 from textual.app import App, ComposeResult
@@ -291,6 +294,8 @@ class SplashScreen(App[bool]):
             needs_update, scryfall_updated_at = await self._check_freshness(mtg_db)
 
             if not needs_update:
+                # Main DB is fresh, but still check if combo DB needs download
+                await self._ensure_combo_database()
                 self._update_status("Data is up to date! Starting app...")
                 self._update_progress(1.0)
                 self._stop_timer()
@@ -1100,31 +1105,281 @@ class SplashScreen(App[bool]):
 
         return card_count, set_count, ruling_count
 
-    async def _init_combos(self, current_step: int, total_steps: int) -> None:
-        """Initialize combo database."""
+    def _get_combo_db_timestamp(self, db_path: Path) -> str | None:
+        """Get the stored release timestamp from combo database meta table."""
+        if not db_path.exists():
+            return None
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            result = cursor.execute(
+                "SELECT value FROM meta WHERE key = 'release_updated_at'"
+            ).fetchone()
+            conn.close()
+            return result[0] if result else None
+        except sqlite3.Error:
+            return None
+
+    def _set_combo_db_timestamp(self, db_path: Path, timestamp: str) -> None:
+        """Store the release timestamp in combo database meta table."""
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            # Create meta table if it doesn't exist
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS meta (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+            """)
+            cursor.execute(
+                "INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)",
+                ("release_updated_at", timestamp),
+            )
+            conn.commit()
+            conn.close()
+        except sqlite3.Error:
+            pass  # Non-fatal
+
+    async def _ensure_combo_database(self) -> None:
+        """Check combo database freshness and download if needed."""
+        import gzip
+        import shutil
+
+        import httpx
+
         from mtg_core.config import get_settings
-        from mtg_core.data.database.combos import ComboDatabase
-        from mtg_core.tools.synergy.constants import KNOWN_COMBOS
-
-        base_progress = current_step / total_steps
-        step_progress = 1 / total_steps
-
-        self._update_status("Indexing known combos...")
-        self._update_progress(base_progress + step_progress * 0.3)
 
         settings = get_settings()
         db_path = settings.combo_db_path
         db_path.parent.mkdir(parents=True, exist_ok=True)
 
-        combo_db = ComboDatabase(db_path)
-        await combo_db.connect()
+        # Get local timestamp if database exists
+        local_timestamp = self._get_combo_db_timestamp(db_path) if db_path.exists() else None
+
+        # Fetch releases to check freshness
+        self._update_status("Checking combo database...")
+        self._update_progress(0.05)
+
+        releases_url = (
+            "https://api.github.com/repos/aimaginationlab/magic-the-gathering-toolkit/releases"
+        )
 
         try:
-            await combo_db.import_from_legacy_format(KNOWN_COMBOS)
-        finally:
-            await combo_db.close()
+            timeout = httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=10.0)
+            async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+                # Get releases list
+                response = await client.get(releases_url)
+                response.raise_for_status()
+                releases = response.json()
 
-        self._update_status("Finalizing setup...")
+                # Sort by updated_at descending to get the latest first
+                releases.sort(key=lambda r: r.get("updated_at", ""), reverse=True)
+
+                # Find combo asset and release timestamp
+                asset_url: str | None = None
+                release_updated_at: str | None = None
+                is_gzipped = False
+
+                for release in releases:
+                    release_updated_at = release.get("updated_at")
+                    for asset in release.get("assets", []):
+                        if asset["name"] == "combos.sqlite.gz":
+                            asset_url = asset["browser_download_url"]
+                            is_gzipped = True
+                            break
+                        elif asset["name"] == "combos.sqlite" and not asset_url:
+                            asset_url = asset["browser_download_url"]
+                    if asset_url:
+                        break
+
+                if not asset_url:
+                    self._update_status("Combo database not found in releases")
+                    self._update_progress(0.10)
+                    return
+
+                # Check if we need to download (no local db or release is newer)
+                needs_download = not db_path.exists()
+                if not needs_download and local_timestamp and release_updated_at:
+                    needs_download = release_updated_at > local_timestamp
+
+                if not needs_download:
+                    self._update_status("Combo database up to date")
+                    self._update_progress(0.10)
+                    return
+
+                # Download
+                gz_path = db_path.with_suffix(".sqlite.gz") if is_gzipped else db_path
+                await self._download_combo_database(client, asset_url, gz_path)
+
+                # Decompress if gzipped
+                if is_gzipped:
+                    self._update_status("Decompressing combo database...")
+                    with gzip.open(gz_path, "rb") as f_in, open(db_path, "wb") as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                    gz_path.unlink()  # Remove compressed file
+
+                if release_updated_at:
+                    self._set_combo_db_timestamp(db_path, release_updated_at)
+
+        except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.ConnectError) as e:
+            # Network error - if we have a local db, continue; otherwise note error
+            if db_path.exists():
+                self._update_status("Combo database ready (offline)")
+            else:
+                self._update_status(f"Combo download failed: {type(e).__name__}")
+            self._update_progress(0.10)
+
+    async def _download_combo_database(
+        self,
+        client: httpx.AsyncClient,
+        asset_url: str,
+        db_path: Path,
+    ) -> None:
+        """Download combo database with progress."""
+        self._update_status("Downloading combo database (73K+ combos)...")
+        self._update_progress(0.10)
+
+        async with client.stream("GET", asset_url) as stream:
+            stream.raise_for_status()
+            total_size = int(stream.headers.get("content-length", 0))
+            downloaded = 0
+
+            with open(db_path, "wb") as f:
+                async for chunk in stream.aiter_bytes(chunk_size=65536):
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if total_size > 0:
+                        dl_progress = downloaded / total_size
+                        progress = 0.10 + dl_progress * 0.85
+                        self._update_progress(progress)
+                        if downloaded % (5 * 1024 * 1024) < 65536:  # Every ~5MB
+                            mb_done = downloaded / (1024 * 1024)
+                            mb_total = total_size / (1024 * 1024)
+                            self._update_status(
+                                f"Downloading combos: {mb_done:.1f}/{mb_total:.1f} MB"
+                            )
+
+        self._update_status("Combo database ready!")
+        self._update_progress(0.95)
+
+    async def _init_combos(self, current_step: int, total_steps: int) -> None:
+        """Download combo database from GitHub releases if needed."""
+        import gzip
+        import shutil
+
+        import httpx
+
+        from mtg_core.config import get_settings
+
+        base_progress = current_step / total_steps
+        step_progress = 1 / total_steps
+
+        settings = get_settings()
+        db_path = settings.combo_db_path
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Get local timestamp if database exists
+        local_timestamp = self._get_combo_db_timestamp(db_path) if db_path.exists() else None
+
+        self._update_status("Checking combo database...")
+        self._update_progress(base_progress + step_progress * 0.05)
+
+        releases_url = (
+            "https://api.github.com/repos/aimaginationlab/magic-the-gathering-toolkit/releases"
+        )
+
+        try:
+            timeout = httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=10.0)
+            async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+                # Get releases list
+                response = await client.get(releases_url)
+                response.raise_for_status()
+                releases = response.json()
+
+                # Sort by updated_at descending to get the latest first
+                releases.sort(key=lambda r: r.get("updated_at", ""), reverse=True)
+
+                # Find combo asset and release timestamp
+                asset_url: str | None = None
+                release_updated_at: str | None = None
+                is_gzipped = False
+
+                for release in releases:
+                    release_updated_at = release.get("updated_at")
+                    for asset in release.get("assets", []):
+                        if asset["name"] == "combos.sqlite.gz":
+                            asset_url = asset["browser_download_url"]
+                            is_gzipped = True
+                            break
+                        elif asset["name"] == "combos.sqlite" and not asset_url:
+                            asset_url = asset["browser_download_url"]
+                    if asset_url:
+                        break
+
+                if not asset_url:
+                    self._update_status("Combo database not found in releases")
+                    self._update_progress(base_progress + step_progress)
+                    return
+
+                # Check if we need to download (no local db or release is newer)
+                needs_download = not db_path.exists()
+                if not needs_download and local_timestamp and release_updated_at:
+                    needs_download = release_updated_at > local_timestamp
+
+                if not needs_download:
+                    self._update_status("Combo database up to date")
+                    self._update_progress(base_progress + step_progress)
+                    return
+
+                # Determine download path
+                download_path = db_path.with_suffix(".sqlite.gz") if is_gzipped else db_path
+
+                # Download with progress
+                self._update_status("Downloading combo database (73K+ combos)...")
+                self._update_progress(base_progress + step_progress * 0.1)
+
+                async with client.stream("GET", asset_url) as stream:
+                    stream.raise_for_status()
+                    total_size = int(stream.headers.get("content-length", 0))
+                    downloaded = 0
+
+                    with open(download_path, "wb") as f:
+                        async for chunk in stream.aiter_bytes(chunk_size=65536):
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            if total_size > 0:
+                                dl_progress = downloaded / total_size
+                                progress = base_progress + step_progress * (
+                                    0.1 + dl_progress * 0.80
+                                )
+                                self._update_progress(progress)
+                                if downloaded % (5 * 1024 * 1024) < 65536:
+                                    mb_done = downloaded / (1024 * 1024)
+                                    mb_total = total_size / (1024 * 1024)
+                                    self._update_status(
+                                        f"Downloading combos: {mb_done:.1f}/{mb_total:.1f} MB"
+                                    )
+
+                # Decompress if gzipped
+                if is_gzipped:
+                    self._update_status("Decompressing combo database...")
+                    self._update_progress(base_progress + step_progress * 0.92)
+                    with gzip.open(download_path, "rb") as f_in, open(db_path, "wb") as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                    download_path.unlink()  # Remove compressed file
+
+                # Store the release timestamp
+                if release_updated_at:
+                    self._set_combo_db_timestamp(db_path, release_updated_at)
+
+        except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.ConnectError) as e:
+            if db_path.exists():
+                self._update_status("Combo database ready (offline)")
+            else:
+                self._update_status(f"Combo download failed: {type(e).__name__}")
+
+        self._update_status("Combo database ready!")
         self._update_progress(base_progress + step_progress)
 
     async def _build_database(self, output_dir: Path) -> None:

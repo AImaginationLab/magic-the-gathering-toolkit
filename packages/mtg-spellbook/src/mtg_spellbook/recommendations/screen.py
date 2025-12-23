@@ -422,10 +422,40 @@ class RecommendationScreen(BaseScreen[None]):
         """Add current card to deck."""
         if not self._current_recommendation:
             return
+        if not self._deck_manager or not self._deck:
+            self.notify("Cannot add: no deck manager", severity="error")
+            return
 
         card_name = self._current_recommendation.name
-        self.post_message(AddCardToDeck(card_name, quantity))
-        self.notify(f"Added {quantity}x {card_name} to deck")
+        self._do_add_to_deck(card_name, quantity)
+
+    @work(exclusive=True, group="deck_add")
+    async def _do_add_to_deck(self, card_name: str, quantity: int) -> None:
+        """Actually add the card to the deck."""
+        if not self._deck_manager or not self._deck:
+            return
+
+        result = await self._deck_manager.add_card(self._deck.id, card_name, quantity)
+        if result.success:
+            self.notify(f"Added {quantity}x {card_name} to deck")
+            # Directly refresh the deck screen in the stack
+            self._refresh_deck_screen()
+            # Also post message for any other listeners
+            self.post_message(AddCardToDeck(card_name, quantity))
+        else:
+            self.notify(f"Failed to add: {result.error}", severity="error")
+
+    def _refresh_deck_screen(self) -> None:
+        """Find and refresh the FullDeckScreen in the screen stack."""
+        from ..deck import FullDeckScreen
+
+        try:
+            for screen in self.app.screen_stack:
+                if isinstance(screen, FullDeckScreen) and screen._current_deck:
+                    screen._load_deck(screen._current_deck.id)
+                    break
+        except (LookupError, AttributeError):
+            pass  # No app context (e.g., in tests)
 
     def action_add_one(self) -> None:
         self._add_to_deck(1)

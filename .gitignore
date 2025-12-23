@@ -37,9 +37,8 @@ data/*.db
 resources/*.sqlite
 resources/*.sqlite*
 resources/*.db
-
-# But track smaller generated databases
-!resources/limited_stats.sqlite
+resources/*.log
+resources/*.json
 
 # SQLite runtime artifacts (WAL, shared memory)
 *.sqlite-wal
@@ -51,6 +50,7 @@ test_db.sqlite-*
 
 # Environment
 .env
+.tmp*
 
 # Testing
 .pytest_cache/
@@ -60,6 +60,7 @@ packages/mtg-spellbook/tests_spellbook/art_panel_ux_test*
 packages/mtg-spellbook/docs*
 docs/*
 snapshot_report.html
+test_*.sqlite*
 
 # OS
 .DS_Store
@@ -67,3 +68,4 @@ Thumbs.db
 
 .claude
 CLAUDE*
+scripts

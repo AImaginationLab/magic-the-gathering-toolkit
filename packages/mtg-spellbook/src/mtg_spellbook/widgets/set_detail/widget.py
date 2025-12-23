@@ -123,15 +123,20 @@ class SetDetailView(Vertical, can_focus=True):
 
         try:
             # Update info panel
-            info_panel = self.query_one("#set-info-panel", SetInfoPanel)
-            info_panel.update_info(set_data, stats, format_legality)
+            try:
+                info_panel = self.query_one("#set-info-panel", SetInfoPanel)
+                info_panel.update_info(set_data, stats, format_legality)
+            except NoMatches:
+                pass
 
             # Load cards into list
-            card_list = self.query_one("#set-card-list", SetCardList)
-            await card_list.load_cards(cards)
-
-            # Focus the card list
-            card_list.focus()
+            try:
+                card_list = self.query_one("#set-card-list", SetCardList)
+                await card_list.load_cards(cards)
+                # Focus the card list
+                card_list.focus()
+            except NoMatches:
+                pass
         finally:
             self.is_loading = False
 

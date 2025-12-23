@@ -74,10 +74,10 @@ class RecommendationCardItem(ListItem):
         if rec.type_line:
             lines.append(f"   [{ui_colors.TEXT_DIM}]{rec.type_line}[/]")
 
-        # Line 3: Score bar + percentage
-        score_pct = int(rec.total_score * 100)
+        # Line 3: Score bar + percentage (capped at 100% for display)
+        score_pct = min(100, int(rec.total_score * 100))
         score_color = self._get_score_color(rec.total_score)
-        bar_width = int(rec.total_score * 10)
+        bar_width = min(10, int(rec.total_score * 10))
         bar = "\u2588" * bar_width + "\u2591" * (10 - bar_width)
         lines.append(f"   [{score_color}]{bar}[/] [{score_color}]{score_pct}%[/]")
 
