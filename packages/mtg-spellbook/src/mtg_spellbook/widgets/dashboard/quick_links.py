@@ -102,6 +102,7 @@ class QuickLinksBar(Horizontal, can_focus=False):
         Binding("d", "activate('decks')", "Decks", show=False),
         Binding("c", "activate('collection')", "Collection", show=False),
         Binding("r", "activate('random')", "Random", show=False),
+        Binding("question_mark", "activate('help')", "Help", show=False),
     ]
 
     def compose(self) -> ComposeResult:
@@ -111,6 +112,7 @@ class QuickLinksBar(Horizontal, can_focus=False):
         yield QuickLinkButton("Decks", "decks", "d", id="ql-decks")
         yield QuickLinkButton("Collection", "collection", "c", id="ql-collection")
         yield QuickLinkButton("Random", "random", "r", id="ql-random")
+        yield QuickLinkButton("Help", "help", "?", id="ql-help")
 
     def action_activate(self, action: str) -> None:
         """Activate a quick link by shortcut."""

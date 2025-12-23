@@ -48,10 +48,16 @@ class SpellbookComboMatch:
 
 def _find_combos_db() -> Path | None:
     """Find the Commander Spellbook combos database."""
-    # Check common locations
+    from mtg_core.config import get_settings
+
+    # First check the configured path
+    settings = get_settings()
+    if settings.combo_db_path.exists():
+        return settings.combo_db_path
+
+    # Fallback to other common locations
     candidates = [
         Path(__file__).parents[6] / "resources" / "combos.sqlite",  # Repo root
-        Path.home() / ".cache" / "mtg-toolkit" / "combos.sqlite",  # Cache
         Path("resources") / "combos.sqlite",  # CWD
     ]
 
@@ -286,28 +292,82 @@ class SpellbookComboDetector:
             self.initialize()
         return self._combos.get(combo_id)
 
-    def get_combo_score(self, combo: SpellbookCombo) -> float:
-        """Calculate a combined score for a combo.
+    def find_combos(
+        self,
+        deck_cards: list[str],
+        max_missing: int = 0,
+        limit: int = 10,
+    ) -> list[SpellbookComboMatch]:
+        """Find complete combos in the deck.
 
-        Factors in bracket (power level), popularity, and outcome.
+        Convenience method that wraps find_missing_pieces for finding
+        combos where all pieces are present (or nearly complete).
+
+        Args:
+            deck_cards: List of card names in the deck
+            max_missing: Maximum missing pieces (0 = complete combos only)
+            limit: Maximum results to return
+
+        Returns:
+            List of combo matches sorted by popularity
         """
-        # Base score from bracket
-        score = self.get_bracket_score(combo.bracket_tag)
+        matches, _ = self.find_missing_pieces(
+            deck_cards,
+            max_missing=max_missing,
+            min_present=2,  # At least 2 cards from combo must be present
+        )
+        return matches[:limit]
 
-        # Bonus for win conditions
-        win_keywords = ["win the game", "infinite", "loop"]
+    def get_combo_score(self, combo: SpellbookCombo) -> float:
+        """Calculate a combined score for a combo (0-100).
+
+        Factors in:
+        - Popularity (40 pts) - how commonly used, proxy for "proven good"
+        - Power level (30 pts) - bracket tag (cEDH > Spicy > Precon > Casual)
+        - Win potential (20 pts) - does it win the game or go infinite?
+        - Simplicity (10 pts) - fewer cards = easier to assemble
+        """
+        score = 0.0
+
+        # Popularity (0-40 pts) - log scale since distribution is very skewed
+        # Top combos have ~250k, but most are under 1000
+        import math
+        if combo.popularity > 0:
+            # log10(250000) ≈ 5.4, so divide by 5.4 to normalize
+            pop_normalized = min(math.log10(combo.popularity + 1) / 5.4, 1.0)
+            score += pop_normalized * 40
+
+        # Power level from bracket (0-30 pts)
+        bracket_scores = {"R": 30, "S": 24, "P": 18, "PA": 15, "C": 10, "O": 12}
+        score += bracket_scores.get(combo.bracket_tag, 10)
+
+        # Win potential (0-20 pts)
+        win_keywords = {
+            "win the game": 20,
+            "infinite damage": 18,
+            "infinite mill": 16,
+            "infinite": 14,
+            "loop": 12,
+        }
+        best_win_score = 0
         for feature in combo.produces:
             feature_lower = feature.lower()
-            if any(kw in feature_lower for kw in win_keywords):
-                score += 0.2
-                break
+            for keyword, pts in win_keywords.items():
+                if keyword in feature_lower:
+                    best_win_score = max(best_win_score, pts)
+        score += best_win_score
 
-        # Popularity boost (normalized to 0-0.2)
-        # Top combos have ~250k popularity
-        pop_score = min(combo.popularity / 250000, 1.0) * 0.2
-        score += pop_score
+        # Simplicity bonus (0-10 pts) - 2-card combos are best
+        card_count = len(combo.card_names)
+        if card_count <= 2:
+            score += 10
+        elif card_count == 3:
+            score += 7
+        elif card_count == 4:
+            score += 4
+        # 5+ cards get no bonus
 
-        return min(score, 1.0)
+        return min(score, 100.0)
 
 
 # Global singleton

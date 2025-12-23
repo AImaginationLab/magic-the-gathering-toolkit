@@ -109,6 +109,10 @@ class MenuBar(Vertical, can_focus=True):
             yield MenuItem("View Art", "Ctrl+A", "art_current", id="menu-art")
             yield MenuItem("Show Price", "Ctrl+P", "price_current", id="menu-price")
 
+            # Help & Guides section
+            yield Static("[bold]Help & Guides[/]", classes="section-header")
+            yield MenuItem("Knowledge Base", "?", "help", id="menu-help")
+
             # Quick Actions section
             yield Static("[bold]Quick[/]", classes="section-header")
             yield MenuItem("Random Card", "r", "random_card", id="menu-random")

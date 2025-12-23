@@ -83,8 +83,8 @@ class SynergyDetailView(Vertical, can_focus=True):
         try:
             header = self.query_one("#detail-header", Static)
             mana = prettify_mana(syn.mana_cost) if syn.mana_cost else ""
-            score_pct = int(syn.score * 100)
-            score_color = self._get_score_color(syn.score)
+            score_pct = min(100, int(syn.score * 100))
+            score_color = self._get_score_color(min(syn.score, 1.0))
             header.update(
                 f"[bold {ui_colors.GOLD}]{syn.name}[/] {mana}  "
                 f"[{score_color}]({score_pct}% match)[/]"

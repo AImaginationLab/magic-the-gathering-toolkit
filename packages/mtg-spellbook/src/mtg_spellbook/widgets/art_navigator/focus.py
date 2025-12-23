@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+import json
+import re
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from textual import work
 from textual.app import ComposeResult
@@ -31,6 +34,9 @@ class FocusView(Vertical, can_focus=True):
 
     show_art_crop: reactive[bool] = reactive(False)
 
+    # Keywords data cache (class-level, loaded once)
+    _keywords_data: ClassVar[list[dict[str, Any]] | None] = None
+
     def __init__(
         self,
         card_name: str,
@@ -44,6 +50,7 @@ class FocusView(Vertical, can_focus=True):
         self._printings: list[PrintingInfo] = []
         self._current_index: int = 0
         self._legalities: dict[str, str] = {}
+        self._load_keywords_data()
 
     def compose(self) -> ComposeResult:
         """Build focus view layout."""
@@ -65,6 +72,8 @@ class FocusView(Vertical, can_focus=True):
                 yield Static("", id="focus-artist", classes="focus-artist")
                 yield Static("", id="focus-oracle-text", classes="focus-oracle-text")
                 yield Static("", id="focus-flavor", classes="focus-flavor")
+                yield Static("", id="focus-keywords", classes="focus-keywords")
+                yield Static("", id="focus-limited-stats", classes="focus-limited-stats")
                 yield Static("", id="focus-legalities", classes="focus-legalities")
                 yield Static("", id="focus-prices", classes="focus-prices")
                 yield Static("", id="focus-nav-counter", classes="focus-nav-counter")
@@ -183,6 +192,12 @@ class FocusView(Vertical, can_focus=True):
         else:
             flavor_widget.update("")
 
+        # Update keyword explanations (always shown)
+        self._update_keywords_display(printing)
+
+        # Update gameplay stats (limited data)
+        self._update_limited_stats(printing)
+
         # Update legalities
         self._update_legalities_display()
 
@@ -256,12 +271,12 @@ class FocusView(Vertical, can_focus=True):
         parts = []
         for fmt, abbrev in key_formats:
             if fmt in self._legalities:
-                status = self._legalities[fmt]
-                if status == "Legal":
+                status = self._legalities[fmt].lower()
+                if status == "legal":
                     parts.append(f"[green]✓{abbrev}[/]")
-                elif status == "Banned":
+                elif status == "banned":
                     parts.append(f"[red]✗{abbrev}[/]")
-                elif status == "Restricted":
+                elif status == "restricted":
                     parts.append(f"[yellow]⚠{abbrev}[/]")
                 else:
                     parts.append(f"[dim]○{abbrev}[/]")
@@ -288,6 +303,110 @@ class FocusView(Vertical, can_focus=True):
             prices_widget.update("💰 " + "  ".join(price_parts))
         else:
             prices_widget.update("[dim]No price data[/]")
+
+    def _update_limited_stats(self, printing: PrintingInfo) -> None:
+        """Update 17Lands limited stats display."""
+        stats_widget = self.query_one("#focus-limited-stats", Static)
+
+        try:
+            from mtg_core.tools.recommendations.limited_stats import LimitedStatsDB
+
+            db = LimitedStatsDB()
+            if not db.is_available:
+                stats_widget.update("")
+                return
+
+            # Try to get stats for specific set, fallback to any set
+            stats = db.get_card_stats(self._card_name, printing.set_code)
+            if not stats:
+                stats = db.get_card_stats(self._card_name)
+
+            if not stats:
+                stats_widget.update("")
+                return
+
+            # Build the display
+            lines = []
+
+            # Header with tier badge
+            tier = stats.tier.upper() if stats.tier else "?"
+            tier_colors = {
+                "S": "#FFD700",  # Gold
+                "A": "#50FA7B",  # Green
+                "B": "#8BE9FD",  # Cyan
+                "C": "#F1FA8C",  # Yellow
+                "D": "#FFB86C",  # Orange
+                "F": "#FF5555",  # Red
+            }
+            tier_color = tier_colors.get(tier, "#888")
+
+            # Tier badge with visual styling
+            lines.append(f"[bold]📊 GAMEPLAY DATA[/]  [{tier_color} on #1a1a1a] {tier}-TIER [/]")
+
+            # Stats row with visual bars
+            stat_parts = []
+
+            # GIH Win Rate (most important stat)
+            if stats.gih_wr is not None:
+                wr_pct = stats.gih_wr * 100
+                # Color based on win rate (50% is baseline)
+                if wr_pct >= 60:
+                    wr_color = "#50FA7B"  # Green - excellent
+                elif wr_pct >= 55:
+                    wr_color = "#8BE9FD"  # Cyan - good
+                elif wr_pct >= 50:
+                    wr_color = "#F1FA8C"  # Yellow - average
+                else:
+                    wr_color = "#FF5555"  # Red - below average
+
+                # Visual bar (10 chars = 20 percentage points, centered on 50%)
+                bar_len = 10
+                filled = max(0, min(bar_len, int((wr_pct - 40) / 2)))
+                bar = f"[{wr_color}]{'█' * filled}[/][dim]{'░' * (bar_len - filled)}[/]"
+
+                stat_parts.append(f"GIH WR: [{wr_color}]{wr_pct:.1f}%[/] {bar}")
+
+            # IWD (Improvement When Drawn)
+            if stats.iwd is not None:
+                iwd_pct = stats.iwd * 100
+                if iwd_pct >= 5:
+                    iwd_color = "#50FA7B"
+                    iwd_icon = "▲"
+                elif iwd_pct >= 0:
+                    iwd_color = "#F1FA8C"
+                    iwd_icon = "▲"
+                else:
+                    iwd_color = "#FF5555"
+                    iwd_icon = "▼"
+                stat_parts.append(f"IWD: [{iwd_color}]{iwd_icon}{abs(iwd_pct):.1f}pp[/]")
+
+            # Opening Hand Win Rate
+            if stats.oh_wr is not None:
+                oh_pct = stats.oh_wr * 100
+                if oh_pct >= 60:
+                    oh_color = "#50FA7B"
+                elif oh_pct >= 55:
+                    oh_color = "#8BE9FD"
+                elif oh_pct >= 50:
+                    oh_color = "#F1FA8C"
+                else:
+                    oh_color = "#FF5555"
+                stat_parts.append(f"OH WR: [{oh_color}]{oh_pct:.1f}%[/]")
+
+            # Games sample size
+            if stats.games_in_hand:
+                games_str = f"{stats.games_in_hand:,}" if stats.games_in_hand >= 1000 else str(stats.games_in_hand)
+                stat_parts.append(f"[dim]({games_str} games)[/]")
+
+            if stat_parts:
+                lines.append("  ".join(stat_parts[:2]))  # First row: GIH WR
+                if len(stat_parts) > 2:
+                    lines.append("  ".join(stat_parts[2:]))  # Second row: IWD, OH WR, games
+
+            stats_widget.update("\n".join(lines))
+
+        except Exception:
+            stats_widget.update("")
 
     def _get_type_color(self, type_line: str) -> str:
         """Get color based on card type."""
@@ -336,3 +455,76 @@ class FocusView(Vertical, can_focus=True):
             self.post_message(ArtistSelected(printing.artist, self._card_name))
         else:
             self.notify("No artist information available", severity="warning", timeout=2)
+
+    @classmethod
+    def _load_keywords_data(cls) -> None:
+        """Load keywords data from JSON file (cached at class level)."""
+        if cls._keywords_data is not None:
+            return
+
+        keywords_path = Path(__file__).parent.parent.parent / "data" / "keywords.json"
+        if keywords_path.exists():
+            try:
+                data = json.loads(keywords_path.read_text())
+                cls._keywords_data = data.get("keywords", [])
+            except Exception:
+                cls._keywords_data = []
+        else:
+            cls._keywords_data = []
+
+    def _find_keywords_in_text(self, text: str) -> list[dict[str, Any]]:
+        """Find keywords present in the card text."""
+        if not self._keywords_data or not text:
+            return []
+
+        found = []
+        text_lower = text.lower()
+
+        for kw in self._keywords_data:
+            kw_name = kw.get("name", "").lower()
+            if not kw_name:
+                continue
+
+            # Check for keyword in text (whole word match)
+            pattern = r"\b" + re.escape(kw_name) + r"\b"
+            if re.search(pattern, text_lower):
+                found.append(kw)
+
+        return found
+
+    def _update_keywords_display(self, printing: PrintingInfo) -> None:
+        """Update the keywords explanation section."""
+        try:
+            keywords_widget = self.query_one("#focus-keywords", Static)
+        except NoMatches:
+            return
+
+        if not printing.oracle_text:
+            keywords_widget.update("")
+            return
+
+        # Find keywords in oracle text and type line
+        found = self._find_keywords_in_text(printing.oracle_text)
+        if printing.type_line:
+            type_keywords = self._find_keywords_in_text(printing.type_line)
+            # Deduplicate
+            found_names = {k["name"] for k in found}
+            for kw in type_keywords:
+                if kw["name"] not in found_names:
+                    found.append(kw)
+
+        if not found:
+            keywords_widget.update("")
+            return
+
+        # Build formatted output - compact style (text will wrap naturally)
+        lines = [f"[bold {ui_colors.GOLD}]📖 Keywords[/]"]
+        for kw in found:
+            name = kw.get("name", "")
+            summary = kw.get("summary", "")
+            if summary:
+                lines.append(f"  [yellow]{name}[/]: {summary}")
+            else:
+                lines.append(f"  [yellow]{name}[/]")
+
+        keywords_widget.update("\n".join(lines))

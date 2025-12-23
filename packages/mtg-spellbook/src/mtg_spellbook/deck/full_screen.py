@@ -29,7 +29,6 @@ from .editor_panel import SortOrder
 from .list_panel import DeckListItem
 from .messages import CardAddedToDeck
 from .modals import ConfirmDeleteModal, NewDeckModal
-from .stats_bar import DeckStatsBar
 
 if TYPE_CHECKING:
     from mtg_core.data.database import UnifiedDatabase
@@ -179,6 +178,7 @@ class FullDeckScreen(BaseScreen[None]):
         Binding("n", "new_deck", "New Deck", show=True),
         Binding("slash", "focus_search", "Search", show=True),
         Binding("tab", "cycle_focus", "Switch Pane", show=False),
+        Binding("shift+tab", "cycle_focus_reverse", "Switch Pane Back", show=False),
         # Deck editing
         Binding("plus,equal", "increase_qty", "+1", show=False),
         Binding("minus", "decrease_qty", "-1", show=False),
@@ -229,7 +229,7 @@ class FullDeckScreen(BaseScreen[None]):
         height: 1fr;
         layout: grid;
         grid-size: 1;
-        grid-rows: 1fr auto auto;  /* main, stats-bar, footer */
+        grid-rows: 1fr auto;  /* main, footer */
     }
 
     #deck-screen-main {
@@ -460,10 +460,7 @@ class FullDeckScreen(BaseScreen[None]):
                     yield DeckAnalysisPanel(id="deck-analysis-panel")
                     yield CollectionCardPreview(id="deck-card-preview")
 
-            # Stats bar across bottom
-            yield DeckStatsBar(id="deck-stats-bar")
-
-            # Footer with context-sensitive hints (inside body to match 2-row grid pattern)
+            # Footer with context-sensitive hints
             yield Static(
                 self._render_footer(),
                 id="deck-screen-footer",
@@ -608,14 +605,12 @@ class FullDeckScreen(BaseScreen[None]):
             mainboard = self.query_one("#mainboard-list", ListView)
             sideboard = self.query_one("#sideboard-list", ListView)
             side_header = self.query_one("#sideboard-header", Static)
-            stats = self.query_one("#deck-stats-bar", DeckStatsBar)
 
             mainboard.clear()
             sideboard.clear()
 
             if deck is None:
                 header.update("[dim]Select a deck from the list[/]")
-                stats.update_stats(None)
                 return
 
             # Update header with ownership counts if available
@@ -682,9 +677,6 @@ class FullDeckScreen(BaseScreen[None]):
                 )
                 sideboard.append(self._create_card_item(card, is_sideboard=True, is_owned=is_owned))
 
-            # Update stats with prices
-            stats.update_stats(deck, prices)
-
             # Update analysis panel
             self._update_analysis_panel(prices)
 
@@ -704,7 +696,6 @@ class FullDeckScreen(BaseScreen[None]):
             header.update("[dim]Select a deck from the list[/]")
             self.query_one("#mainboard-list", ListView).clear()
             self.query_one("#sideboard-list", ListView).clear()
-            self.query_one("#deck-stats-bar", DeckStatsBar).update_stats(None)
             # Clear analysis panel
             self.query_one("#deck-analysis-panel", DeckAnalysisPanel).update_analysis(None)
         except NoMatches:
@@ -1017,22 +1008,103 @@ class FullDeckScreen(BaseScreen[None]):
             pass
 
     def action_cycle_focus(self) -> None:
-        """Cycle focus between panes."""
+        """Cycle focus between panes.
+
+        Flow:
+        - Deck view: deck-list → search-input → mainboard → sideboard → deck-list
+        - Search mode: deck-list → search-input → search-results → deck-list
+        - No deck: deck-list → search-input → deck-list
+        """
         try:
-            if self._active_list == "deck-list":
-                # If in search/recommendation mode, go to search results
+            focused = self.app.focused
+            search_input = self.query_one("#deck-search-input", Input)
+
+            # If search input is focused, go to appropriate list
+            if focused == search_input:
                 if self.current_view == ViewMode.CARD_SEARCH:
                     self.query_one("#search-results-list", ListView).focus()
                     self._active_list = "search"
                 elif self._current_deck:
                     self.query_one("#mainboard-list", ListView).focus()
                     self._active_list = "mainboard"
-            elif self._active_list == "mainboard":
+                else:
+                    self.query_one("#deck-list", ListView).focus()
+                    self._active_list = "deck-list"
+                return
+
+            # From deck list, go to search input
+            if self._active_list == "deck-list":
+                search_input.focus()
+                return
+
+            # From mainboard, go to sideboard
+            if self._active_list == "mainboard":
                 self.query_one("#sideboard-list", ListView).focus()
                 self._active_list = "sideboard"
-            elif self._active_list in ("sideboard", "search"):
+                return
+
+            # From sideboard or search results, go back to deck list
+            if self._active_list in ("sideboard", "search"):
                 self.query_one("#deck-list", ListView).focus()
                 self._active_list = "deck-list"
+                return
+
+            # Fallback: focus deck list
+            self.query_one("#deck-list", ListView).focus()
+            self._active_list = "deck-list"
+
+        except NoMatches:
+            pass
+
+    def action_cycle_focus_reverse(self) -> None:
+        """Cycle focus between panes in reverse.
+
+        Flow (reverse of forward):
+        - Deck view: deck-list ← search-input ← mainboard ← sideboard ← deck-list
+        - Search mode: deck-list ← search-input ← search-results ← deck-list
+        """
+        try:
+            focused = self.app.focused
+            search_input = self.query_one("#deck-search-input", Input)
+
+            # If search input is focused, go back to deck list
+            if focused == search_input:
+                self.query_one("#deck-list", ListView).focus()
+                self._active_list = "deck-list"
+                return
+
+            # From mainboard, go back to search input
+            if self._active_list == "mainboard":
+                search_input.focus()
+                return
+
+            # From sideboard, go back to mainboard
+            if self._active_list == "sideboard":
+                self.query_one("#mainboard-list", ListView).focus()
+                self._active_list = "mainboard"
+                return
+
+            # From search results, go back to search input
+            if self._active_list == "search":
+                search_input.focus()
+                return
+
+            # From deck list, go to sideboard (or search in search mode)
+            if self._active_list == "deck-list":
+                if self.current_view == ViewMode.CARD_SEARCH:
+                    self.query_one("#search-results-list", ListView).focus()
+                    self._active_list = "search"
+                elif self._current_deck:
+                    self.query_one("#sideboard-list", ListView).focus()
+                    self._active_list = "sideboard"
+                else:
+                    search_input.focus()
+                return
+
+            # Fallback: focus deck list
+            self.query_one("#deck-list", ListView).focus()
+            self._active_list = "deck-list"
+
         except NoMatches:
             pass
 

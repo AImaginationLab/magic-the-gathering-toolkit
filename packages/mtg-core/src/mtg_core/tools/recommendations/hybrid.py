@@ -199,6 +199,79 @@ class ScoredRecommendation:
     in_collection: bool = False  # Whether user owns this card
 
 
+def is_basic_or_simple_land(card_data: dict[str, Any]) -> bool:
+    """Check if a card is a basic land or simple land without special abilities.
+
+    Basic lands (Plains, Island, etc.) and simple lands that only tap for mana
+    shouldn't get high TF-IDF or popularity scores since they're ubiquitous
+    but not strategically interesting.
+
+    Args:
+        card_data: Card data dictionary
+
+    Returns:
+        True if this is a basic or simple land, False for utility/special lands
+    """
+    type_line = card_data.get("type") or ""
+    if "Land" not in type_line:
+        return False
+
+    name = card_data.get("name", "")
+    text = card_data.get("text") or ""
+
+    # Basic lands by name
+    basic_land_names = {"Plains", "Island", "Swamp", "Mountain", "Forest"}
+    if name in basic_land_names:
+        return True
+
+    # Snow-covered basics
+    if name.startswith("Snow-Covered ") and name.replace("Snow-Covered ", "") in basic_land_names:
+        return True
+
+    # "Basic Land" in type line
+    if "Basic Land" in type_line:
+        return True
+
+    # Simple lands: only have "{T}: Add" with no other meaningful text
+    # These are lands that just tap for mana with no utility
+    if text:
+        text_lower = text.lower()
+        # Check for special abilities that make a land interesting
+        interesting_patterns = [
+            "enters tapped",  # Has a condition
+            "enters the battlefield tapped",
+            "you may",  # Has choices
+            "sacrifice",  # Fetch lands, utility
+            "search your library",  # Fetch lands
+            "counter",  # Utility
+            "damage",  # Utility lands
+            "draw",  # Card advantage
+            "creature",  # Man-lands, creature interaction
+            "token",  # Token generation
+            "life",  # Life gain/loss
+            "return",  # Bounce effects
+            "exile",  # Removal
+            "destroy",  # Removal
+            "target",  # Targeted effects
+            "when",  # Triggered abilities
+            "whenever",  # Triggered abilities
+            "at the beginning",  # Triggered abilities
+            "cycling",  # Cycling lands
+            "channel",  # Channel lands
+        ]
+        for pattern in interesting_patterns:
+            if pattern in text_lower:
+                return False  # Has interesting ability
+
+        # If the text is just mana production with no interesting effects
+        # Simple mana lands typically have very short oracle text
+        if len(text) < 50 and "add" in text_lower:
+            return True
+
+    # No text at all (unlikely for lands, but treat as simple)
+    return not text
+
+
 class SynergyScorer:
     """Scores cards based on mechanical synergy with a deck."""
 
@@ -440,8 +513,8 @@ class HybridRecommender:
     synergy_weight: float = 0.30
     popularity_weight: float = 0.10
     combo_weight: float = 0.15  # Bonus weight for combo completion
-    limited_weight: float = 0.10  # 17lands Limited performance
-    land_weight: float = 0.15  # Weight for land recommendations when deck needs them
+    limited_weight: float = 0.15  # 17lands Limited performance (increased from 0.10)
+    land_weight: float = 0.10  # Weight for land recommendations when deck needs them
 
     async def initialize(self, db: UnifiedDatabase) -> float:
         """Initialize both TF-IDF and structured features."""
@@ -590,6 +663,21 @@ class HybridRecommender:
                         meta = self._combo_detector._combo_meta.get(cid, {})
                         combo_meta[cid] = {"type": meta.get("type", "value")}
 
+        # Inject combo piece candidates that TF-IDF might have missed
+        # These are cards that would complete combos the deck is close to
+        if missing_card_to_combos:
+            combo_candidates = self._get_combo_candidates(
+                missing_card_to_combos,
+                deck_features.color_identity,
+                deck_card_names,
+                combo_meta,
+                max_combos=30,
+            )
+            existing_names = {r.name for r in tfidf_results}
+            for combo_rec in combo_candidates:
+                if combo_rec.name not in existing_names:
+                    tfidf_results.append(combo_rec)
+
         # Score each candidate with synergy
         scored: list[ScoredRecommendation] = []
         for tfidf_rec in tfidf_results:
@@ -618,6 +706,16 @@ class HybridRecommender:
             # Get popularity score from EDHRec rank
             edhrec_rank = card_data.get("edhrecRank")
             popularity_score = max(0, 1.0 - edhrec_rank / 30000.0) if edhrec_rank else 0.5
+
+            # Reduce TF-IDF and popularity scores for basic/simple lands
+            # These cards are ubiquitous but not strategically interesting
+            # Utility lands, fetch lands, etc. will still score normally
+            adjusted_tfidf_score = tfidf_rec.score
+            if is_basic_or_simple_land(card_data):
+                # Heavily reduce text similarity score (basic lands match common patterns)
+                adjusted_tfidf_score *= 0.1  # 90% reduction
+                # Reduce popularity (basic lands are popular but that's not meaningful)
+                popularity_score *= 0.2  # 80% reduction
 
             # Check if this card completes any combos
             combo_score = 0.0
@@ -652,47 +750,59 @@ class HybridRecommender:
                     reasons.append(combo_desc)
 
             # Get 17lands limited stats (if available)
+            # Use weighted score combining Draft (70%) and Sealed (30%)
             limited_score = 0.5  # Neutral default
             limited_tier: str | None = None
             limited_gih_wr: float | None = None
             if self._limited_stats:
                 stats = self._limited_stats.get_card_stats(tfidf_rec.name)
                 if stats:
-                    limited_score = self._limited_stats.get_limited_score(tfidf_rec.name)
+                    # Use format-weighted score (70% Draft, 30% Sealed)
+                    limited_score = self._limited_stats.get_weighted_score(tfidf_rec.name)
                     limited_tier = stats.tier
                     limited_gih_wr = stats.gih_wr
                     if explain and limited_tier in ("S", "A"):
                         reasons.append(f"Limited powerhouse ({limited_tier}-tier)")
+                    # Add insights about bomb/synergy characteristics
+                    if explain:
+                        if self._limited_stats.is_bomb(tfidf_rec.name):
+                            reasons.append("Standalone bomb (wins on its own)")
+                        elif self._limited_stats.is_synergy_dependent(tfidf_rec.name):
+                            reasons.append("Synergy-dependent (needs support)")
 
-            # Calculate land score - boost lands when deck needs them
+            # Calculate land score - boost lands when deck needs them, penalize when not
             land_score = 0.0
-            if candidate_features.is_land and land_need > 0:
-                # Base land score from land need urgency
-                land_score = min(land_need, 1.0)
+            if candidate_features.is_land:
+                if land_need > 0:
+                    # Base land score from land need urgency
+                    land_score = min(land_need, 1.0)
 
-                # Bonus for lands that match deck's color identity
-                if candidate_features.color_identity:
-                    matching_colors = (
-                        candidate_features.color_identity & deck_features.color_identity
-                    )
-                    if matching_colors:
-                        # Better score for lands that produce colors the deck uses
-                        color_match_bonus = len(matching_colors) / max(
-                            len(deck_features.color_identity), 1
+                    # Bonus for lands that match deck's color identity
+                    if candidate_features.color_identity:
+                        matching_colors = (
+                            candidate_features.color_identity & deck_features.color_identity
                         )
-                        land_score = min(land_score + color_match_bonus * 0.3, 1.5)
+                        if matching_colors:
+                            # Better score for lands that produce colors the deck uses
+                            color_match_bonus = len(matching_colors) / max(
+                                len(deck_features.color_identity), 1
+                            )
+                            land_score = min(land_score + color_match_bonus * 0.3, 1.5)
 
-                # Additional bonus for utility lands with relevant effects
-                if candidate_features.synergy_themes & set(deck_features.dominant_themes):
-                    land_score = min(land_score + 0.2, 1.5)
+                    # Additional bonus for utility lands with relevant effects
+                    if candidate_features.synergy_themes & set(deck_features.dominant_themes):
+                        land_score = min(land_score + 0.2, 1.5)
 
-                if explain:
-                    lands_needed = min_lands - current_lands
-                    reasons.append(f"Deck needs {lands_needed}+ more lands")
+                    if explain:
+                        lands_needed = min_lands - current_lands
+                        reasons.append(f"Deck needs {lands_needed}+ more lands")
+                else:
+                    # Penalty for lands when deck has enough - prevents land spam
+                    land_score = -0.5
 
             # Combine scores
             total = (
-                tfidf_rec.score * self.tfidf_weight
+                adjusted_tfidf_score * self.tfidf_weight
                 + synergy_score * self.synergy_weight
                 + popularity_score * self.popularity_weight
                 + combo_score * self.combo_weight
@@ -704,7 +814,7 @@ class HybridRecommender:
                 ScoredRecommendation(
                     name=tfidf_rec.name,
                     total_score=total,
-                    tfidf_score=tfidf_rec.score,
+                    tfidf_score=adjusted_tfidf_score,  # Use adjusted score for display
                     synergy_score=synergy_score,
                     popularity_score=popularity_score,
                     combo_score=combo_score,
@@ -723,7 +833,28 @@ class HybridRecommender:
 
         # Sort by total score
         scored.sort(key=lambda x: -x.total_score)
-        return scored[:n]
+
+        # Cap land recommendations to prevent land spam
+        # Even when deck needs lands, limit to 10% of results max
+        max_land_recs = max(n // 10, 3)  # At least 3, max ~10%
+        land_recs: list[ScoredRecommendation] = []
+        non_land_recs: list[ScoredRecommendation] = []
+
+        for rec in scored:
+            is_land = rec.type_line and "Land" in rec.type_line
+            if is_land and len(land_recs) < max_land_recs:
+                land_recs.append(rec)
+            elif not is_land:
+                non_land_recs.append(rec)
+
+        # Merge: non-lands first, then add lands up to cap
+        # Ensure we never exceed max_land_recs lands regardless of how many slots remain
+        result = non_land_recs[: n - max_land_recs]  # Leave room for lands
+        result.extend(land_recs[:max_land_recs])
+
+        # Re-sort the final result by score to maintain proper ordering
+        result.sort(key=lambda x: -x.total_score)
+        return result[:n]
 
     def _get_land_candidates(
         self,
@@ -794,6 +925,100 @@ class HybridRecommender:
         # Sort by score and return top candidates
         lands.sort(key=lambda x: -x.score)
         return lands[:max_lands]
+
+    def _get_combo_candidates(
+        self,
+        missing_card_to_combos: dict[str, list[str]],
+        deck_colors: set[str],
+        exclude_names: set[str],
+        combo_meta: dict[str, dict[str, Any]],
+        max_combos: int = 30,
+    ) -> list[Any]:
+        """Get combo piece candidates that would complete combos.
+
+        This ensures combo pieces are included in recommendations even if TF-IDF
+        doesn't find them (since TF-IDF is based on text similarity).
+
+        Args:
+            missing_card_to_combos: Map of card_name_lower -> combo_ids it completes
+            deck_colors: Color identity of the deck
+            exclude_names: Card names already in the deck
+            combo_meta: Metadata for each combo (type, bracket, popularity)
+            max_combos: Maximum number of combo candidates to return
+
+        Returns:
+            List of candidates for combo pieces
+        """
+        from dataclasses import dataclass
+
+        @dataclass
+        class ComboCandidate:
+            name: str
+            score: float
+            uuid: str | None
+            type_line: str | None
+            mana_cost: str | None
+            colors: list[str] | None
+
+        candidates: list[ComboCandidate] = []
+        exclude_lower = {n.lower() for n in exclude_names}
+
+        # Score each missing combo piece
+        scored_cards: list[tuple[str, float, list[str]]] = []  # (card_name_lower, score, combo_ids)
+        for card_lower, combo_ids in missing_card_to_combos.items():
+            if card_lower in exclude_lower:
+                continue
+
+            # Score based on combo quality
+            score = 0.0
+            for combo_id in combo_ids:
+                meta = combo_meta.get(combo_id, {})
+                # Win combos > value combos
+                if meta.get("type") == "win":
+                    score += 1.0
+                else:
+                    score += 0.5
+                # Popularity bonus
+                pop = meta.get("popularity", 0)
+                score += min(pop / 100000, 0.3)
+
+            scored_cards.append((card_lower, score, combo_ids))
+
+        # Sort by score and take top candidates
+        scored_cards.sort(key=lambda x: -x[1])
+        top_cards = scored_cards[:max_combos]
+
+        # Convert to candidates by finding card data
+        for card_lower, score, _combo_ids in top_cards:
+            # Find card in card_data (need to match by lowercase)
+            card_data = None
+            actual_name = None
+            for name, data in self._card_data.items():
+                if name.lower() == card_lower:
+                    card_data = data
+                    actual_name = name
+                    break
+
+            if not card_data or not actual_name:
+                continue
+
+            # Check color identity compatibility
+            card_identity = set(card_data.get("colorIdentity") or [])
+            if card_identity and deck_colors and not card_identity.issubset(deck_colors):
+                continue  # Card doesn't fit deck's color identity
+
+            candidates.append(
+                ComboCandidate(
+                    name=actual_name,
+                    score=score / 5.0,  # Normalize to 0-1 range
+                    uuid=card_data.get("uuid"),
+                    type_line=card_data.get("type"),
+                    mana_cost=card_data.get("manaCost"),
+                    colors=list(card_identity) if card_identity else None,
+                )
+            )
+
+        return candidates
 
     def get_near_combos(
         self,

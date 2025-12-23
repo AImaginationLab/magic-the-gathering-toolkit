@@ -51,32 +51,65 @@ class RarityColors:
 class UIColors:
     """General UI theme colors."""
 
-    GOLD: str = "#e6c84a"
-    GOLD_DIM: str = "#c9a227"
+    # Primary gold colors (brighter)
+    GOLD: str = "#FFD700"  # Richer gold for headers
+    GOLD_PRIMARY: str = "#FFD700"  # Alias for main gold
+    GOLD_DIM: str = "#DAA520"  # Darker gold for supporting elements
+    GOLD_SECONDARY: str = "#DAA520"  # Alias for dim gold
+
+    # Base colors
     WHITE: str = "#ffffff"
     GRAY_LIGHT: str = "#888"
     GRAY_MEDIUM: str = "#3d3d3d"
     GRAY_DARK: str = "#1a1a1a"
+
+    # Border colors (updated to match brighter gold)
     BORDER_DEFAULT: str = "#3d3d3d"
-    BORDER_FOCUS: str = "#c9a227"
-    BORDER_ACTIVE: str = "#e6c84a"
+    BORDER_FOCUS: str = "#DAA520"
+    BORDER_ACTIVE: str = "#FFD700"
+
+    # Background layers (with more depth)
     BACKGROUND_DARK: str = "#0d0d0d"
     BACKGROUND_PANEL: str = "#151515"
     BACKGROUND_HEADER: str = "#0a0a14"
     BACKGROUND_MODAL: str = "#1e1e2e"
     BACKGROUND_HOVER: str = "#2a2a4e"
     BACKGROUND_SELECTED: str = "#2e2e58"
-    SCROLLBAR: str = "#c9a227"
-    SCROLLBAR_HOVER: str = "#e6c84a"
+    BACKGROUND_CARD_PRIMARY: str = "#1a1a2e"  # For important cards
+    BACKGROUND_CARD_SECONDARY: str = "#151520"  # For standard cards
+
+    # Scrollbar colors (brighter gold)
+    SCROLLBAR: str = "#DAA520"
+    SCROLLBAR_HOVER: str = "#FFD700"
     SCROLLBAR_ACTIVE: str = "#fff8dc"
+
+    # Text colors
     TEXT_DIM: str = "#888"
-    TEXT_ERROR: str = "#ff6b6b"
-    SYNERGY_STRONG: str = "#00ff00"
-    SYNERGY_MODERATE: str = "#c9a227"
-    SYNERGY_WEAK: str = "#e6c84a"
-    PRICE_HIGH: str = "#ffa500"  # orange
-    PRICE_MEDIUM: str = "#ffff00"  # yellow
-    PRICE_LOW: str = "#00ff00"  # green
+    TEXT_ERROR: str = "#FF4444"  # Vibrant red
+
+    # Status colors (more distinctive)
+    SUCCESS: str = "#00FF00"  # Bright green
+    WARNING: str = "#FFA500"  # True orange
+    ERROR: str = "#FF4444"  # Vibrant red
+    INFO: str = "#4A9FD8"  # Bright blue
+
+    # Synergy colors (brighter)
+    SYNERGY_STRONG: str = "#32FF32"  # Brighter green
+    SYNERGY_MODERATE: str = "#FFD700"  # Bright yellow/gold
+    SYNERGY_WEAK: str = "#FFA500"  # Bright orange
+
+    # Tier colors (for ratings)
+    TIER_S: str = "#FFD700"  # Bright gold
+    TIER_A: str = "#32CD32"  # Bright green
+    TIER_B: str = "#87CEEB"  # Bright blue
+    TIER_C: str = "#FFA500"  # Orange
+    TIER_D: str = "#FF6B6B"  # Soft red
+    TIER_F: str = "#888888"  # Gray
+
+    # Price colors
+    PRICE_HIGH: str = "#FFA500"  # Orange
+    PRICE_MEDIUM: str = "#FFFF00"  # Yellow
+    PRICE_LOW: str = "#00FF00"  # Green
 
 
 mtg_colors = MTGColors()

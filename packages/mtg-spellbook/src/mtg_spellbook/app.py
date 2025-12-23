@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import atexit
 import contextlib
 import signal
@@ -106,6 +107,7 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
         Binding("ctrl+q", "quit", "Quit"),
         Binding("ctrl+l", "clear", "Clear"),
         Binding("ctrl+h", "help", "Help", show=True),
+        Binding("question_mark", "help", "Help", show=False),
         Binding("escape", "focus_input", "Input"),
         Binding("tab", "next_tab", "Next Tab", priority=True),
         Binding("shift+tab", "prev_tab", "Prev Tab", priority=True),
@@ -264,11 +266,42 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
         # Disable card actions initially (no card selected)
         self._update_menu_card_state()
 
+        # Pre-initialize expensive resources in background
+        self._preinit_combo_detector()
+        self._preinit_collection()
+
+    @work(thread=True, group="preinit")
+    def _preinit_combo_detector(self) -> None:
+        """Pre-initialize the combo detector in background thread."""
+        try:
+            from mtg_core.tools.recommendations.spellbook_combos import get_spellbook_detector
+            detector = get_spellbook_detector()
+            if detector.is_available:
+                detector.initialize()
+        except Exception:
+            pass  # Silently fail - combo detection is optional
+
+    @work(group="preinit")
+    async def _preinit_collection(self) -> None:
+        """Pre-load collection card names in background."""
+        try:
+            if self._collection_manager:
+                # This caches the collection card names for later use
+                await self._collection_manager.get_collection_card_names()
+        except Exception:
+            pass  # Silently fail - collection is optional
+
     async def on_unmount(self) -> None:
         """Clean up database connections and HTTP client on exit."""
-        await self._ctx.close()
-        await close_http_client()
-        # Terminal mouse reset is handled by atexit handler
+        import logging
+
+        try:
+            await self._ctx.close()
+        except Exception:
+            logging.exception("Error closing database connections")
+
+        with contextlib.suppress(TimeoutError, Exception):
+            await asyncio.wait_for(close_http_client(), timeout=0.5)
 
     async def action_quit(self) -> None:
         """Quit the application cleanly."""
@@ -367,6 +400,13 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
 
     def action_next_tab(self) -> None:
         """Cycle focus: search bar -> results list -> card panel -> search bar."""
+        # If a screen is pushed, delegate Tab to its action if it has one
+        if len(self.screen_stack) > 1:
+            screen = self.screen
+            if hasattr(screen, "action_next_focus"):
+                screen.action_next_focus()
+            return
+
         if not self._dashboard_visible:
             focused = self.focused
             try:
@@ -404,6 +444,13 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
 
     def action_prev_tab(self) -> None:
         """Cycle focus backwards: card panel -> results list -> search bar -> card panel."""
+        # If a screen is pushed, delegate Shift+Tab to its action if it has one
+        if len(self.screen_stack) > 1:
+            screen = self.screen
+            if hasattr(screen, "action_prev_focus"):
+                screen.action_prev_focus()
+            return
+
         if not self._dashboard_visible:
             focused = self.focused
             try:
@@ -843,6 +890,8 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
                 self.action_browse_collection()
             case "random":
                 self.action_random_card()
+            case "help":
+                self.show_help()
 
     @on(SearchResultSelected)
     def on_search_result_selected(self, event: SearchResultSelected) -> None:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
@@ -72,19 +73,33 @@ class DatabaseManager:
         logger.info("Unified MTG database loaded from %s", db_path)
 
         # User database (always created, stores decks/collections)
+        user_db = UserDatabase(self._settings.user_db_path, max_connections=max_conn)
         try:
-            self._user = UserDatabase(self._settings.user_db_path, max_connections=max_conn)
-            await self._user.connect()
+            await user_db.connect()
+            self._user = user_db
         except (aiosqlite.Error, OSError):
             logger.exception("Failed to open user database at %s", self._settings.user_db_path)
+            # CRITICAL: Close connection if opened to avoid orphaned threads
+            if user_db._conn:
+                try:  # noqa: SIM105 - can't use suppress with await
+                    await user_db.close()
+                except Exception:
+                    pass
             self._user = None
 
         # Combo database (stores combo data)
+        combo_db = ComboDatabase(self._settings.combo_db_path, max_connections=max_conn)
         try:
-            self._combos = ComboDatabase(self._settings.combo_db_path, max_connections=max_conn)
-            await self._combos.connect()
+            await combo_db.connect()
+            self._combos = combo_db
         except (aiosqlite.Error, OSError):
             logger.exception("Failed to open combo database at %s", self._settings.combo_db_path)
+            # CRITICAL: Close connection if opened to avoid orphaned threads
+            if combo_db._conn:
+                try:  # noqa: SIM105 - can't use suppress with await
+                    await combo_db.close()
+                except Exception:
+                    pass
             self._combos = None
 
     async def start_user_db(self) -> UserDatabase:
@@ -100,15 +115,26 @@ class DatabaseManager:
     async def stop(self) -> None:
         """Close the database connections."""
         if self._conn:
+            # Save reference to thread before closing
+            conn_thread = self._conn if hasattr(self._conn, "join") else None
             await self._conn.close()
+
+            # Wait for aiosqlite thread to terminate to avoid hang on exit
+            if conn_thread is not None:
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, conn_thread.join, 2.0)
+
             self._conn = None
             self._db = None
+
         if self._user:
             await self._user.close()
             self._user = None
+
         if self._combos:
             await self._combos.close()
             self._combos = None
+
         await self._cache.clear()
 
 

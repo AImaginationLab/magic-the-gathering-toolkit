@@ -66,9 +66,16 @@ class CommandHelpersMixin:
         source_panel = self.query_one("#source-card-panel", CardPanel)
         source_panel.update_card(None)
 
-    def show_help(self) -> None:
-        """Show help - use Menu (F10) for navigation options."""
+    def show_help(self, keyword: str | None = None) -> None:
+        """Show help screen with MTG knowledge base."""
         from typing import Any, cast
 
+        from ..screens import HelpScreen
+
         app = cast(Any, self)
-        app.notify("Press F10 or Ctrl+M to open the Menu for navigation options", timeout=5)
+        screen = HelpScreen()
+        app.push_screen(screen)
+
+        # If a keyword was specified, select it after the screen mounts
+        if keyword:
+            app.call_later(lambda: screen.select_keyword(keyword))

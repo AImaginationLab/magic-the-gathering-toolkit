@@ -38,9 +38,6 @@ resources/*.sqlite
 resources/*.sqlite*
 resources/*.db
 
-# But track smaller generated databases
-!resources/limited_stats.sqlite
-
 # SQLite runtime artifacts (WAL, shared memory)
 *.sqlite-wal
 *.sqlite-shm

@@ -790,11 +790,11 @@ class SuggestionItem(ListItem):
         color_map = {"W": "W", "U": "U", "B": "B", "R": "R", "G": "G"}
         color_str = " ".join(f"[bold]{color_map.get(c, c)}[/]" for c in colors)
 
-        # Completion bar (compact)
+        # Completion bar (compact, capped at 100%)
         bar_width = 12
-        filled = int(completion * bar_width)
+        filled = min(bar_width, int(completion * bar_width))
         bar = "\u2588" * filled + "\u2591" * (bar_width - filled)
-        pct = int(completion * 100)
+        pct = min(100, int(completion * 100))
 
         # Score color
         if completion >= 0.7:

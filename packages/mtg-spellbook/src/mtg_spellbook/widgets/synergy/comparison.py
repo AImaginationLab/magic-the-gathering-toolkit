@@ -56,8 +56,8 @@ class CompareSlot(Vertical):
 
         syn = self._synergy
         mana = prettify_mana(syn.mana_cost) if syn.mana_cost else ""
-        score_color = self._get_score_color(syn.score)
-        score_pct = int(syn.score * 100)
+        score_color = self._get_score_color(min(syn.score, 1.0))
+        score_pct = min(100, int(syn.score * 100))
 
         header = f"[bold {ui_colors.GOLD}]{syn.name}[/] {mana}"
         header += f"  [{score_color}][{score_pct}%][/]"
@@ -92,11 +92,11 @@ class CompareSlot(Vertical):
         return "\n".join(lines)
 
     def _render_score_bar(self, score: float) -> str:
-        """Render a visual score bar."""
-        filled = int(score * 20)
+        """Render a visual score bar (capped at 100%)."""
+        filled = min(20, int(score * 20))
         bar = "[" * filled + "." * (20 - filled)
-        color = self._get_score_color(score)
-        return f"[{color}]{bar}[/] [{color}]{int(score * 100)}%[/]"
+        color = self._get_score_color(min(score, 1.0))
+        return f"[{color}]{bar}[/] [{color}]{min(100, int(score * 100))}%[/]"
 
     def _get_score_color(self, score: float) -> str:
         """Get color for score display."""

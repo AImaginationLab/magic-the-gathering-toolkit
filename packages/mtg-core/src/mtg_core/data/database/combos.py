@@ -104,7 +104,15 @@ class ComboDatabase:
     async def close(self) -> None:
         """Close the database connection."""
         if self._conn:
+            # Save reference to thread before closing
+            conn_thread = self._conn if hasattr(self._conn, "join") else None
             await self._conn.close()
+
+            # Wait for aiosqlite thread to terminate to avoid hang on exit
+            if conn_thread is not None:
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, conn_thread.join, 2.0)
+
             self._conn = None
 
     async def _create_schema(self) -> None:
