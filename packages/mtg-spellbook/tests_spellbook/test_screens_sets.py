@@ -476,15 +476,15 @@ class TestSetsScreenEdgeCases:
                 m.setattr("mtg_core.tools.sets.get_sets", AsyncMock(return_value=result))
 
                 pilot.app.push_screen(screen)
-                await pilot.pause(0.3)
+                await pilot.pause(0.5)
 
                 # Load set detail
                 screen.action_select()
-                await pilot.pause(0.3)
+                await pilot.pause(0.5)
 
                 # Toggle filter
                 screen.action_toggle_filter()
-                await pilot.pause(0.3)
+                await pilot.pause(0.5)
 
                 assert screen.current_filter is not None
 

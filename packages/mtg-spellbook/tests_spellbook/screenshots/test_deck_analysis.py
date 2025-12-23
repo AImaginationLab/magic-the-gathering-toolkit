@@ -42,7 +42,11 @@ def create_mock_card(
         colors=colors or [],
         colorIdentity=colors or [],
         type=type_line,
-        types=[t.strip() for t in type_line.split("-")[0].split() if t.strip() not in ("Legendary", "Basic")],
+        types=[
+            t.strip()
+            for t in type_line.split("-")[0].split()
+            if t.strip() not in ("Legendary", "Basic")
+        ],
         text=text,
         rarity=rarity,
         setCode="TST",
@@ -327,7 +331,9 @@ class TestDeckAnalysisPanel:
             rendered = str(content.render())
 
             # Should have Deck Score section
-            assert "Deck Score" in rendered, f"Deck Score header not found. Got: {rendered[:300]}..."
+            assert "Deck Score" in rendered, (
+                f"Deck Score header not found. Got: {rendered[:300]}..."
+            )
             # Should have a score like "XX/100"
             assert "/100" in rendered, f"Score format '/100' not found. Got: {rendered[:300]}..."
 

@@ -72,7 +72,7 @@ class TestBasicOrSimpleLand:
             {
                 "name": "Urza's Saga",
                 "type": "Enchantment Land — Urza's Saga",
-                "text": "I, II — Urza's Saga gains \"{T}: Add {C}.\" III — Search your library...",
+                "text": 'I, II — Urza\'s Saga gains "{T}: Add {C}." III — Search your library...',
             },
             {
                 "name": "Flooded Strand",
@@ -97,7 +97,11 @@ class TestBasicOrSimpleLand:
         """Non-land cards should return False."""
         non_lands = [
             {"name": "Sol Ring", "type": "Artifact", "text": "{T}: Add {C}{C}."},
-            {"name": "Birds of Paradise", "type": "Creature — Bird", "text": "{T}: Add one mana of any color."},
+            {
+                "name": "Birds of Paradise",
+                "type": "Creature — Bird",
+                "text": "{T}: Add one mana of any color.",
+            },
         ]
         for card in non_lands:
             assert not is_basic_or_simple_land(card), f"{card['name']} is not a land"
@@ -365,9 +369,7 @@ class TestLandCountCalculation:
 class TestLandCap:
     """Test land recommendation capping logic."""
 
-    def test_land_cap_100_recommendations(
-        self, hybrid_recommender: HybridRecommender
-    ) -> None:
+    def test_land_cap_100_recommendations(self, hybrid_recommender: HybridRecommender) -> None:
         """When requesting 100 recommendations, at most 10 should be lands (10%)."""
         # Deck with no lands (needs lands urgently)
         deck_cards = create_deck_cards(creature_count=30, spell_count=30, land_count=0)
@@ -381,9 +383,7 @@ class TestLandCap:
         # Should be capped at 10% = 10 lands max
         assert land_count <= 10, f"Expected max 10 lands, got {land_count}"
 
-    def test_land_cap_50_recommendations(
-        self, hybrid_recommender: HybridRecommender
-    ) -> None:
+    def test_land_cap_50_recommendations(self, hybrid_recommender: HybridRecommender) -> None:
         """When requesting 50 recommendations, at most 5 should be lands."""
         deck_cards = create_deck_cards(creature_count=20, spell_count=20, land_count=0)
 
@@ -404,9 +404,7 @@ class TestLandCap:
         # But also depends on availability and scoring
         assert land_count <= 3, f"Expected max 3 lands, got {land_count}"
 
-    def test_land_cap_with_10_recommendations(
-        self, hybrid_recommender: HybridRecommender
-    ) -> None:
+    def test_land_cap_with_10_recommendations(self, hybrid_recommender: HybridRecommender) -> None:
         """With only 10 recommendations, cap should be 3 lands."""
         deck_cards = create_deck_cards(creature_count=10, spell_count=10, land_count=0)
 
@@ -461,8 +459,7 @@ class TestLandPenalty:
         # First land should NOT be in top 10 (since deck doesn't need lands)
         if first_land_position is not None:
             assert first_land_position >= 10, (
-                f"Land appeared at position {first_land_position}, "
-                "should be deprioritized"
+                f"Land appeared at position {first_land_position}, should be deprioritized"
             )
 
 
@@ -492,9 +489,7 @@ class TestLandBoost:
                 f"Expected positive land_score for {rec.name}, got {rec.land_score}"
             )
 
-    def test_matching_color_lands_get_bonus(
-        self, hybrid_recommender: HybridRecommender
-    ) -> None:
+    def test_matching_color_lands_get_bonus(self, hybrid_recommender: HybridRecommender) -> None:
         """Lands matching deck colors should get higher scores."""
         # Esper deck (W/U/B)
         deck_cards = create_deck_cards(
@@ -513,8 +508,7 @@ class TestLandBoost:
         # Esper lands should score higher than off-color lands
         if hallowed_fountain and temple_garden:
             assert hallowed_fountain.land_score > temple_garden.land_score, (
-                "Hallowed Fountain (W/U) should score higher than Temple Garden (W/G) "
-                "in Esper deck"
+                "Hallowed Fountain (W/U) should score higher than Temple Garden (W/G) in Esper deck"
             )
 
 
@@ -546,13 +540,10 @@ class TestScoreCalculation:
             )
 
             assert abs(rec.total_score - expected) < 0.001, (
-                f"Score mismatch for {rec.name}: "
-                f"expected {expected:.3f}, got {rec.total_score:.3f}"
+                f"Score mismatch for {rec.name}: expected {expected:.3f}, got {rec.total_score:.3f}"
             )
 
-    def test_combo_score_contributes_to_total(
-        self, hybrid_recommender: HybridRecommender
-    ) -> None:
+    def test_combo_score_contributes_to_total(self, hybrid_recommender: HybridRecommender) -> None:
         """Combo completion should boost total score."""
         # Mock combo detector
         mock_combo = Mock()
@@ -562,9 +553,7 @@ class TestScoreCalculation:
                 {"sol ring": ["combo-1"]},  # Sol Ring completes a combo (lowercase)
             )
         )
-        mock_combo._combo_meta = {
-            "combo-1": {"type": "value"}
-        }
+        mock_combo._combo_meta = {"combo-1": {"type": "value"}}
         mock_combo.get_combo_type_score = Mock(return_value=0.5)
         hybrid_recommender._combo_detector = mock_combo
 
@@ -577,9 +566,7 @@ class TestScoreCalculation:
 
         if sol_ring:
             assert sol_ring.combo_score > 0, "Sol Ring should have combo_score > 0"
-            assert len(sol_ring.completes_combos) > 0, (
-                "Sol Ring should list completed combos"
-            )
+            assert len(sol_ring.completes_combos) > 0, "Sol Ring should list completed combos"
 
 
 # ============================================================================
@@ -597,9 +584,7 @@ class TestLandCandidateGeneration:
         deck_colors = {"W", "U"}
         exclude = set()
 
-        candidates = hybrid_recommender._get_land_candidates(
-            deck_colors, exclude, max_lands=10
-        )
+        candidates = hybrid_recommender._get_land_candidates(deck_colors, exclude, max_lands=10)
 
         for candidate in candidates:
             # Get card data
@@ -611,20 +596,15 @@ class TestLandCandidateGeneration:
             # Should be subset of deck colors
             if card_identity:
                 assert card_identity.issubset(deck_colors), (
-                    f"{candidate.name} has identity {card_identity}, "
-                    f"not subset of {deck_colors}"
+                    f"{candidate.name} has identity {card_identity}, not subset of {deck_colors}"
                 )
 
-    def test_land_candidates_edhrec_scoring(
-        self, hybrid_recommender: HybridRecommender
-    ) -> None:
+    def test_land_candidates_edhrec_scoring(self, hybrid_recommender: HybridRecommender) -> None:
         """Land candidates should be scored by EDHRec rank."""
         deck_colors = {"W", "U", "B"}
         exclude = set()
 
-        candidates = hybrid_recommender._get_land_candidates(
-            deck_colors, exclude, max_lands=10
-        )
+        candidates = hybrid_recommender._get_land_candidates(deck_colors, exclude, max_lands=10)
 
         # Command Tower (rank 2) should score higher than basic lands (rank 100)
         command_tower = next((c for c in candidates if c.name == "Command Tower"), None)
@@ -635,16 +615,12 @@ class TestLandCandidateGeneration:
                 "Command Tower should score higher than Plains"
             )
 
-    def test_multicolor_land_bonus(
-        self, hybrid_recommender: HybridRecommender
-    ) -> None:
+    def test_multicolor_land_bonus(self, hybrid_recommender: HybridRecommender) -> None:
         """Multi-color lands matching deck should get bonus."""
         deck_colors = {"W", "U"}
         exclude = set()
 
-        candidates = hybrid_recommender._get_land_candidates(
-            deck_colors, exclude, max_lands=10
-        )
+        candidates = hybrid_recommender._get_land_candidates(deck_colors, exclude, max_lands=10)
 
         # Hallowed Fountain (W/U) should get multi-color bonus
         hallowed = next((c for c in candidates if c.name == "Hallowed Fountain"), None)
@@ -745,9 +721,7 @@ class TestSynergyScorer:
         assert score > 0.2, "Should boost cards that fill curve gaps"
         assert abs(score - 0.3) < 0.01, "Score should be gap * 2 = 0.15 * 2 = 0.3"
         if reason:
-            assert "curve gap" in reason.lower() or "3" in reason, (
-                "Should mention curve gap"
-            )
+            assert "curve gap" in reason.lower() or "3" in reason, "Should mention curve gap"
 
 
 # ============================================================================
@@ -766,9 +740,7 @@ class TestComboPieceDetector:
         # This is a basic test - real combo data comes from constants
         deck_cards = ["Exquisite Blood", "Sanguine Bond"]
 
-        matches, _missing_to_combos = detector.find_missing_pieces(
-            deck_cards, max_missing=1
-        )
+        matches, _missing_to_combos = detector.find_missing_pieces(deck_cards, max_missing=1)
 
         # Should find combos that are 1 card away
         for match in matches:
@@ -794,9 +766,7 @@ class TestComboPieceDetector:
 class TestRecommendationIntegration:
     """Integration tests for full recommendation flow."""
 
-    def test_recommend_for_deck_basic(
-        self, hybrid_recommender: HybridRecommender
-    ) -> None:
+    def test_recommend_for_deck_basic(self, hybrid_recommender: HybridRecommender) -> None:
         """Test basic deck recommendation flow."""
         deck_cards = create_deck_cards(creature_count=20, spell_count=15, land_count=20)
 
@@ -811,9 +781,7 @@ class TestRecommendationIntegration:
         scores = [r.total_score for r in results]
         assert scores == sorted(scores, reverse=True), "Results should be sorted by score"
 
-    def test_color_identity_filtering(
-        self, hybrid_recommender: HybridRecommender
-    ) -> None:
+    def test_color_identity_filtering(self, hybrid_recommender: HybridRecommender) -> None:
         """Test that recommendations respect color identity."""
         # Mono-white deck
         deck_cards = create_deck_cards(
@@ -829,13 +797,10 @@ class TestRecommendationIntegration:
                 # Card should fit in mono-white
                 if card_identity:
                     assert card_identity.issubset({"W"}), (
-                        f"{rec.name} has identity {card_identity}, "
-                        f"doesn't fit mono-white deck"
+                        f"{rec.name} has identity {card_identity}, doesn't fit mono-white deck"
                     )
 
-    def test_explanation_reasons_provided(
-        self, hybrid_recommender: HybridRecommender
-    ) -> None:
+    def test_explanation_reasons_provided(self, hybrid_recommender: HybridRecommender) -> None:
         """Test that explanations are provided when requested."""
         deck_cards = create_deck_cards(creature_count=20, spell_count=15, land_count=10)
 
@@ -855,9 +820,7 @@ class TestRecommendationIntegration:
         results = hybrid_recommender.recommend_for_deck(deck_cards, n=20, explain=False)
 
         for rec in results:
-            assert rec.name not in deck_names, (
-                f"{rec.name} is already in deck, should be excluded"
-            )
+            assert rec.name not in deck_names, f"{rec.name} is already in deck, should be excluded"
 
 
 # ============================================================================
@@ -884,9 +847,7 @@ class TestEdgeCases:
         assert isinstance(results, list)
         assert len(results) <= 5
 
-    def test_request_more_than_available(
-        self, hybrid_recommender: HybridRecommender
-    ) -> None:
+    def test_request_more_than_available(self, hybrid_recommender: HybridRecommender) -> None:
         """Test requesting more recommendations than available."""
         deck_cards = create_deck_cards(creature_count=5, spell_count=5, land_count=5)
 
@@ -913,17 +874,11 @@ class TestInvariants:
         test_cases = [10, 20, 30, 50, 100, 200]
 
         for n in test_cases:
-            deck_cards = create_deck_cards(
-                creature_count=20, spell_count=20, land_count=0
-            )
+            deck_cards = create_deck_cards(creature_count=20, spell_count=20, land_count=0)
 
-            results = hybrid_recommender.recommend_for_deck(
-                deck_cards, n=n, explain=False
-            )
+            results = hybrid_recommender.recommend_for_deck(deck_cards, n=n, explain=False)
 
-            land_count = sum(
-                1 for r in results if r.type_line and "Land" in r.type_line
-            )
+            land_count = sum(1 for r in results if r.type_line and "Land" in r.type_line)
             max_lands = max(n // 10, 3)
 
             assert land_count <= max_lands, (
@@ -954,9 +909,7 @@ class TestInvariants:
                 ]
             )
 
-    def test_sorted_by_total_score(
-        self, hybrid_recommender: HybridRecommender
-    ) -> None:
+    def test_sorted_by_total_score(self, hybrid_recommender: HybridRecommender) -> None:
         """Results should always be sorted by total_score descending."""
         deck_cards = create_deck_cards(creature_count=20, spell_count=15, land_count=20)
 
@@ -965,5 +918,5 @@ class TestInvariants:
         for i in range(len(results) - 1):
             assert results[i].total_score >= results[i + 1].total_score, (
                 f"Results not sorted: position {i} score {results[i].total_score} < "
-                f"position {i+1} score {results[i+1].total_score}"
+                f"position {i + 1} score {results[i + 1].total_score}"
             )

@@ -70,9 +70,7 @@ class TestDoAddToDeck:
         screen.post_message = Mock()
 
         # Call the core async method directly (bypass the @work decorator)
-        await RecommendationScreen._do_add_to_deck.__wrapped__(
-            screen, "Lightning Bolt", 1
-        )
+        await RecommendationScreen._do_add_to_deck.__wrapped__(screen, "Lightning Bolt", 1)
 
         # Verify deck_manager.add_card was called
         mock_deck_manager_success.add_card.assert_called_once_with(1, "Lightning Bolt", 1)
@@ -95,9 +93,7 @@ class TestDoAddToDeck:
         screen.notify = Mock()
         screen.post_message = Mock()
 
-        await RecommendationScreen._do_add_to_deck.__wrapped__(
-            screen, "Lightning Bolt", 4
-        )
+        await RecommendationScreen._do_add_to_deck.__wrapped__(screen, "Lightning Bolt", 4)
 
         mock_deck_manager_success.add_card.assert_called_once_with(1, "Lightning Bolt", 4)
         assert "Added 4x Lightning Bolt" in str(screen.notify.call_args)
@@ -117,9 +113,7 @@ class TestDoAddToDeck:
         screen.notify = Mock()
         screen.post_message = Mock()
 
-        await RecommendationScreen._do_add_to_deck.__wrapped__(
-            screen, "Lightning Bolt", 1
-        )
+        await RecommendationScreen._do_add_to_deck.__wrapped__(screen, "Lightning Bolt", 1)
 
         # Verify error notification was shown
         screen.notify.assert_called_once()
@@ -141,9 +135,7 @@ class TestDoAddToDeck:
         screen.notify = Mock()
         screen.post_message = Mock()
 
-        await RecommendationScreen._do_add_to_deck.__wrapped__(
-            screen, "Lightning Bolt", 1
-        )
+        await RecommendationScreen._do_add_to_deck.__wrapped__(screen, "Lightning Bolt", 1)
 
         # Should not call deck_manager
         mock_deck_manager_success.add_card.assert_not_called()
@@ -162,9 +154,7 @@ class TestDoAddToDeck:
         screen.notify = Mock()
         screen.post_message = Mock()
 
-        await RecommendationScreen._do_add_to_deck.__wrapped__(
-            screen, "Lightning Bolt", 1
-        )
+        await RecommendationScreen._do_add_to_deck.__wrapped__(screen, "Lightning Bolt", 1)
 
         # Should not crash, just return early
         screen.notify.assert_not_called()
@@ -185,9 +175,7 @@ class TestDoAddToDeck:
         screen.notify = Mock()
         screen.post_message = Mock()
 
-        await RecommendationScreen._do_add_to_deck.__wrapped__(
-            screen, "Lightning Bolt", 2
-        )
+        await RecommendationScreen._do_add_to_deck.__wrapped__(screen, "Lightning Bolt", 2)
 
         # Should post message for DeckFullScreen to refresh
         screen.post_message.assert_called_once()
