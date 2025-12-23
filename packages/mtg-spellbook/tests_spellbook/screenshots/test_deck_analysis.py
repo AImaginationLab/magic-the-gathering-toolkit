@@ -8,14 +8,11 @@ Run with: uv run pytest packages/mtg-spellbook/tests_spellbook/screenshots/test_
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, MagicMock
+from typing import TYPE_CHECKING
 
 import pytest
 
-from mtg_spellbook.app import MTGSpellbook
 from mtg_spellbook.deck.analysis_panel import DeckAnalysisPanel
-from mtg_spellbook.deck.full_screen import FullDeckScreen
 from mtg_spellbook.deck_manager import DeckCardWithData, DeckWithCards
 
 if TYPE_CHECKING:
@@ -312,7 +309,7 @@ class TestDeckAnalysisPanel:
         self,
         sample_deck_for_analysis: DeckWithCards,
     ) -> None:
-        """Verify the DECK SCORE section is rendered with score value."""
+        """Verify the Deck Score section is rendered with score value."""
         from textual.app import App, ComposeResult
         from textual.widgets import Static
 
@@ -329,8 +326,8 @@ class TestDeckAnalysisPanel:
             content = panel.query_one("#analysis-content", Static)
             rendered = str(content.render())
 
-            # Should have DECK SCORE section
-            assert "DECK SCORE" in rendered, f"DECK SCORE header not found. Got: {rendered[:300]}..."
+            # Should have Deck Score section
+            assert "Deck Score" in rendered, f"Deck Score header not found. Got: {rendered[:300]}..."
             # Should have a score like "XX/100"
             assert "/100" in rendered, f"Score format '/100' not found. Got: {rendered[:300]}..."
 
@@ -388,6 +385,6 @@ class TestDeckAnalysisPanel:
 
             # Check for content in SVG (sections now reordered)
             assert "Mono-Red" in svg, "SVG should contain 'Mono-Red'"
-            assert "MANA" in svg and "CURVE" in svg, "SVG should contain 'MANA CURVE'"
+            assert "Mana" in svg and "Curve" in svg, "SVG should contain 'Mana Curve'"
             # Check for deck score header (may be HTML-escaped)
-            assert "DECK" in svg and "SCORE" in svg, "SVG should contain 'DECK SCORE'"
+            assert "Deck" in svg and "Score" in svg, "SVG should contain 'Deck Score'"

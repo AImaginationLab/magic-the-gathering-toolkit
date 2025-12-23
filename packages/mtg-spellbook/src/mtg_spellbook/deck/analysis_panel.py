@@ -218,7 +218,7 @@ class DeckAnalysisPanel(VerticalScroll):
             empty.display = False
             content.display = True
             content.update(
-                f"[bold {ui_colors.GOLD}]━━━ ⏳ ANALYZING ━━━[/]\n\n"
+                f"[bold {ui_colors.GOLD}]━━━ ⏳ Analyzing ━━━[/]\n\n"
                 f"[dim]Loading deck analysis...[/]\n\n"
                 f"[dim italic]Detecting combos, synergies, themes...[/]"
             )
@@ -356,7 +356,7 @@ class DeckAnalysisPanel(VerticalScroll):
         if deck.format and deck.format.lower() == "commander":
             expected = 99 if deck.commander else 100
 
-        return f"""[bold {ui_colors.GOLD}]━━━ ⚔ DECK SCORE ━━━[/]
+        return f"""[bold {ui_colors.GOLD}]━━━ ⚔ Deck Score ━━━[/]
 
 [bold {grade_color}]{grade}[/]  [bold {grade_color}]{score}[/][dim]/100[/]  {bar}
 
@@ -364,7 +364,7 @@ class DeckAnalysisPanel(VerticalScroll):
 
     def _build_overview_text(self, a: DeckAnalysis, deck: DeckWithCards) -> str:
         """Build overview section with deck identity."""
-        lines = [f"[bold {ui_colors.GOLD}]━━━ 📋 OVERVIEW ━━━[/]", ""]
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 📋 Overview ━━━[/]", ""]
         lines.append(f"[bold {ui_colors.WHITE}]{deck.name}[/]")
         lines.append("")
 
@@ -395,7 +395,7 @@ class DeckAnalysisPanel(VerticalScroll):
             "G": ("🌲", "#7EC850", "green"),
         }
 
-        lines = [f"[bold {ui_colors.GOLD}]━━━ 🎨 COLOR IDENTITY ━━━[/]", ""]
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 🎨 Color Identity ━━━[/]", ""]
 
         total_pips = sum(a.colors.values()) or 1
 
@@ -435,7 +435,7 @@ class DeckAnalysisPanel(VerticalScroll):
             ("🏔", "Lands", a.lands, "#A67C52"),
         ]
 
-        lines = [f"[bold {ui_colors.GOLD}]━━━ 📊 KEY METRICS ━━━[/]", ""]
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 📊 Key Metrics ━━━[/]", ""]
 
         # Calculate max for bar scaling
         total = sum(t[2] for t in types) or 1
@@ -455,7 +455,7 @@ class DeckAnalysisPanel(VerticalScroll):
 
     def _build_combos_text(self, a: DeckAnalysis) -> str:
         """Build combos section showing complete and near-complete combos."""
-        lines = [f"[bold {ui_colors.GOLD}]━━━ ⚡ COMBOS ({len(a.combos)}) ━━━[/]", ""]
+        lines = [f"[bold {ui_colors.GOLD}]━━━ ⚡ Combos ({len(a.combos)}) ━━━[/]", ""]
 
         def get_rarity_color(card_name: str) -> str:
             """Get rarity color for a card name."""
@@ -517,7 +517,7 @@ class DeckAnalysisPanel(VerticalScroll):
 
     def _build_17lands_text(self, a: DeckAnalysis) -> str:
         """Build 17lands data section with tier distribution."""
-        lines = [f"[bold {ui_colors.GOLD}]━━━ 📊 GAMEPLAY DATA ━━━[/]", ""]
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 📊 Gameplay Data ━━━[/]", ""]
 
         # Tier distribution with visual boxes
         tier_line = "  "
@@ -544,7 +544,7 @@ class DeckAnalysisPanel(VerticalScroll):
 
     def _build_deck_themes_text(self, a: DeckAnalysis) -> str:
         """Build deck themes section."""
-        lines = [f"[bold {ui_colors.GOLD}]━━━ 🎭 DECK THEMES ━━━[/]", ""]
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 🎭 Deck Themes ━━━[/]", ""]
 
         # Tribal
         if a.dominant_tribe:
@@ -566,7 +566,7 @@ class DeckAnalysisPanel(VerticalScroll):
 
     def _build_matchups_text(self, a: DeckAnalysis) -> str:
         """Build matchups section based on themes and archetype."""
-        lines = [f"[bold {ui_colors.GOLD}]━━━ ⚔ MATCHUPS ━━━[/]", ""]
+        lines = [f"[bold {ui_colors.GOLD}]━━━ ⚔ Matchups ━━━[/]", ""]
 
         strengths: set[str] = set()
         weaknesses: set[str] = set()
@@ -598,7 +598,7 @@ class DeckAnalysisPanel(VerticalScroll):
 
     def _build_synergies_text(self, a: DeckAnalysis) -> str:
         """Build synergies section with grouped card synergies and keywords."""
-        lines = [f"[bold {ui_colors.GOLD}]━━━ 🔗 SYNERGIES ━━━[/]", ""]
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 🔗 Synergies ━━━[/]", ""]
 
         # Group synergies by type for cleaner display
         if a.synergy_pairs:
@@ -669,7 +669,7 @@ class DeckAnalysisPanel(VerticalScroll):
 
     def _build_keywords_text(self, a: DeckAnalysis) -> str:
         """Build keywords section."""
-        lines = [f"[bold {ui_colors.GOLD}]━━━ 🔑 KEYWORDS ━━━[/]", ""]
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 🔑 Keywords ━━━[/]", ""]
 
         for kw, count in a.keywords[:8]:
             bar_len = min(8, count)
@@ -680,7 +680,7 @@ class DeckAnalysisPanel(VerticalScroll):
 
     def _build_curve_text(self, a: DeckAnalysis, deck: DeckWithCards) -> str:
         """Build mana curve with visual vertical bar chart."""
-        lines = [f"[bold {ui_colors.GOLD}]━━━ 📈 MANA CURVE ━━━[/]", ""]
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 📈 Mana Curve ━━━[/]", ""]
 
         # Calculate curve
         curve: dict[int, int] = dict.fromkeys(range(8), 0)
@@ -734,7 +734,7 @@ class DeckAnalysisPanel(VerticalScroll):
 
     def _build_health_text(self, a: DeckAnalysis) -> str:
         """Build deck health section with visual gauges."""
-        lines = [f"[bold {ui_colors.GOLD}]━━━ 🏥 DECK HEALTH ━━━[/]", ""]
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 🏥 Deck Health ━━━[/]", ""]
 
         total = a.card_count
         land_pct = int((a.lands / total) * 100) if total > 0 else 0
@@ -773,7 +773,7 @@ class DeckAnalysisPanel(VerticalScroll):
 
     def _build_collection_text(self, a: DeckAnalysis) -> str:
         """Build collection section with progress visualization."""
-        lines = [f"[bold {ui_colors.GOLD}]━━━ 📦 COLLECTION ━━━[/]", ""]
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 📦 Collection ━━━[/]", ""]
 
         total = a.owned_count + a.needed_count
         owned_pct = int((a.owned_count / total) * 100) if total > 0 else 0
@@ -805,7 +805,7 @@ class DeckAnalysisPanel(VerticalScroll):
 
     def _build_price_text(self, a: DeckAnalysis) -> str:
         """Build price section with cost breakdown."""
-        lines = [f"[bold {ui_colors.GOLD}]━━━ 💰 PRICE ━━━[/]", ""]
+        lines = [f"[bold {ui_colors.GOLD}]━━━ 💰 Price ━━━[/]", ""]
 
         # Price tier colors
         if a.total_price < 50:
