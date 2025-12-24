@@ -143,7 +143,7 @@ class UnifiedDatabase(BaseDatabase):
             f"""
             SELECT * FROM cards
             WHERE name COLLATE NOCASE = ?
-            AND {EXCLUDE_EXTRAS} AND {EXCLUDE_TOKENS}
+            AND {EXCLUDE_EXTRAS}
             ORDER BY release_date DESC
             LIMIT 1
             """,
@@ -323,7 +323,8 @@ class UnifiedDatabase(BaseDatabase):
         Returns:
             Tuple of (cards on this page, total matching count)
         """
-        conditions: list[str] = [EXCLUDE_EXTRAS, EXCLUDE_TOKENS]
+        conditions: list[str] = [EXCLUDE_EXTRAS]
+        # Note: Tokens are included in searches. They are excluded from recommendations/synergy.
         params: list[Any] = []
 
         if filters.name:

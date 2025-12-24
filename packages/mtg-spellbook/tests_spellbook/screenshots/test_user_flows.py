@@ -125,19 +125,22 @@ class TestUserFlowScreenshots:
 
         async def view_artist_card(pilot: Pilot[None]) -> None:
             await navigate_via_menu(pilot, MENU_ARTISTS, delay=0.5)
-            await pilot.pause(delay=0.3)
+            await pilot.pause(delay=0.5)
 
             # Navigate down and select an artist
             for _ in range(2):
                 await pilot.press("down")
-                await pilot.pause(delay=0.1)
+                await pilot.pause(delay=0.2)
             await pilot.press("enter")
-            await asyncio.sleep(1.5)
+            await asyncio.sleep(2.0)
 
             # Navigate to a specific card in results
             for _ in range(3):
                 await pilot.press("down")
-                await pilot.pause(delay=0.2)
+                await pilot.pause(delay=0.3)
+
+            # Wait for card panel to update
+            await pilot.pause(delay=0.5)
 
             # Card panel should update with the selected card
             from mtg_spellbook.widgets import CardPanel

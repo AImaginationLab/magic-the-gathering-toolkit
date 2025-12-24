@@ -251,7 +251,7 @@ Static.-card-text {
 TabPane.-tab-art {
     layout: vertical;
     align: center middle;
-    background: #0a0a0a;
+    background: #151515;
 }
 
 Static.-art-info {
@@ -651,7 +651,7 @@ ListView:focus ListItem.-highlight {
 .preview-panel {
     width: 100%;
     height: 1fr;
-    background: #0d0d0d;
+    background: #151515;
     padding: 1 2;
     align: center middle;
 }
@@ -708,7 +708,7 @@ ListView:focus ListItem.-highlight {
 .focus-view {
     width: 100%;
     height: 1fr;
-    background: #0d0d0d;
+    background: #151515;
 }
 
 .focus-view.focus-hidden {
@@ -727,7 +727,7 @@ ListView:focus ListItem.-highlight {
     height: 100%;
     min-height: 24;
     max-height: 90%;
-    background: #0d0d0d;
+    background: #151515;
     content-align: center middle;
     align: center middle;
     padding: 1 2;
@@ -870,7 +870,7 @@ ListView:focus ListItem.-highlight {
 .compare-view {
     width: 100%;
     height: 1fr;
-    background: #0d0d0d;
+    background: #151515;
 }
 
 .compare-view.compare-hidden {
@@ -892,7 +892,7 @@ ListView:focus ListItem.-highlight {
 .compare-slot {
     width: 1fr;
     height: 100%;
-    background: #0d0d0d;
+    background: #151515;
     border: none;
     margin: 0;
     padding: 0;
@@ -948,7 +948,7 @@ ListView:focus ListItem.-highlight {
 .art-loading {
     width: 100%;
     height: 5;
-    background: #0d0d0d;
+    background: #151515;
     content-align: center middle;
 }
 
