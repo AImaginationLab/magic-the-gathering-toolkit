@@ -15,6 +15,7 @@ export interface CardData {
   setCode: string;
   text?: string | null;
   imageUrl?: string | null;
+  owned?: boolean | null;
 }
 
 // Card dimensions for grid layout
@@ -151,6 +152,21 @@ const CardItem = memo(function CardItem({
           }}
           title={card.rarity}
         />
+
+        {/* Owned indicator */}
+        {card.owned && (
+          <div
+            className="absolute top-2 left-2 flex items-center justify-center"
+            style={{
+              color: colors.status.success,
+              fontSize: "14px",
+              textShadow: "0 1px 3px rgba(0,0,0,0.8)",
+            }}
+            title="In your collection"
+          >
+            <i className="ms ms-ability-treasure" />
+          </div>
+        )}
       </div>
 
       {/* Card info bar */}

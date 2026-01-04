@@ -54,6 +54,7 @@ interface CardSearchResult {
   rarity?: string | null;
   image_small?: string | null;
   set_code?: string | null;
+  owned?: boolean | null;
 }
 
 interface ManaCurveData {
@@ -436,6 +437,7 @@ function CardSearchPanel({
           rarity: c.rarity,
           image_small: c.image_small,
           set_code: c.set_code,
+          owned: c.owned,
         }));
 
         if (append) {
@@ -659,6 +661,19 @@ function CardSearchPanel({
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
+                  {/* Owned indicator */}
+                  {card.owned && (
+                    <span
+                      title="In your collection"
+                      style={{
+                        color: colors.status.success,
+                        fontSize: "12px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <i className="ms ms-ability-treasure" />
+                    </span>
+                  )}
                   <span
                     className="text-sm font-display truncate"
                     style={{ color: rarityColor }}

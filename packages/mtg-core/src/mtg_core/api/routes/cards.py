@@ -45,15 +45,21 @@ async def search_cards(
 ) -> SearchResult:
     """Search for cards with various filters."""
     db = _get_db(request)
+    user_db = request.app.state.db_manager.user
 
-    # If in_collection filter is set, get collection card names
+    # Get collection card names for filtering and/or owned indicator
     collection_names: set[str] | None = None
-    if filters.in_collection:
-        user_db = request.app.state.db_manager.user
-        if user_db is not None:
-            collection_names = await user_db.get_collection_card_names()
+    owned_cards: set[str] | None = None
 
-    return await cards_tools.search_cards(db, filters, collection_names=collection_names)
+    if user_db is not None:
+        owned_cards = await user_db.get_collection_card_names()
+        # If in_collection filter is set, also use for filtering
+        if filters.in_collection:
+            collection_names = owned_cards
+
+    return await cards_tools.search_cards(
+        db, filters, collection_names=collection_names, owned_cards=owned_cards
+    )
 
 
 @router.post("/details", response_model=CardDetail)

@@ -38,6 +38,9 @@ class CardSummary(BaseModel):
     price_usd: float | None = None
     purchase_link: str | None = None
 
+    # Collection status
+    owned: bool | None = None  # True if card is in user's collection
+
 
 class ImageUrls(BaseModel):
     """Card image URLs in various sizes."""
@@ -391,7 +394,7 @@ class PriceAnalysisResult(BaseModel):
 # =============================================================================
 
 # Type literals for synergy detection
-SynergyType = Literal["keyword", "tribal", "ability", "theme", "archetype"]
+SynergyType = Literal["keyword", "tribal", "ability", "theme", "archetype", "combo"]
 ComboType = Literal["infinite", "value", "lock", "win"]
 SuggestionCategory = Literal["synergy", "staple", "upgrade", "budget"]
 
@@ -412,6 +415,9 @@ class SynergyResult(BaseModel):
     keywords: list[str] = Field(default_factory=list)
     price_usd: float | None = None  # Price in dollars
     edhrec_rank: int | None = None  # Commander popularity (lower = more popular)
+
+    # Collection status
+    owned: bool | None = None  # True if card is in user's collection
 
     # 17Lands gameplay data (when available)
     synergy_lift: float | None = None  # % improvement when played together
@@ -483,6 +489,9 @@ class SuggestedCard(BaseModel):
     mana_cost: str | None = None
     type_line: str | None = None
     price_usd: float | None = None
+
+    # Collection status
+    owned: bool | None = None  # True if card is in user's collection
 
 
 class SuggestCardsResult(BaseModel):

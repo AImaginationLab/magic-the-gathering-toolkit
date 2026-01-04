@@ -489,8 +489,24 @@ function SplashScreen({ onReady }: SplashScreenProps): ReactNode {
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
   const [currentThemeIndex, setCurrentThemeIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [downloadDetails, setDownloadDetails] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [isDownloading, setIsDownloading] = useState(false);
   const initializingRef = useRef(false);
+
+  // Timer for elapsed time during downloads
+  useEffect(() => {
+    if (!isDownloading) {
+      setElapsedSeconds(0);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isDownloading]);
 
   // Rotate through card themes
   useEffect(() => {
@@ -553,7 +569,9 @@ function SplashScreen({ onReady }: SplashScreenProps): ReactNode {
   const runUpdateWithProgress = useCallback(
     async (force: boolean = false): Promise<boolean> => {
       return new Promise((resolve) => {
-        const downloadStartTime = Date.now();
+        // Start the elapsed time timer
+        setIsDownloading(true);
+        setDownloadProgress(0);
 
         window.electronAPI.api.setup.onUpdateProgress((data) => {
           const phase = data.phase;
@@ -561,31 +579,24 @@ function SplashScreen({ onReady }: SplashScreenProps): ReactNode {
           const message = data.message;
           const mappedProgress = 20 + progress * 60;
 
-          // Calculate elapsed time for display
-          const elapsed = Math.floor((Date.now() - downloadStartTime) / 1000);
-          const minutes = Math.floor(elapsed / 60);
-          const seconds = elapsed % 60;
-          const timeStr =
-            minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
-
-          // Show detailed progress info
-          let details: string | null = null;
+          // Update progress percentage for display
           if (progress > 0 && progress < 1) {
-            const pct = Math.round(progress * 100);
-            details = `${pct}% complete • ${timeStr} elapsed`;
+            setDownloadProgress(Math.round(progress * 100));
           }
-          setDownloadDetails(details);
 
           if (phase === "complete") {
-            setDownloadDetails(null);
+            setIsDownloading(false);
+            setDownloadProgress(null);
             window.electronAPI.api.setup.removeUpdateProgressListener();
             resolve(true);
           } else if (phase === "up_to_date") {
-            setDownloadDetails(null);
+            setIsDownloading(false);
+            setDownloadProgress(null);
             window.electronAPI.api.setup.removeUpdateProgressListener();
             resolve(true);
           } else if (phase === "error") {
-            setDownloadDetails(null);
+            setIsDownloading(false);
+            setDownloadProgress(null);
             window.electronAPI.api.setup.removeUpdateProgressListener();
             updateStatus("error", { error: message });
             resolve(false);
@@ -600,7 +611,8 @@ function SplashScreen({ onReady }: SplashScreenProps): ReactNode {
         window.electronAPI.api.setup
           .runUpdateWithProgress(force)
           .then((result) => {
-            setDownloadDetails(null);
+            setIsDownloading(false);
+            setDownloadProgress(null);
             window.electronAPI.api.setup.removeUpdateProgressListener();
             if (result.success) {
               resolve(true);
@@ -610,7 +622,8 @@ function SplashScreen({ onReady }: SplashScreenProps): ReactNode {
             }
           })
           .catch((err) => {
-            setDownloadDetails(null);
+            setIsDownloading(false);
+            setDownloadProgress(null);
             window.electronAPI.api.setup.removeUpdateProgressListener();
             updateStatus("error", {
               error: err instanceof Error ? err.message : "Update failed",
@@ -893,8 +906,14 @@ function SplashScreen({ onReady }: SplashScreenProps): ReactNode {
             </p>
 
             {/* Download progress details */}
-            {downloadDetails && (
-              <p style={styles.downloadDetails}>{downloadDetails}</p>
+            {isDownloading && (
+              <p style={styles.downloadDetails}>
+                {downloadProgress !== null && downloadProgress > 0
+                  ? `${downloadProgress}% complete`
+                  : "Starting download..."}
+                {elapsedSeconds > 0 &&
+                  ` • ${Math.floor(elapsedSeconds / 60) > 0 ? `${Math.floor(elapsedSeconds / 60)}m ` : ""}${elapsedSeconds % 60}s elapsed`}
+              </p>
             )}
 
             {status.phase === "error" && (

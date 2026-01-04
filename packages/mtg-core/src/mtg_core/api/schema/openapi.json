@@ -3126,6 +3126,17 @@
               }
             ],
             "title": "Purchase Link"
+          },
+          "owned": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owned"
           }
         },
         "type": "object",
@@ -7209,6 +7220,17 @@
               }
             ],
             "title": "Price Usd"
+          },
+          "owned": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owned"
           }
         },
         "type": "object",
@@ -7262,7 +7284,8 @@
               "tribal",
               "ability",
               "theme",
-              "archetype"
+              "archetype",
+              "combo"
             ],
             "title": "Synergy Type"
           },
@@ -7348,6 +7371,17 @@
               }
             ],
             "title": "Edhrec Rank"
+          },
+          "owned": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owned"
           },
           "synergy_lift": {
             "anyOf": [

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import sqlite3
 import tempfile
 from collections.abc import AsyncIterator, Callable
@@ -42,6 +41,10 @@ class SetupProgress:
     progress: float  # 0.0 to 1.0
     message: str
     details: str | None = None
+    # Track supplementary database status
+    combo_db_success: bool | None = None
+    gameplay_db_success: bool | None = None
+    themes_success: bool | None = None
 
 
 class SetupManager:
@@ -161,7 +164,9 @@ class SetupManager:
 
             if not needs_update and not force:
                 # Main DB is fresh, but still check supplementary DBs
-                await self._update_supplementary_databases(downloader)
+                combo_ok, gameplay_ok, themes_ok = await self._update_supplementary_databases(
+                    downloader
+                )
                 report(1.0, "Data is up to date!")
                 if self._progress_callback:
                     self._progress_callback(
@@ -169,6 +174,9 @@ class SetupManager:
                             phase=SetupPhase.UP_TO_DATE,
                             progress=1.0,
                             message="Data is up to date!",
+                            combo_db_success=combo_ok,
+                            gameplay_db_success=gameplay_ok,
+                            themes_success=themes_ok,
                         )
                     )
                 return False
@@ -201,7 +209,9 @@ class SetupManager:
                 )
 
             # Update supplementary databases
-            await self._update_supplementary_databases(downloader)
+            combo_ok, gameplay_ok, themes_ok = await self._update_supplementary_databases(
+                downloader
+            )
 
             report(1.0, "Update complete!")
             if self._progress_callback:
@@ -210,6 +220,9 @@ class SetupManager:
                         phase=SetupPhase.COMPLETE,
                         progress=1.0,
                         message="Update complete!",
+                        combo_db_success=combo_ok,
+                        gameplay_db_success=gameplay_ok,
+                        themes_success=themes_ok,
                     )
                 )
             return True
@@ -226,28 +239,54 @@ class SetupManager:
                 )
             raise
 
-    async def _update_supplementary_databases(self, downloader: DataDownloader) -> None:
-        """Update combo and gameplay databases if needed."""
+    async def _update_supplementary_databases(
+        self, downloader: DataDownloader
+    ) -> tuple[bool, bool, bool]:
+        """Update combo and gameplay databases if needed.
+
+        Returns:
+            Tuple of (combo_success, gameplay_success, themes_success)
+        """
         # Ensure directories exist
         self.combo_db_path.parent.mkdir(parents=True, exist_ok=True)
         self.gameplay_db_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Update combo database (non-fatal if fails)
-        with contextlib.suppress(Exception):
+        combo_success = False
+        gameplay_success = False
+        themes_success = False
+
+        # Update combo database
+        try:
+            self._report(0.88, "Downloading combo database...")
             await downloader.download_combo_database(self.combo_db_path)
+            combo_success = True
+            self._report(0.90, "Combo database ready")
+        except Exception as e:
+            self._report(0.90, f"Combo database unavailable: {e!s:.50}")
 
-        # Update gameplay database (non-fatal if fails)
-        with contextlib.suppress(Exception):
+        # Update gameplay database
+        try:
+            self._report(0.92, "Downloading gameplay stats...")
             await downloader.download_gameplay_database(self.gameplay_db_path)
+            gameplay_success = True
+            self._report(0.94, "Gameplay stats ready")
+        except Exception as e:
+            self._report(0.94, f"Gameplay stats unavailable: {e!s:.50}")
 
-        # Populate card themes from oracle text (non-fatal if fails)
-        with contextlib.suppress(Exception):
-            self._report(0.92, "Detecting card themes...")
+        # Populate card themes from oracle text
+        try:
+            self._report(0.95, "Detecting card themes...")
             populate_card_themes(
                 self.mtg_db_path,
                 self.gameplay_sqlite_path,
-                progress_callback=lambda p, m: self._report(0.92 + p * 0.06, m),
+                progress_callback=lambda p, m: self._report(0.95 + p * 0.04, m),
             )
+            themes_success = True
+            self._report(0.99, "Card themes indexed")
+        except Exception as e:
+            self._report(0.99, f"Theme detection skipped: {e!s:.50}")
+
+        return combo_success, gameplay_success, themes_success
 
     async def run_update_streaming(self, force: bool = False) -> AsyncIterator[SetupProgress]:
         """Run update and yield progress updates as an async iterator.

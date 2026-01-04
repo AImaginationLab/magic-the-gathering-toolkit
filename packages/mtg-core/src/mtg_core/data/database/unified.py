@@ -760,6 +760,132 @@ class UnifiedDatabase(BaseDatabase):
                         keywords.update(keyword_list)
         return keywords
 
+    async def find_cards_that_care_about(
+        self,
+        keyword: str,
+        color_identity: list[str] | None = None,
+        format_legal: str | None = None,
+        limit: int = 20,
+    ) -> list[Card]:
+        """Find cards whose oracle text references a keyword (cards that 'care about' it).
+
+        This finds synergy cards - e.g. for "Flying", finds cards with text like
+        "creatures with flying get +1/+1" or "whenever a creature with flying enters".
+
+        Args:
+            keyword: The keyword to search for in oracle text
+            color_identity: Optional color identity filter
+            format_legal: Optional format legality filter
+            limit: Maximum number of results
+
+        Returns:
+            List of cards that reference the keyword in their text (deduplicated by name)
+        """
+        conditions = [
+            EXCLUDE_EXTRAS,
+            EXCLUDE_TOKENS,
+            # Match keyword in oracle text
+            "oracle_text LIKE ?",
+            # Exclude cards that have this keyword themselves (we want cards that CARE about it)
+            "(keywords IS NULL OR keywords NOT LIKE ?)",
+        ]
+        keyword_lower = keyword.lower()
+        params: list[Any] = [f"%{keyword_lower}%", f'%"{keyword}"%']
+
+        if color_identity:
+            # Card's color identity must be a subset of allowed colors
+            # (colorless cards always allowed - empty identity is subset of anything)
+            allowed_colors = set(color_identity)
+            excluded = {"W", "U", "B", "R", "G"} - allowed_colors
+            for exc_color in excluded:
+                conditions.append(
+                    f"(color_identity IS NULL OR color_identity = '[]' OR color_identity NOT LIKE '%{exc_color}%')"
+                )
+
+        if format_legal:
+            conditions.append(f"json_extract(legalities, '$.{format_legal}') = 'legal'")
+
+        where_clause = " AND ".join(conditions)
+
+        # Use GROUP BY to deduplicate by name, keeping the best printing (lowest edhrec_rank)
+        cards: list[Card] = []
+        seen_names: set[str] = set()
+        async with self._execute(
+            f"""
+            SELECT * FROM cards
+            WHERE {where_clause}
+            ORDER BY edhrec_rank ASC NULLS LAST
+            LIMIT ?
+            """,
+            [*params, limit * 3],  # Fetch extra to account for duplicates
+        ) as cursor:
+            async for row in cursor:
+                name_lower = row["name"].lower()
+                if name_lower not in seen_names:
+                    seen_names.add(name_lower)
+                    cards.append(self._row_to_card(row))
+                    if len(cards) >= limit:
+                        break
+        return cards
+
+    async def find_cards_with_keyword(
+        self,
+        keyword: str,
+        color_identity: list[str] | None = None,
+        format_legal: str | None = None,
+        limit: int = 20,
+    ) -> list[Card]:
+        """Find cards that have a specific keyword.
+
+        Args:
+            keyword: The keyword to search for
+            color_identity: Optional color identity filter
+            format_legal: Optional format legality filter
+            limit: Maximum number of results
+
+        Returns:
+            List of cards with the keyword (deduplicated by name)
+        """
+        conditions = [
+            EXCLUDE_EXTRAS,
+            EXCLUDE_TOKENS,
+            "keywords LIKE ?",
+        ]
+        params: list[Any] = [f'%"{keyword}"%']
+
+        if color_identity:
+            allowed_colors = set(color_identity)
+            excluded = {"W", "U", "B", "R", "G"} - allowed_colors
+            for exc_color in excluded:
+                conditions.append(
+                    f"(color_identity IS NULL OR color_identity = '[]' OR color_identity NOT LIKE '%{exc_color}%')"
+                )
+
+        if format_legal:
+            conditions.append(f"json_extract(legalities, '$.{format_legal}') = 'legal'")
+
+        where_clause = " AND ".join(conditions)
+
+        cards: list[Card] = []
+        seen_names: set[str] = set()
+        async with self._execute(
+            f"""
+            SELECT * FROM cards
+            WHERE {where_clause}
+            ORDER BY edhrec_rank ASC NULLS LAST
+            LIMIT ?
+            """,
+            [*params, limit * 3],
+        ) as cursor:
+            async for row in cursor:
+                name_lower = row["name"].lower()
+                if name_lower not in seen_names:
+                    seen_names.add(name_lower)
+                    cards.append(self._row_to_card(row))
+                    if len(cards) >= limit:
+                        break
+        return cards
+
     async def get_random_artist_for_spotlight(self, min_cards: int = 20) -> ArtistSummary | None:
         """Get a random artist for the dashboard spotlight.
 

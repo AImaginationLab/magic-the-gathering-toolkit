@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { colors, synergyColors, gradients } from "../theme";
 import { CardDetailModal } from "./CardDetailModal";
 import { ManaCost, CardText } from "./ManaSymbols";
@@ -150,7 +151,7 @@ export function SynergyFinderScreen(): ReactNode {
 
         // Find synergies using the format filter captured at call time
         const result = await window.electronAPI.api.synergies.find(card.name, {
-          limit: 50,
+          limit: 100,
           formatLegal: currentFormatFilter || undefined,
         });
 
@@ -449,6 +450,7 @@ export function SynergyFinderScreen(): ReactNode {
               onHoverCard={handleCardHover}
               hoveredCardName={hoveredCardName}
               onViewCard={handleViewCard}
+              sourceCardName={sourceCard?.name ?? null}
             />
           ) : sourceCard ? (
             <NoSynergiesState />
@@ -590,6 +592,7 @@ function SynergyConstellation({
   onHoverCard,
   hoveredCardName,
   onViewCard,
+  sourceCardName,
 }: {
   categories: SynergyCategory[];
   selectedCategory: string | null;
@@ -597,6 +600,7 @@ function SynergyConstellation({
   onHoverCard: (card: SynergyResult | null) => void;
   hoveredCardName: string | null;
   onViewCard: (name: string) => void;
+  sourceCardName: string | null;
 }): ReactNode {
   return (
     <div className="space-y-6">
@@ -667,6 +671,7 @@ function SynergyConstellation({
               hoveredCardName={hoveredCardName}
               onViewCard={onViewCard}
               delay={idx * 0.1}
+              sourceCardName={sourceCardName}
             />
           ))}
       </div>
@@ -681,12 +686,14 @@ function SynergyGroup({
   hoveredCardName,
   onViewCard,
   delay,
+  sourceCardName,
 }: {
   category: SynergyCategory;
   onHoverCard: (card: SynergyResult | null) => void;
   hoveredCardName: string | null;
   onViewCard: (name: string) => void;
   delay: number;
+  sourceCardName: string | null;
 }): ReactNode {
   const [isExpanded, setIsExpanded] = useState(true);
   const catColor = getCategoryColor(category.type);
@@ -793,6 +800,7 @@ function SynergyGroup({
               onHover={onHoverCard}
               isTooltipVisible={hoveredCardName === card.name}
               onClick={() => onViewCard(card.name)}
+              sourceCardName={sourceCardName}
             />
           ))}
         </div>
@@ -801,7 +809,7 @@ function SynergyGroup({
   );
 }
 
-// Synergy card row - editorial data-dense design with accessibility
+// Synergy card row - editorial data-dense design with portal tooltip
 function SynergyCardRow({
   card,
   categoryColor,
@@ -809,6 +817,7 @@ function SynergyCardRow({
   onHover,
   isTooltipVisible,
   onClick,
+  sourceCardName,
 }: {
   card: SynergyResult;
   categoryColor: string;
@@ -816,50 +825,50 @@ function SynergyCardRow({
   onHover: (card: SynergyResult | null) => void;
   isTooltipVisible: boolean;
   onClick: () => void;
+  sourceCardName: string | null;
 }): ReactNode {
   const [isHovered, setIsHovered] = useState(false);
-  const [tooltipPosition, setTooltipPosition] = useState<"top" | "bottom">(
-    "top",
-  );
+  const [tooltipPosition, setTooltipPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   const rowRef = useRef<HTMLDivElement>(null);
 
   // Score determines left border intensity (0.3 to 1.0 opacity)
   const scoreOpacity = 0.3 + card.score * 0.7;
 
   // Check what data we have available
-  const hasGameplayData =
-    card.synergy_lift != null || card.tier != null || card.gih_wr != null;
   const hasKeywords = card.keywords && card.keywords.length > 0;
 
-  // Smart tooltip positioning - check if near top of viewport
-  useEffect(() => {
-    if (isTooltipVisible && rowRef.current) {
-      const rect = rowRef.current.getBoundingClientRect();
-      // If row is within 200px of top, show tooltip below
-      setTooltipPosition(rect.top < 200 ? "bottom" : "top");
-    }
-  }, [isTooltipVisible]);
-
   // Hover handlers - parent manages tooltip visibility
-  const handleMouseEnter = (): void => {
+  const handleMouseEnter = (e: React.MouseEvent): void => {
     setIsHovered(true);
     onHover(card);
+    // Position tooltip near the mouse cursor
+    setTooltipPosition({ x: e.clientX + 16, y: e.clientY + 16 });
   };
 
   const handleMouseLeave = (): void => {
     setIsHovered(false);
     onHover(null);
+    setTooltipPosition(null);
   };
 
   // Keyboard support
   const handleFocus = (): void => {
     setIsHovered(true);
     onHover(card);
+    // Calculate tooltip position from row bounds
+    if (rowRef.current) {
+      const rect = rowRef.current.getBoundingClientRect();
+      setTooltipPosition({ x: rect.right + 8, y: rect.top });
+    }
   };
 
   const handleBlur = (): void => {
     setIsHovered(false);
     onHover(null);
+    setTooltipPosition(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent): void => {
@@ -904,6 +913,19 @@ function SynergyCardRow({
       >
         {/* Card name - primary anchor */}
         <div className="flex-1 min-w-0 flex items-center gap-2">
+          {/* Owned indicator */}
+          {card.owned && (
+            <span
+              title="In your collection"
+              style={{
+                color: colors.status.success,
+                fontSize: "12px",
+                flexShrink: 0,
+              }}
+            >
+              <i className="ms ms-ability-treasure" />
+            </span>
+          )}
           <span
             className="font-medium truncate transition-colors duration-150"
             style={{
@@ -985,400 +1007,244 @@ function SynergyCardRow({
         </div>
       </div>
 
-      {/* Floating tooltip on hover - smart positioning */}
-      {isTooltipVisible && (
-        <div
-          id={tooltipId}
-          role="tooltip"
-          className={`absolute left-0 right-0 p-3 rounded-lg z-50 ${
-            tooltipPosition === "top" ? "bottom-full mb-2" : "top-full mt-2"
-          }`}
-          style={{
-            background: colors.void.deep,
-            border: `1px solid ${categoryColor}40`,
-            boxShadow: `0 8px 32px rgba(0,0,0,0.6), 0 0 20px ${categoryColor}15`,
-            animation:
-              tooltipPosition === "top"
-                ? "fade-in-up 0.15s ease-out"
-                : "fade-in-down 0.15s ease-out",
-          }}
-        >
-          {/* Arrow pointer - position based on tooltip direction */}
-          {tooltipPosition === "top" ? (
-            <>
-              <div
-                className="absolute left-6 top-full w-0 h-0"
-                style={{
-                  borderLeft: "8px solid transparent",
-                  borderRight: "8px solid transparent",
-                  borderTop: `8px solid ${categoryColor}40`,
-                }}
-              />
-              <div
-                className="absolute left-6 top-full w-0 h-0"
-                style={{
-                  borderLeft: "7px solid transparent",
-                  borderRight: "7px solid transparent",
-                  borderTop: `7px solid ${colors.void.deep}`,
-                  marginLeft: "1px",
-                  marginTop: "-1px",
-                }}
-              />
-            </>
-          ) : (
-            <>
-              <div
-                className="absolute left-6 bottom-full w-0 h-0"
-                style={{
-                  borderLeft: "8px solid transparent",
-                  borderRight: "8px solid transparent",
-                  borderBottom: `8px solid ${categoryColor}40`,
-                }}
-              />
-              <div
-                className="absolute left-6 bottom-full w-0 h-0"
-                style={{
-                  borderLeft: "7px solid transparent",
-                  borderRight: "7px solid transparent",
-                  borderBottom: `7px solid ${colors.void.deep}`,
-                  marginLeft: "1px",
-                  marginBottom: "-1px",
-                }}
-              />
-            </>
-          )}
-
-          {/* Tooltip header with card name */}
+      {/* Floating tooltip on hover - portal-based positioning near cursor */}
+      {isTooltipVisible &&
+        tooltipPosition &&
+        createPortal(
           <div
-            className="flex items-center gap-2 mb-2 pb-2"
-            style={{ borderBottom: `1px solid ${colors.border.subtle}` }}
-          >
-            <span
-              className="font-medium"
-              style={{ color: colors.text.bright, fontSize: "14px" }}
-            >
-              {card.name}
-            </span>
-            {card.tier && (
-              <span
-                className="px-1.5 py-0.5 rounded font-bold"
-                style={{
-                  background: getTierColor(card.tier),
-                  color: colors.void.deepest,
-                  fontSize: "11px",
-                }}
-              >
-                {card.tier}-Tier
-              </span>
-            )}
-          </div>
-
-          {/* Synergy reason - pull-quote style */}
-          <div
-            className="px-3 py-2 rounded-lg mb-3"
+            id={tooltipId}
+            role="tooltip"
+            className="p-3 rounded-lg pointer-events-none space-y-2"
             style={{
-              background: `${categoryColor}10`,
-              borderLeft: `3px solid ${categoryColor}`,
+              position: "fixed",
+              left: tooltipPosition.x,
+              top: tooltipPosition.y,
+              width: 280,
+              maxHeight: "80vh",
+              overflowY: "auto",
+              zIndex: 9999,
+              background: `linear-gradient(135deg, ${colors.void.medium} 0%, ${colors.void.deep} 100%)`,
+              border: `1px solid ${colors.border.standard}`,
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)",
+              animation: "fade-in 0.15s ease-out",
             }}
           >
-            <p
-              style={{
-                color: colors.text.bright,
-                fontSize: "13px",
-                lineHeight: 1.5,
-                fontStyle: "italic",
-                margin: 0,
-              }}
+            {/* Synergy pair header */}
+            <div
+              className="pb-2 border-b"
+              style={{ borderColor: colors.border.subtle }}
             >
+              {/* Source card → Synergy card */}
+              <div className="flex items-center gap-2 text-xs">
+                {sourceCardName && (
+                  <>
+                    <span style={{ color: colors.text.muted }}>
+                      {sourceCardName}
+                    </span>
+                    <span style={{ color: categoryColor }}>+</span>
+                  </>
+                )}
+                <span
+                  className="font-display uppercase tracking-wider font-medium"
+                  style={{ color: colors.gold.standard }}
+                >
+                  {card.name}
+                </span>
+                {card.tier && (
+                  <span
+                    className="px-1.5 py-0.5 rounded font-bold"
+                    style={{
+                      background: getTierColor(card.tier),
+                      color: colors.void.deepest,
+                      fontSize: "10px",
+                    }}
+                  >
+                    {card.tier}
+                  </span>
+                )}
+              </div>
+
+              {/* Mana cost */}
+              {card.mana_cost && (
+                <div className="mt-1">
+                  <ManaCost cost={card.mana_cost} size="small" />
+                </div>
+              )}
+            </div>
+
+            {/* Synergy reason - why they work together */}
+            <div className="text-sm" style={{ color: categoryColor }}>
               {card.reason}
-            </p>
-          </div>
-
-          {/* Card classification badges */}
-          {(card.is_bomb || card.is_synergy_dependent) && (
-            <div className="flex gap-2 mb-3">
-              {card.is_bomb && (
-                <span
-                  className="px-2 py-1 rounded text-xs font-bold"
-                  style={{
-                    background: `${colors.status.error}20`,
-                    border: `1px solid ${colors.status.error}40`,
-                    color: colors.status.error,
-                  }}
-                >
-                  💣 Bomb
-                </span>
-              )}
-              {card.is_synergy_dependent && (
-                <span
-                  className="px-2 py-1 rounded text-xs font-bold"
-                  style={{
-                    background: `${categoryColor}20`,
-                    border: `1px solid ${categoryColor}40`,
-                    color: categoryColor,
-                  }}
-                >
-                  🔗 Synergy-dependent
-                </span>
-              )}
             </div>
-          )}
 
-          {/* Stats row - compact horizontal layout with better sizing */}
-          {(hasGameplayData ||
-            card.price_usd != null ||
-            card.edhrec_rank != null) && (
-            <div className="flex flex-wrap gap-x-5 gap-y-2">
-              {card.synergy_lift != null && (
-                <div className="flex items-baseline gap-1.5">
+            {/* Card classification badges */}
+            {(card.is_bomb || card.is_synergy_dependent) && (
+              <div className="flex gap-2">
+                {card.is_bomb && (
                   <span
-                    style={{
-                      color: colors.text.dim,
-                      fontSize: "11px",
-                      fontWeight: 500,
-                    }}
+                    className="flex items-center gap-1 text-sm font-medium"
+                    style={{ color: colors.status.error }}
                   >
-                    Synergy lift
+                    <span>+</span>
+                    <span>Bomb</span>
                   </span>
+                )}
+                {card.is_synergy_dependent && (
                   <span
-                    className="font-bold"
-                    style={{
-                      color:
-                        card.synergy_lift > 0
-                          ? colors.status.success
-                          : card.synergy_lift < -0.02
-                            ? colors.status.error
-                            : colors.text.standard,
-                      fontSize: "14px",
-                    }}
+                    className="flex items-center gap-1 text-sm font-medium"
+                    style={{ color: categoryColor }}
                   >
-                    {card.synergy_lift > 0
-                      ? "↑ +"
-                      : card.synergy_lift < -0.02
-                        ? "↓ "
-                        : ""}
-                    {(card.synergy_lift * 100).toFixed(1)}%
+                    <span>+</span>
+                    <span>Synergy-dependent</span>
                   </span>
-                </div>
-              )}
+                )}
+              </div>
+            )}
 
-              {card.win_rate_together != null && (
-                <div className="flex items-baseline gap-1.5">
-                  <span
-                    style={{
-                      color: colors.text.dim,
-                      fontSize: "11px",
-                      fontWeight: 500,
-                    }}
-                  >
-                    WR together
-                  </span>
-                  <span
-                    className="font-bold"
-                    style={{ color: colors.text.bright, fontSize: "14px" }}
-                  >
-                    {(card.win_rate_together * 100).toFixed(1)}%
-                  </span>
-                </div>
-              )}
-
-              {card.gih_wr != null && (
-                <div className="flex items-baseline gap-1.5">
-                  <span
-                    style={{
-                      color: colors.text.dim,
-                      fontSize: "11px",
-                      fontWeight: 500,
-                    }}
-                  >
-                    GIH WR
-                  </span>
-                  <span
-                    className="font-bold"
-                    style={{ color: colors.text.bright, fontSize: "14px" }}
-                  >
-                    {(card.gih_wr * 100).toFixed(1)}%
-                  </span>
-                </div>
-              )}
-
-              {card.iwd != null && (
-                <div className="flex items-baseline gap-1.5">
-                  <span
-                    style={{
-                      color: colors.text.dim,
-                      fontSize: "11px",
-                      fontWeight: 500,
-                    }}
-                  >
-                    IWD
-                  </span>
-                  <span
-                    className="font-bold"
-                    style={{
-                      color:
-                        card.iwd > 0
-                          ? colors.status.success
-                          : card.iwd < 0
-                            ? colors.status.error
-                            : colors.text.standard,
-                      fontSize: "14px",
-                    }}
-                  >
-                    {card.iwd > 0 ? "+" : ""}
-                    {(card.iwd * 100).toFixed(1)}%
-                  </span>
-                </div>
-              )}
-
-              {card.sample_size != null && card.sample_size > 0 && (
-                <div className="flex items-baseline gap-1.5">
-                  <span
-                    style={{
-                      color: colors.text.dim,
-                      fontSize: "11px",
-                      fontWeight: 500,
-                    }}
-                  >
-                    Games
-                  </span>
-                  <span
-                    style={{ color: colors.text.standard, fontSize: "14px" }}
-                  >
-                    {card.sample_size.toLocaleString()}
-                  </span>
-                </div>
-              )}
-
-              {card.price_usd != null && (
-                <div className="flex items-baseline gap-1.5">
-                  <span
-                    style={{
-                      color: colors.text.dim,
-                      fontSize: "11px",
-                      fontWeight: 500,
-                    }}
-                  >
-                    Price
-                  </span>
-                  <span
-                    style={{ color: colors.gold.standard, fontSize: "14px" }}
-                  >
-                    ${card.price_usd.toFixed(2)}
-                  </span>
-                </div>
-              )}
-
-              {card.edhrec_rank != null && (
-                <div className="flex items-baseline gap-1.5">
-                  <span
-                    style={{
-                      color: colors.text.dim,
-                      fontSize: "11px",
-                      fontWeight: 500,
-                    }}
-                  >
-                    EDHREC
-                  </span>
-                  <span
-                    style={{ color: colors.text.standard, fontSize: "14px" }}
-                  >
-                    #{card.edhrec_rank.toLocaleString()}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Best archetypes */}
-          {card.best_archetypes && card.best_archetypes.length > 0 && (
-            <div className="mt-3 flex items-center gap-2">
-              <span
+            {/* Stats - vertical list like DeckImpactTooltip */}
+            {card.synergy_lift != null && (
+              <div
+                className="flex items-center gap-2 text-sm font-medium"
                 style={{
-                  color: colors.text.dim,
-                  fontSize: "11px",
-                  fontWeight: 500,
+                  color:
+                    card.synergy_lift > 0
+                      ? "#4CAF50"
+                      : card.synergy_lift < -0.02
+                        ? "#E54545"
+                        : "#40C4D0",
                 }}
               >
-                Best in:
-              </span>
-              <div className="flex gap-1">
+                <span>
+                  {card.synergy_lift > 0 ? "+" : ""}
+                  {(card.synergy_lift * 100).toFixed(1)}%
+                </span>
+                <span className="text-xs" style={{ color: colors.text.muted }}>
+                  synergy lift
+                </span>
+              </div>
+            )}
+
+            {card.gih_wr != null && (
+              <div
+                className="flex items-center gap-2 text-sm font-medium"
+                style={{ color: "#40C4D0" }}
+              >
+                <span>{(card.gih_wr * 100).toFixed(1)}%</span>
+                <span className="text-xs" style={{ color: colors.text.muted }}>
+                  GIH win rate
+                </span>
+              </div>
+            )}
+
+            {card.iwd != null && (
+              <div
+                className="flex items-center gap-2 text-sm font-medium"
+                style={{
+                  color:
+                    card.iwd > 0
+                      ? "#4CAF50"
+                      : card.iwd < 0
+                        ? "#E54545"
+                        : "#40C4D0",
+                }}
+              >
+                <span>
+                  {card.iwd > 0 ? "+" : ""}
+                  {(card.iwd * 100).toFixed(1)}%
+                </span>
+                <span className="text-xs" style={{ color: colors.text.muted }}>
+                  IWD
+                </span>
+              </div>
+            )}
+
+            {card.price_usd != null && (
+              <div
+                className="flex items-center gap-2 text-sm font-medium"
+                style={{ color: colors.gold.standard }}
+              >
+                <span>${card.price_usd.toFixed(2)}</span>
+                <span className="text-xs" style={{ color: colors.text.muted }}>
+                  price
+                </span>
+              </div>
+            )}
+
+            {card.edhrec_rank != null && (
+              <div
+                className="flex items-center gap-2 text-sm"
+                style={{ color: colors.text.standard }}
+              >
+                <span>#{card.edhrec_rank.toLocaleString()}</span>
+                <span className="text-xs" style={{ color: colors.text.muted }}>
+                  EDHREC rank
+                </span>
+              </div>
+            )}
+
+            {/* Combo connections */}
+            {card.combo_count != null && card.combo_count > 0 && (
+              <div className="space-y-1">
+                <div
+                  className="flex items-center gap-2 text-sm font-medium"
+                  style={{ color: colors.gold.standard }}
+                >
+                  <span>⚡</span>
+                  <span>
+                    {card.combo_count} combo{card.combo_count > 1 ? "s" : ""}
+                  </span>
+                </div>
+                {card.combo_preview && (
+                  <div
+                    className="text-xs pl-5"
+                    style={{ color: colors.text.muted, lineHeight: 1.4 }}
+                  >
+                    {card.combo_preview.length > 80
+                      ? card.combo_preview.slice(0, 80) + "..."
+                      : card.combo_preview}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Best archetypes */}
+            {card.best_archetypes && card.best_archetypes.length > 0 && (
+              <div className="flex flex-wrap gap-1 pt-1">
                 {card.best_archetypes.map((arch) => (
                   <span
                     key={arch}
-                    className="px-1.5 py-0.5 rounded font-medium"
+                    className="px-1.5 py-0.5 rounded text-xs"
                     style={{
                       background: colors.void.lighter,
-                      color: colors.text.standard,
-                      fontSize: "11px",
+                      color: colors.text.muted,
                     }}
                   >
                     {arch}
                   </span>
                 ))}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Combo connections */}
-          {card.combo_count != null && card.combo_count > 0 && (
-            <div
-              className="mt-3 p-2 rounded"
-              style={{
-                background: `${colors.gold.dim}15`,
-                border: `1px solid ${colors.gold.dim}30`,
-              }}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <span style={{ fontSize: "12px" }}>⚡</span>
-                <span
-                  style={{
-                    color: colors.gold.standard,
-                    fontSize: "11px",
-                    fontWeight: 600,
-                  }}
-                >
-                  {card.combo_count} known combo
-                  {card.combo_count > 1 ? "s" : ""}
-                </span>
+            {/* Keywords */}
+            {hasKeywords && card.keywords && (
+              <div className="flex flex-wrap gap-1 pt-1">
+                {card.keywords.slice(0, 6).map((kw) => (
+                  <span
+                    key={kw}
+                    className="px-1.5 py-0.5 rounded text-xs"
+                    style={{
+                      background: `${categoryColor}15`,
+                      color: colors.text.muted,
+                    }}
+                  >
+                    {kw}
+                  </span>
+                ))}
               </div>
-              {card.combo_preview && (
-                <p
-                  style={{
-                    color: colors.text.dim,
-                    fontSize: "11px",
-                    margin: 0,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  {card.combo_preview.length > 100
-                    ? card.combo_preview.slice(0, 100) + "..."
-                    : card.combo_preview}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Keywords - compact with better sizing */}
-          {hasKeywords && card.keywords && (
-            <div className="mt-3 flex flex-wrap gap-1">
-              {card.keywords.slice(0, 6).map((kw) => (
-                <span
-                  key={kw}
-                  className="px-1.5 py-0.5 rounded"
-                  style={{
-                    background: `${categoryColor}15`,
-                    color: colors.text.dim,
-                    fontSize: "11px",
-                  }}
-                >
-                  {kw}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

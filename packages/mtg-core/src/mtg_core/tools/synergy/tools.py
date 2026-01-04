@@ -75,9 +75,38 @@ async def find_synergies(
     seen_names: set[str] = {normalize_card_name(source_card.name)}
     color_identity = source_card.color_identity or None
 
-    # Pass 1: Keyword synergies
+    # Pass 1: Keyword synergies - find cards that "care about" each keyword
     if source_card.keywords:
         for keyword in source_card.keywords:
+            # Dynamic DB lookup: find cards that reference this keyword in their text
+            caring_cards = await db.find_cards_that_care_about(
+                keyword,
+                color_identity=color_identity,
+                format_legal=format_legal,
+                limit=10,
+            )
+            for card in caring_cards:
+                normalized = normalize_card_name(card.name)
+                if normalized not in seen_names:
+                    seen_names.add(normalized)
+                    price_usd = card.price_usd / 100.0 if card.price_usd else None
+                    synergies.append(
+                        SynergyResult(
+                            name=card.name,
+                            synergy_type="keyword",
+                            reason=f"Synergizes with {keyword}",
+                            score=calculate_synergy_score(card, source_card, "keyword"),
+                            mana_cost=card.mana_cost,
+                            type_line=card.type,
+                            image_small=card.image_small,
+                            rarity=card.rarity,
+                            keywords=card.keywords or [],
+                            price_usd=price_usd,
+                            edhrec_rank=card.edhrec_rank,
+                        )
+                    )
+
+            # Also check hardcoded synergies for specific keyword interactions
             if keyword in KEYWORD_SYNERGIES:
                 terms = [(t, f"{keyword}: {r}") for t, r in KEYWORD_SYNERGIES[keyword]]
                 synergies.extend(
@@ -150,6 +179,11 @@ async def find_synergies(
                     )
                 )
 
+    # Pass 5: Combo synergies - find cards that combo with source card
+    synergies = await _add_combo_synergies(
+        db, source_card, synergies, seen_names, color_identity, format_legal
+    )
+
     synergies.sort(key=lambda s: s.score, reverse=True)
     synergies = synergies[:max_results]
 
@@ -206,6 +240,119 @@ async def _add_tribal_matches(
                     edhrec_rank=card.edhrec_rank,
                 )
             )
+
+
+async def _add_combo_synergies(
+    db: UnifiedDatabase,
+    source_card: Card,
+    synergies: list[SynergyResult],
+    seen_names: set[str],
+    color_identity: list[str] | None,
+    format_legal: str | None,  # noqa: ARG001
+) -> list[SynergyResult]:
+    """Add combo partners as synergy results.
+
+    Looks up combos containing the source card and adds other combo pieces
+    as synergy results with type "combo".
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        from ...tools.recommendations.spellbook_combos import get_spellbook_detector
+
+        spellbook = await get_spellbook_detector()
+        if not spellbook.is_available:
+            logger.debug("Spellbook not available for combo synergies")
+            return synergies
+    except Exception as e:
+        logger.warning("Failed to initialize spellbook for combo synergies: %s", e)
+        return synergies
+
+    try:
+        # Find combos containing the source card
+        combos = await spellbook.find_combos_for_card(source_card.name, limit=30)
+        if not combos:
+            return synergies
+
+        # Track combo partners and their best combo descriptions
+        partner_combos: dict[str, tuple[str, int]] = {}  # card_name -> (description, popularity)
+
+        for combo in combos:
+            for card_name in combo.card_names:
+                normalized = card_name.lower()
+                # Skip source card
+                if normalized == source_card.name.lower():
+                    continue
+                # Track best combo for this partner (highest popularity)
+                if (
+                    normalized not in partner_combos
+                    or combo.popularity > partner_combos[normalized][1]
+                ):
+                    # Build a reason from the combo's produces
+                    if combo.produces:
+                        reason = ", ".join(combo.produces[:2])
+                    else:
+                        reason = (
+                            combo.description[:60] + "..."
+                            if len(combo.description) > 60
+                            else combo.description
+                        )
+                    partner_combos[normalized] = (reason, combo.popularity)
+
+        # Look up card details and add as synergy results
+        added_count = 0
+        for card_name_lower, (reason, popularity) in partner_combos.items():
+            # Skip if already in synergies
+            if card_name_lower in seen_names:
+                continue
+
+            # Try to get card details from database
+            try:
+                card = await db.get_card_by_name(card_name_lower)
+                if not card:
+                    continue
+
+                # Check color identity filter
+                if (
+                    color_identity
+                    and card.color_identity
+                    and not all(c in color_identity for c in card.color_identity)
+                ):
+                    continue
+
+                seen_names.add(card_name_lower)
+                price_usd = card.price_usd / 100.0 if card.price_usd else None
+
+                # Score based on popularity (normalized to 0-1)
+                score = min(1.0, popularity / 1000.0) * 0.9 + 0.1
+
+                synergies.append(
+                    SynergyResult(
+                        name=card.name,
+                        synergy_type="combo",
+                        reason=f"Combo: {reason}",
+                        score=score,
+                        mana_cost=card.mana_cost,
+                        type_line=card.type,
+                        image_small=card.image_small,
+                        rarity=card.rarity,
+                        keywords=card.keywords or [],
+                        price_usd=price_usd,
+                        edhrec_rank=card.edhrec_rank,
+                    )
+                )
+                added_count += 1
+            except Exception:
+                # Skip cards we can't look up
+                continue
+
+        logger.debug("Added %d combo synergies for %s", added_count, source_card.name)
+        return synergies
+    except Exception as e:
+        logger.warning("Error finding combo synergies: %s", e)
+        return synergies
 
 
 async def _enrich_with_gameplay_data(

@@ -9,7 +9,8 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "package": "electron-vite build && electron-builder --dir",
-    "make": "electron-vite build && electron-builder",
+    "build:sidecar": "node scripts/build-sidecar.js",
+    "make": "npm run build:sidecar && electron-vite build && electron-builder",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "typecheck:node": "tsc -p tsconfig.node.json --noEmit",
     "typecheck:web": "tsc -p tsconfig.web.json --noEmit",
@@ -68,6 +69,15 @@
     },
     "files": [
       "out/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/sidecar",
+        "to": "sidecar",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "mac": {
       "target": [

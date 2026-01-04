@@ -10,6 +10,9 @@
  */
 
 import { spawn, ChildProcess } from "child_process";
+import { app } from "electron";
+import path from "path";
+import fs from "fs";
 import { logger } from "./utils";
 
 const DEFAULT_PORT = 8765;
@@ -139,21 +142,56 @@ export class SidecarManager {
   }
 
   /**
+   * Get the path to the bundled executable, if it exists.
+   * With onedir mode, PyInstaller outputs: sidecar/mtg-api/mtg-api (folder containing exe)
+   */
+  private getBundledExecutablePath(): string | null {
+    const exeName = process.platform === "win32" ? "mtg-api.exe" : "mtg-api";
+
+    if (app.isPackaged) {
+      // In packaged app, resources are in process.resourcesPath
+      // onedir structure: sidecar/mtg-api/mtg-api
+      return path.join(process.resourcesPath, "sidecar", "mtg-api", exeName);
+    }
+
+    // In dev, check local resources folder (won't exist unless you run build:sidecar)
+    // onedir structure: resources/sidecar/mtg-api/mtg-api
+    const devPath = path.join(
+      __dirname,
+      "../../resources/sidecar/mtg-api",
+      exeName,
+    );
+    return fs.existsSync(devPath) ? devPath : null;
+  }
+
+  /**
    * Spawn the Python process.
    */
   private async spawnProcess(): Promise<void> {
     return new Promise((resolve, reject) => {
-      // TODO: Production mode - use bundled Python executable
-      // For now, we use `uv run mtg-api` which requires uv to be installed
-      const command = "uv";
-      const args = [
-        "run",
-        "mtg-api",
-        "--host",
-        this.host,
-        "--port",
-        String(this.port),
-      ];
+      let command: string;
+      let args: string[];
+
+      const bundledPath = this.getBundledExecutablePath();
+
+      if (bundledPath && fs.existsSync(bundledPath)) {
+        // Production: use bundled executable
+        command = bundledPath;
+        args = ["--host", this.host, "--port", String(this.port)];
+        logger.info(`Using bundled sidecar: ${bundledPath}`);
+      } else {
+        // Development: use uv run
+        command = "uv";
+        args = [
+          "run",
+          "mtg-api",
+          "--host",
+          this.host,
+          "--port",
+          String(this.port),
+        ];
+        logger.info("Using development sidecar (uv run)");
+      }
 
       logger.debug(`Spawning: ${command} ${args.join(" ")}`);
 

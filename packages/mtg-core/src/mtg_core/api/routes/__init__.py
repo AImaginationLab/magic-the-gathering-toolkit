@@ -2,9 +2,12 @@
 
 from fastapi import APIRouter
 
+# Light routes - no heavy dependencies
 from .artists import router as artists_router
 from .cards import router as cards_router
 from .collection import router as collection_router
+
+# Heavy routes (sklearn/scipy) - imported but sklearn loaded lazily at runtime
 from .combos import router as combos_router
 from .decks import router as decks_router
 from .recommendations import router as recommendations_router

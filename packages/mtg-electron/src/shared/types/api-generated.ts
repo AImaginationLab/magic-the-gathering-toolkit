@@ -1280,6 +1280,8 @@ export interface components {
             price_usd?: number | null;
             /** Purchase Link */
             purchase_link?: string | null;
+            /** Owned */
+            owned?: boolean | null;
         };
         /**
          * CollectionCardResponse
@@ -3003,6 +3005,8 @@ export interface components {
             type_line?: string | null;
             /** Price Usd */
             price_usd?: number | null;
+            /** Owned */
+            owned?: boolean | null;
         };
         /**
          * SynergyPair
@@ -3029,7 +3033,7 @@ export interface components {
              * Synergy Type
              * @enum {string}
              */
-            synergy_type: "keyword" | "tribal" | "ability" | "theme" | "archetype";
+            synergy_type: "keyword" | "tribal" | "ability" | "theme" | "archetype" | "combo";
             /** Reason */
             reason: string;
             /** Score */
@@ -3048,6 +3052,8 @@ export interface components {
             price_usd?: number | null;
             /** Edhrec Rank */
             edhrec_rank?: number | null;
+            /** Owned */
+            owned?: boolean | null;
             /** Synergy Lift */
             synergy_lift?: number | null;
             /** Win Rate Together */

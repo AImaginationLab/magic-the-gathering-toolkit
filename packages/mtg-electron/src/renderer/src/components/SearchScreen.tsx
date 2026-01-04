@@ -29,6 +29,7 @@ function toCardData(card: CardSummary): CardData {
     setCode: card.set_code ?? "",
     text: null, // CardSummary doesn't include oracle text
     imageUrl: card.image ?? card.image_small,
+    owned: card.owned,
   };
 }
 

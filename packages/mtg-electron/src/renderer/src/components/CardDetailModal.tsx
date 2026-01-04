@@ -530,6 +530,41 @@ export function CardDetailModal({
     [displayData.name, currentPrinting],
   );
 
+  // Handler for adding card to collection
+  const handleAddToCollection = useCallback(async (): Promise<void> => {
+    try {
+      // Build import text with set code if available
+      const setCode = currentPrinting?.set_code;
+      const importText = setCode
+        ? `1 ${displayData.name} (${setCode.toUpperCase()})`
+        : `1 ${displayData.name}`;
+
+      const result = await window.electronAPI.collection.import(
+        importText,
+        "add",
+      );
+
+      if (result.errors && result.errors.length > 0) {
+        setAddToDeckStatus({
+          type: "error",
+          message: result.errors[0],
+        });
+      } else {
+        setAddToDeckStatus({
+          type: "success",
+          message: "Added to collection",
+        });
+      }
+      setTimeout(() => setAddToDeckStatus(null), 3000);
+    } catch (err) {
+      setAddToDeckStatus({
+        type: "error",
+        message:
+          err instanceof Error ? err.message : "Failed to add to collection",
+      });
+    }
+  }, [displayData.name, currentPrinting]);
+
   // Load card data - printings first (cached!), then details in background
   useEffect(() => {
     async function loadCardData(): Promise<void> {
@@ -1383,10 +1418,7 @@ export function CardDetailModal({
 
               {/* Add to Collection button */}
               <button
-                onClick={() => {
-                  // TODO: Implement add to collection
-                  console.log("Add to collection:", displayData.name);
-                }}
+                onClick={handleAddToCollection}
                 style={{
                   display: "flex",
                   alignItems: "center",

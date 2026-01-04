@@ -27,6 +27,11 @@ dependencies = [
     "symspellpy>=6.9.0",
 ]
 
+[project.optional-dependencies]
+build = [
+    "pyinstaller>=6.0",
+]
+
 [project.scripts]
 create-mtg-db = "mtg_core.scripts.create_mtg_db:app"
 download-17lands = "mtg_core.scripts.download_17lands:app"

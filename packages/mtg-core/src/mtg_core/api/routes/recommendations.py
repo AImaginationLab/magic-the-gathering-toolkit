@@ -71,13 +71,23 @@ async def suggest_cards_for_deck(
 ) -> SuggestCardsResult:
     """Suggest cards to add to a deck based on themes and synergies."""
     db = request.app.state.db_manager.db
-    return await suggest_cards(
+    user_db = request.app.state.db_manager.user
+
+    result = await suggest_cards(
         db,
         deck_cards=body.deck_cards,
         format_legal=body.format_legal,
         budget_max=body.budget_max,
         max_results=body.max_results,
     )
+
+    # Populate owned field if user database is available
+    if user_db is not None:
+        owned_cards = await user_db.get_collection_card_names()
+        for suggestion in result.suggestions:
+            suggestion.owned = suggestion.name in owned_cards
+
+    return result
 
 
 @router.post("/commanders", response_model=list[dict[str, Any]])

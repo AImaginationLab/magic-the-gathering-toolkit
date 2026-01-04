@@ -173,6 +173,9 @@ interface ElectronAPI {
           progress: number;
           message: string;
           details?: string;
+          combo_db_success?: boolean | null;
+          gameplay_db_success?: boolean | null;
+          themes_success?: boolean | null;
         }) => void,
       ) => void;
       removeUpdateProgressListener: () => void;

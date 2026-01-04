@@ -10,11 +10,12 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from numpy.typing import NDArray
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 
+# Lazy imports for sklearn/scipy to speed up startup time
+# These are only imported when actually needed (in initialize())
 if TYPE_CHECKING:
     from scipy.sparse import csr_matrix
+    from sklearn.feature_extraction.text import TfidfVectorizer
 
     from mtg_core.data.database import UnifiedDatabase
 
@@ -60,6 +61,9 @@ class CardRecommender:
 
         start = time.perf_counter()
         logger.info("Initializing TF-IDF card recommender...")
+
+        # Lazy import sklearn here to avoid slow startup
+        from sklearn.feature_extraction.text import TfidfVectorizer
 
         # Fetch all unique cards (one per name, prefer non-promo)
         cards = await self._fetch_unique_cards(db)
@@ -230,6 +234,8 @@ class CardRecommender:
         Returns:
             List of CardRecommendation sorted by similarity score.
         """
+        from sklearn.metrics.pairwise import cosine_similarity
+
         if not self._initialized or self._tfidf_matrix is None:
             raise RuntimeError("Recommender not initialized. Call initialize() first.")
 
@@ -288,6 +294,8 @@ class CardRecommender:
         Returns:
             List of CardRecommendation sorted by similarity score.
         """
+        from sklearn.metrics.pairwise import cosine_similarity
+
         if not self._initialized or self._vectorizer is None or self._tfidf_matrix is None:
             raise RuntimeError("Recommender not initialized. Call initialize() first.")
 
@@ -335,6 +343,8 @@ class CardRecommender:
         Returns:
             List of CardRecommendation sorted by similarity score.
         """
+        from sklearn.metrics.pairwise import cosine_similarity
+
         if not self._initialized or self._tfidf_matrix is None:
             raise RuntimeError("Recommender not initialized. Call initialize() first.")
 

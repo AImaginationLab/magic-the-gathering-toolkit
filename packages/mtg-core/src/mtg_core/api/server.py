@@ -118,11 +118,13 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    # Use app object directly instead of string import for PyInstaller compatibility
+    # Note: reload=True won't work with direct app reference, but it's a dev-only feature
     uvicorn.run(
-        "mtg_core.api.server:app",
+        app,
         host=args.host,
         port=args.port,
-        reload=args.reload,
+        reload=False,  # reload requires string import, disable for bundled builds
         log_level=args.log_level,
     )
 

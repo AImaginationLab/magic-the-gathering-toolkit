@@ -52,6 +52,10 @@ class SetupProgress(BaseModel):
     progress: float  # 0.0 to 1.0
     message: str
     details: str | None = None
+    # Supplementary database status (set on completion)
+    combo_db_success: bool | None = None
+    gameplay_db_success: bool | None = None
+    themes_success: bool | None = None
 
 
 @router.get("/status")
@@ -287,6 +291,9 @@ async def run_update_stream(force: bool = False) -> StreamingResponse:
                 "progress": progress.progress,
                 "message": progress.message,
                 "details": progress.details,
+                "combo_db_success": progress.combo_db_success,
+                "gameplay_db_success": progress.gameplay_db_success,
+                "themes_success": progress.themes_success,
             }
             yield f"data: {json.dumps(data)}\n\n"
 

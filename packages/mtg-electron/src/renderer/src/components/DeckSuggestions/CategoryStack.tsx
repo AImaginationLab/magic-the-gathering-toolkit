@@ -61,7 +61,10 @@ export function CategoryStack({
     <div className="flex flex-col">
       {/* Stack header */}
       <div className="flex items-center gap-2 mb-2">
-        <i className={`ms ${config.icon}`} style={{ color: config.color, fontSize: 14 }} />
+        <i
+          className={`ms ${config.icon}`}
+          style={{ color: config.color, fontSize: 14 }}
+        />
         <span
           className="text-xs font-display tracking-wider"
           style={{ color: config.color }}
@@ -145,8 +148,12 @@ export function CategoryStack({
             onClick={() => setIsExpanded(false)}
             className="absolute -top-6 right-0 text-xs transition-colors"
             style={{ color: colors.text.muted }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = colors.text.standard)}
-            onMouseLeave={(e) => (e.currentTarget.style.color = colors.text.muted)}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.color = colors.text.standard)
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.color = colors.text.muted)
+            }
           >
             Collapse ×
           </button>
@@ -179,6 +186,19 @@ export function CategoryStack({
                 }}
               >
                 <div className="flex items-start justify-between gap-2 mb-1">
+                  {/* Owned indicator */}
+                  {card.owned && (
+                    <span
+                      title="In your collection"
+                      style={{
+                        color: colors.status.success,
+                        fontSize: "12px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <i className="ms ms-ability-treasure" />
+                    </span>
+                  )}
                   <span
                     className="text-sm font-display truncate"
                     style={{ color: colors.text.bright }}
@@ -186,7 +206,9 @@ export function CategoryStack({
                     {card.name}
                   </span>
                 </div>
-                {card.mana_cost && <ManaCost cost={card.mana_cost} size="small" />}
+                {card.mana_cost && (
+                  <ManaCost cost={card.mana_cost} size="small" />
+                )}
                 {card.type_line && (
                   <p
                     className="text-xs truncate mt-1"
