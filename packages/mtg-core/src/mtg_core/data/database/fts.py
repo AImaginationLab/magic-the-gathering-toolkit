@@ -125,7 +125,8 @@ async def search_cards_fts(
         uuids: list[str] = []
         async with db.execute(
             """
-            SELECT id FROM cards_fts
+            SELECT c.id FROM cards_fts fts
+            JOIN cards c ON c.rowid = fts.rowid
             WHERE cards_fts MATCH ?
             ORDER BY bm25(cards_fts)
             LIMIT ?
@@ -177,7 +178,8 @@ async def search_cards_fts_with_params(
         uuids: list[str] = []
         async with db.execute(
             f"""
-            SELECT id FROM cards_fts
+            SELECT c.id FROM cards_fts fts
+            JOIN cards c ON c.rowid = fts.rowid
             WHERE {where_clause}
             ORDER BY bm25(cards_fts)
             LIMIT ?

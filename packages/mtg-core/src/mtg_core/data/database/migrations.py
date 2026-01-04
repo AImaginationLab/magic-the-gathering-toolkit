@@ -134,49 +134,8 @@ async def run_mtg_migrations(conn: aiosqlite.Connection) -> dict[str, bool]:
         "CREATE INDEX idx_cards_setcode_number ON cards(setCode, number)",
     )
 
-    # Index: cardLegalities by format + status (for format-legal card filtering)
-    # Using commander as primary example - most common format filter
-    results["idx_cardlegalities_commander"] = await _create_index_if_not_exists(
-        conn,
-        "idx_cardlegalities_commander",
-        "CREATE INDEX idx_cardlegalities_commander ON cardLegalities(uuid) WHERE commander = 'Legal'",
-    )
-
-    results["idx_cardlegalities_modern"] = await _create_index_if_not_exists(
-        conn,
-        "idx_cardlegalities_modern",
-        "CREATE INDEX idx_cardlegalities_modern ON cardLegalities(uuid) WHERE modern = 'Legal'",
-    )
-
-    results["idx_cardlegalities_standard"] = await _create_index_if_not_exists(
-        conn,
-        "idx_cardlegalities_standard",
-        "CREATE INDEX idx_cardlegalities_standard ON cardLegalities(uuid) WHERE standard = 'Legal'",
-    )
-
-    results["idx_cardlegalities_pioneer"] = await _create_index_if_not_exists(
-        conn,
-        "idx_cardlegalities_pioneer",
-        "CREATE INDEX idx_cardlegalities_pioneer ON cardLegalities(uuid) WHERE pioneer = 'Legal'",
-    )
-
-    results["idx_cardlegalities_legacy"] = await _create_index_if_not_exists(
-        conn,
-        "idx_cardlegalities_legacy",
-        "CREATE INDEX idx_cardlegalities_legacy ON cardLegalities(uuid) WHERE legacy = 'Legal'",
-    )
-
-    results["idx_cardlegalities_vintage"] = await _create_index_if_not_exists(
-        conn,
-        "idx_cardlegalities_vintage",
-        "CREATE INDEX idx_cardlegalities_vintage ON cardLegalities(uuid) WHERE vintage = 'Legal'",
-    )
-
-    results["idx_cardlegalities_pauper"] = await _create_index_if_not_exists(
-        conn,
-        "idx_cardlegalities_pauper",
-        "CREATE INDEX idx_cardlegalities_pauper ON cardLegalities(uuid) WHERE pauper = 'Legal'",
-    )
+    # Note: Legalities are stored as JSON in cards.legalities column,
+    # not in a separate cardLegalities table. JSON queries use json_extract().
 
     # Index: case-insensitive name search
     results["idx_cards_name_ci"] = await _create_index_if_not_exists(

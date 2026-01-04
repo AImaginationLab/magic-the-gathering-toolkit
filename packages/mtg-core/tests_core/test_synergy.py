@@ -9,10 +9,7 @@ Tests cover:
 
 from __future__ import annotations
 
-import os
 from collections.abc import AsyncIterator
-from pathlib import Path
-from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
@@ -45,30 +42,7 @@ from mtg_core.tools.synergy.tools import (
     suggest_cards,
 )
 
-if TYPE_CHECKING:
-    pass
-
-
-def get_test_db_path() -> Path | None:
-    """Get path to test database if it exists."""
-    # Check environment variable first
-    env_path = os.environ.get("MTG_DB_PATH")
-    if env_path:
-        path = Path(env_path)
-        if path.exists():
-            return path
-
-    # Check default locations
-    for candidate in [
-        Path("resources/mtg.sqlite"),
-        Path("../../resources/mtg.sqlite"),
-        Path(__file__).parent.parent.parent.parent.parent / "resources" / "mtg.sqlite",
-    ]:
-        if candidate.exists():
-            return candidate.resolve()
-
-    return None
-
+from .conftest import get_test_db_path
 
 # Skip tests if no database available
 DB_PATH = get_test_db_path()

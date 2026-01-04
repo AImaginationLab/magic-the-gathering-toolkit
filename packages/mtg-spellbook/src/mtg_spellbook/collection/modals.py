@@ -13,7 +13,7 @@ from textual.events import Key
 from textual.screen import ModalScreen
 from textual.widgets import Button, Checkbox, Input, Label, ListItem, ListView, Select, Static
 
-from mtg_core.tools.recommendations.deck_finder import DeckSuggestion
+from mtg_core.tools.recommendations import DeckSuggestion
 
 from ..ui.theme import ui_colors
 
@@ -965,9 +965,9 @@ class DeckSuggestionsModal(ModalScreen[CreateDeckResult | None]):
                 yield Button("Create Deck", id="create-btn", variant="success")
                 yield Button("Close", id="close-btn")
 
-    def on_mount(self) -> None:
+    async def on_mount(self) -> None:
         """Load suggestions on mount."""
-        self._load_suggestions()
+        await self._load_suggestions()
         # Focus the list
         try:
             from textual.widgets import ListView
@@ -977,11 +977,11 @@ class DeckSuggestionsModal(ModalScreen[CreateDeckResult | None]):
         except Exception:
             pass
 
-    def _load_suggestions(self) -> None:
+    async def _load_suggestions(self) -> None:
         """Load deck suggestions for current format."""
         from textual.widgets import ListView
 
-        from mtg_core.tools.recommendations.deck_finder import CardData, get_deck_finder
+        from mtg_core.tools.recommendations import CardData, get_deck_finder
 
         finder = get_deck_finder()
 
@@ -997,7 +997,7 @@ class DeckSuggestionsModal(ModalScreen[CreateDeckResult | None]):
             for c in self._card_info_list
         ]
 
-        self._suggestions = finder.find_buildable_decks(
+        self._suggestions = await finder.find_buildable_decks(
             self._collection_cards,
             format=self._current_format,
             card_data=card_data,
@@ -1040,16 +1040,16 @@ class DeckSuggestionsModal(ModalScreen[CreateDeckResult | None]):
             self._selected_suggestion = event.item.suggestion
 
     @on(Button.Pressed, "#btn-commander")
-    def on_commander_tab(self) -> None:
+    async def on_commander_tab(self) -> None:
         """Switch to Commander format."""
-        self._switch_format("commander")
+        await self._switch_format("commander")
 
     @on(Button.Pressed, "#btn-standard")
-    def on_standard_tab(self) -> None:
+    async def on_standard_tab(self) -> None:
         """Switch to Standard format."""
-        self._switch_format("standard")
+        await self._switch_format("standard")
 
-    def _switch_format(self, fmt: str) -> None:
+    async def _switch_format(self, fmt: str) -> None:
         """Switch format and reload suggestions."""
         if self._current_format == fmt:
             return
@@ -1070,19 +1070,19 @@ class DeckSuggestionsModal(ModalScreen[CreateDeckResult | None]):
         except Exception:
             pass
 
-        self._load_suggestions()
+        await self._load_suggestions()
 
     def action_close(self) -> None:
         """Close the modal."""
         self.dismiss(None)
 
-    def action_show_commander(self) -> None:
+    async def action_show_commander(self) -> None:
         """Show Commander suggestions."""
-        self._switch_format("commander")
+        await self._switch_format("commander")
 
-    def action_show_standard(self) -> None:
+    async def action_show_standard(self) -> None:
         """Show Standard suggestions."""
-        self._switch_format("standard")
+        await self._switch_format("standard")
 
     def action_nav_up(self) -> None:
         """Navigate up in list."""

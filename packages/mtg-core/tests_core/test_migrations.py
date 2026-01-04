@@ -232,7 +232,6 @@ class TestMtgMigrations:
         assert "wal_mode" in results
         assert "idx_cards_artist" in results
         assert "idx_cards_setcode_number" in results
-        assert "idx_cardlegalities_commander" in results
         assert "idx_cards_name_ci" in results
         assert "idx_cards_keywords" in results
         assert "idx_cards_edhrec" in results

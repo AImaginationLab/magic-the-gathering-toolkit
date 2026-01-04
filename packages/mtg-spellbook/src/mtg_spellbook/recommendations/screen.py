@@ -206,8 +206,10 @@ class RecommendationScreen(BaseScreen[None]):
                     }
                 )
 
-        # Get recommendations (this is blocking but fast)
-        recommendations = self._recommender.recommend_for_deck(deck_cards, n=100, explain=True)
+        # Get recommendations
+        recommendations = await self._recommender.recommend_for_deck(
+            deck_cards, n=100, explain=True
+        )
 
         self._on_recommendations_loaded(recommendations)
 
@@ -344,27 +346,27 @@ class RecommendationScreen(BaseScreen[None]):
         return "  ".join(parts)
 
     @on(ListView.Highlighted)
-    def on_list_highlighted(self, event: ListView.Highlighted) -> None:
+    async def on_list_highlighted(self, event: ListView.Highlighted) -> None:
         """Handle card highlight in list."""
         if event.item and isinstance(event.item, RecommendationCardItem):
             rec = event.item.recommendation
             self._current_recommendation = rec
-            self._update_detail_panel(rec)
+            await self._update_detail_panel(rec)
 
     @on(ListView.Selected)
-    def on_list_selected(self, event: ListView.Selected) -> None:
+    async def on_list_selected(self, event: ListView.Selected) -> None:
         """Handle card selection (Enter key)."""
         if event.item and isinstance(event.item, RecommendationCardItem):
             rec = event.item.recommendation
             self._current_recommendation = rec
-            self._update_detail_panel(rec)
+            await self._update_detail_panel(rec)
 
-    def _update_detail_panel(self, rec: ScoredRecommendation) -> None:
+    async def _update_detail_panel(self, rec: ScoredRecommendation) -> None:
         """Update the detail panel with recommendation info."""
         try:
             panel = self.query_one("#rec-detail-panel", RecommendationDetailPanel)
             in_collection = rec.name in self._collection_cards
-            panel.show_recommendation(rec, in_collection=in_collection)
+            await panel.show_recommendation(rec, in_collection=in_collection)
         except NoMatches:
             pass
 

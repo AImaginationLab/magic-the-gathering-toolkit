@@ -153,6 +153,9 @@ async def find_synergies(
     synergies.sort(key=lambda s: s.score, reverse=True)
     synergies = synergies[:max_results]
 
+    # Enrich with 17Lands gameplay data if available
+    synergies = await _enrich_with_gameplay_data(source_card.name, source_card.set_code, synergies)
+
     result = FindSynergiesResult(
         card_name=source_card.name,
         synergies=synergies,
@@ -187,6 +190,7 @@ async def _add_tribal_matches(
         normalized = normalize_card_name(card.name)
         if normalized not in seen_names:
             seen_names.add(normalized)
+            price_usd = card.price_usd / 100.0 if card.price_usd else None
             synergies.append(
                 SynergyResult(
                     name=card.name,
@@ -195,8 +199,167 @@ async def _add_tribal_matches(
                     score=calculate_synergy_score(card, source_card, "tribal") * 0.9,
                     mana_cost=card.mana_cost,
                     type_line=card.type,
+                    image_small=card.image_small,
+                    rarity=card.rarity,
+                    keywords=card.keywords or [],
+                    price_usd=price_usd,
+                    edhrec_rank=card.edhrec_rank,
                 )
             )
+
+
+async def _enrich_with_gameplay_data(
+    source_card_name: str,
+    source_set_code: str | None,
+    synergies: list[SynergyResult],
+) -> list[SynergyResult]:
+    """Enrich synergy results with 17Lands gameplay data and combo info.
+
+    Adds synergy_lift, win_rate_together, sample_size, tier, gih_wr, iwd, oh_wr,
+    best_archetypes, is_bomb, is_synergy_dependent, combo_count, and combo_preview
+    when data is available.
+    """
+    try:
+        from ...tools.recommendations.gameplay import GameplayDB
+    except ImportError:
+        return synergies
+
+    gameplay_db = GameplayDB()
+    if not gameplay_db.is_available:
+        return synergies
+
+    # Get spellbook combo detector (uses existing combos.sqlite)
+    spellbook = None
+    try:
+        from ...tools.recommendations.spellbook_combos import get_spellbook_detector
+
+        spellbook = await get_spellbook_detector()
+        if not spellbook.is_available:
+            spellbook = None
+    except (ImportError, Exception):
+        pass
+
+    try:
+        gameplay_db.connect()
+
+        # Get synergy pairs for source card
+        synergy_pairs = gameplay_db.get_synergy_pairs(
+            source_card_name,
+            set_code=source_set_code,
+            min_games=30,  # Lower threshold for more data
+            min_lift=-1.0,  # Include negative lift too
+        )
+
+        # Build lookup map: card_b name -> synergy pair data
+        pair_map = {p.card_b.lower(): p for p in synergy_pairs}
+
+        # Enrich each synergy result
+        enriched = []
+        for syn in synergies:
+            updates: dict[str, object] = {}
+
+            # Check for synergy pair data
+            pair = pair_map.get(syn.name.lower())
+            if pair:
+                updates["synergy_lift"] = pair.synergy_lift
+                updates["win_rate_together"] = pair.win_rate_together
+                updates["sample_size"] = pair.co_occurrence_count
+
+            # Get individual card stats (without set filter - get any available data)
+            card_stats = gameplay_db.get_card_stats(syn.name)
+            if card_stats:
+                updates["tier"] = card_stats.tier
+                updates["gih_wr"] = card_stats.gih_wr
+                updates["iwd"] = card_stats.iwd
+                updates["oh_wr"] = card_stats.oh_wr
+
+            # Check bomb / synergy-dependent status (without set filter)
+            is_bomb = gameplay_db.is_bomb(syn.name)
+            is_synergy_dep = gameplay_db.is_synergy_dependent(syn.name)
+            if is_bomb:
+                updates["is_bomb"] = True
+            if is_synergy_dep:
+                updates["is_synergy_dependent"] = True
+
+            # Get best archetypes for this card (without set filter)
+            best_archetypes = _get_best_archetypes(gameplay_db, syn.name, None)
+            if best_archetypes:
+                updates["best_archetypes"] = best_archetypes
+
+            # Get combo info if available
+            if spellbook:
+                combo_count, combo_preview = await _get_combo_info(spellbook, syn.name)
+                if combo_count > 0:
+                    updates["combo_count"] = combo_count
+                    updates["combo_preview"] = combo_preview
+
+            if updates:
+                syn = syn.model_copy(update=updates)
+
+            enriched.append(syn)
+
+        return enriched
+    except Exception:
+        # Silently fail - gameplay data is optional
+        return synergies
+    finally:
+        gameplay_db.close()
+
+
+def _get_best_archetypes(
+    gameplay_db: object, card_name: str, set_code: str | None, limit: int = 3
+) -> list[str]:
+    """Get the top performing archetypes for a card.
+
+    Returns up to `limit` color pairs where this card performs above average.
+    """
+    from ...tools.recommendations.gameplay import GameplayDB
+
+    if not isinstance(gameplay_db, GameplayDB):
+        return []
+
+    # Color pairs in standard order
+    all_archetypes = ["WU", "UB", "BR", "RG", "GW", "WB", "UR", "BG", "RW", "GU"]
+    arch_scores: list[tuple[str, float]] = []
+
+    for arch in all_archetypes:
+        cards = gameplay_db.get_archetype_cards(arch, set_code, min_games=30, limit=100)
+        for card in cards:
+            if card.card_name.lower() == card_name.lower() and card.gih_wr is not None:
+                # Only include if above average (56%)
+                if card.gih_wr > 0.56:
+                    arch_scores.append((arch, card.gih_wr))
+                break
+
+    # Sort by performance and return top archetypes
+    arch_scores.sort(key=lambda x: x[1], reverse=True)
+    return [arch for arch, _ in arch_scores[:limit]]
+
+
+async def _get_combo_info(spellbook: object, card_name: str) -> tuple[int, str | None]:
+    """Get combo count and preview for a card.
+
+    Returns (combo_count, first_combo_description).
+    """
+    from ...tools.recommendations.spellbook_combos import SpellbookComboDetector
+
+    if not isinstance(spellbook, SpellbookComboDetector):
+        return 0, None
+
+    try:
+        combos = await spellbook.find_combos_for_card(card_name, limit=50)
+        if not combos:
+            return 0, None
+
+        count = len(combos)
+        # Get first combo description (truncate if long)
+        preview = combos[0].description if combos else None
+        if preview and len(preview) > 200:
+            preview = preview[:197] + "..."
+
+        return count, preview
+    except Exception:
+        return 0, None
 
 
 async def detect_combos(

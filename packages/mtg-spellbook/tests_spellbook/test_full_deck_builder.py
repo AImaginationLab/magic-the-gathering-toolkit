@@ -79,6 +79,7 @@ def sample_deck_with_cards() -> Any:
         name="Mono-Red Burn",
         format="modern",
         commander=None,
+        description=None,
         cards=[
             DeckCardWithData(
                 card_name="Lightning Bolt",

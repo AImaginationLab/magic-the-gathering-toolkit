@@ -22,12 +22,16 @@ dependencies = [
     "scikit-learn>=1.8.0,<2",
     "scipy>=1.11,<2",
     "ijson>=3.2,<4",
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.32,<1",
+    "symspellpy>=6.9.0",
 ]
 
 [project.scripts]
 create-mtg-db = "mtg_core.scripts.create_mtg_db:app"
 download-17lands = "mtg_core.scripts.download_17lands:app"
 download-spellbook = "mtg_core.scripts.download_spellbook:app"
+mtg-api = "mtg_core.api.server:main"
 
 [build-system]
 requires = ["hatchling"]

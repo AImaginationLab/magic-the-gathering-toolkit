@@ -309,9 +309,9 @@ class FocusView(Vertical, can_focus=True):
         stats_widget = self.query_one("#focus-limited-stats", Static)
 
         try:
-            from mtg_core.tools.recommendations.limited_stats import LimitedStatsDB
+            from mtg_core.tools.recommendations.gameplay import GameplayDB
 
-            db = LimitedStatsDB()
+            db = GameplayDB()
             if not db.is_available:
                 stats_widget.update("")
                 return

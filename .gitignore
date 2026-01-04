@@ -69,3 +69,5 @@ Thumbs.db
 .claude
 CLAUDE*
 scripts
+
+packages/mtg-electron/docs*

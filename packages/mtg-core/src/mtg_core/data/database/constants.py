@@ -21,7 +21,7 @@ CARD_COLUMNS_PLAIN = """
     number, artist, layout, keywords, edhrecRank, releaseDate
 """.strip()
 
-# Valid format columns in cardLegalities table
+# Valid format keys in cards.legalities JSON column
 VALID_FORMATS = frozenset(
     {
         "standard",

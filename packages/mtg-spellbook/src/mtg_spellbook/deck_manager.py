@@ -57,6 +57,7 @@ class DeckWithCards:
     name: str
     format: str | None
     commander: str | None
+    description: str | None
     cards: list[DeckCardWithData]
 
     @property
@@ -132,6 +133,7 @@ class DeckManager:
             name=deck.name,
             format=deck.format,
             commander=deck.commander,
+            description=deck.description,
             cards=cards,
         )
 
@@ -146,9 +148,12 @@ class DeckManager:
         name: str | None = None,
         format: str | None = None,
         commander: str | None = None,
+        description: str | None = None,
     ) -> None:
         """Update deck metadata."""
-        await self.user.update_deck(deck_id, name=name, format=format, commander=commander)
+        await self.user.update_deck(
+            deck_id, name=name, format=format, commander=commander, description=description
+        )
 
     async def add_card(
         self,

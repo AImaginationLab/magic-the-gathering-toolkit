@@ -1,6 +1,12 @@
 """Card recommendation system using TF-IDF similarity and hybrid scoring."""
 
+from .deck_finder import DeckFinder, get_deck_finder
 from .features import CardEncoder, CardFeatures, DeckEncoder, DeckFeatures
+from .gameplay import (
+    GameplayCardStats,
+    GameplayDB,
+    get_gameplay_db,
+)
 from .hybrid import (
     ComboMatch,
     ComboPieceDetector,
@@ -10,10 +16,13 @@ from .hybrid import (
     get_hybrid_recommender,
     initialize_hybrid_recommender,
 )
-from .limited_stats import (
-    LimitedCardStats,
-    LimitedStatsDB,
-    get_limited_stats_db,
+from .models import (
+    CardData,
+    ComboSummary,
+    CommanderMatch,
+    DeckFilters,
+    DeckSuggestion,
+    FilterResult,
 )
 from .tfidf import (
     CardRecommendation,
@@ -23,25 +32,29 @@ from .tfidf import (
 )
 
 __all__ = [
-    # Features
+    "CardData",
     "CardEncoder",
     "CardFeatures",
-    # TF-IDF
     "CardRecommendation",
     "CardRecommender",
-    # Hybrid
     "ComboMatch",
     "ComboPieceDetector",
+    "ComboSummary",
+    "CommanderMatch",
     "DeckEncoder",
     "DeckFeatures",
+    "DeckFilters",
+    "DeckFinder",
+    "DeckSuggestion",
+    "FilterResult",
+    "GameplayCardStats",
+    "GameplayDB",
     "HybridRecommender",
-    # Limited Stats (17lands)
-    "LimitedCardStats",
-    "LimitedStatsDB",
     "ScoredRecommendation",
     "SynergyScorer",
+    "get_deck_finder",
+    "get_gameplay_db",
     "get_hybrid_recommender",
-    "get_limited_stats_db",
     "get_recommender",
     "initialize_hybrid_recommender",
     "initialize_recommender",

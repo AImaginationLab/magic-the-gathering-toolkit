@@ -75,11 +75,13 @@ class RecommendationDetailPanel(Vertical):
             id="rec-detail-empty",
         )
 
-    def show_recommendation(self, rec: ScoredRecommendation, in_collection: bool = False) -> None:
+    async def show_recommendation(
+        self, rec: ScoredRecommendation, in_collection: bool = False
+    ) -> None:
         """Display recommendation detail."""
         self._recommendation = rec
         self._in_collection = in_collection
-        self._update_display()
+        await self._update_display()
 
     def clear(self) -> None:
         """Clear the detail panel."""
@@ -95,7 +97,7 @@ class RecommendationDetailPanel(Vertical):
         except Exception:
             pass
 
-    def _update_display(self) -> None:
+    async def _update_display(self) -> None:
         """Update the detail display."""
         if not self._recommendation:
             return
@@ -126,11 +128,11 @@ class RecommendationDetailPanel(Vertical):
         # Update content
         try:
             content = self.query_one("#rec-detail-content", Static)
-            content.update(self._render_detail_content())
+            content.update(await self._render_detail_content())
         except Exception:
             pass
 
-    def _render_detail_content(self) -> str:
+    async def _render_detail_content(self) -> str:
         """Render the full detail content with visual styling."""
         if not self._recommendation:
             return ""
@@ -177,7 +179,7 @@ class RecommendationDetailPanel(Vertical):
         if rec.completes_combos:
             combo_count = len(rec.completes_combos)
             lines.append(f"[bold #FF6B6B]┌─ Completes {combo_count} Combo(s) ─────────────┐[/]")
-            lines.extend(self._render_combos(rec.completes_combos[:5]))
+            lines.extend(await self._render_combos(rec.completes_combos[:5]))
             if len(rec.completes_combos) > 5:
                 remaining = len(rec.completes_combos) - 5
                 lines.append(f"[#FF6B6B]│[/] [dim]...and {remaining} more combos[/]")
@@ -363,7 +365,7 @@ class RecommendationDetailPanel(Vertical):
             return "Below average - situational"
         return "Poor - consider cutting"
 
-    def _render_combos(self, combo_ids: list[str]) -> list[str]:
+    async def _render_combos(self, combo_ids: list[str]) -> list[str]:
         """Render combo info with human-readable names."""
         lines: list[str] = []
         try:
@@ -371,9 +373,9 @@ class RecommendationDetailPanel(Vertical):
                 get_spellbook_detector,
             )
 
-            detector = get_spellbook_detector()
+            detector = await get_spellbook_detector()
             for i, combo_id in enumerate(combo_ids):
-                combo = detector.get_combo(combo_id)
+                combo = await detector.get_combo(combo_id)
                 if combo:
                     # Show card names (truncate if too many)
                     card_names = combo.card_names[:3]

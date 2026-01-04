@@ -14,9 +14,11 @@ from textual.reactive import reactive
 from textual.widgets import Input, ListItem, ListView, Static
 
 from mtg_core.tools import sets
+from mtg_core.tools.set_analysis import analyze_set
 
 from ..ui.theme import ui_colors
-from ..widgets.set_detail import SetCardList, SetCardPreviewPanel, SetInfoPanel, SetStats
+from ..widgets.set_detail import SetCardList, SetStats
+from ..widgets.set_insights import SetInsightsPanel
 from .base import BaseScreen
 
 if TYPE_CHECKING:
@@ -114,7 +116,7 @@ class SetsScreen(BaseScreen[None]):
 
     /* Left pane - set list */
     #sets-list-pane {
-        width: 25%;
+        width: 20%;
         height: 100%;
         background: #0f0f0f;
         border-right: solid #3d3d3d;
@@ -165,37 +167,28 @@ class SetsScreen(BaseScreen[None]):
         border-left: heavy #c9a227;
     }
 
-    /* Right pane - set detail */
+    /* Right pane - set detail (80% of screen) */
     #sets-detail-pane {
-        width: 75%;
+        width: 80%;
         height: 100%;
         background: #0a0a14;
     }
 
-    #sets-detail-main {
-        width: 100%;
-        height: 100%;
-    }
-
-    #set-info-panel {
-        width: 25%;
-        height: 100%;
-        background: #0d0d0d;
-        border-right: solid #3d3d3d;
-        overflow-y: auto;
-    }
-
+    /* Card list on left of detail pane - 44% of detail (35% of screen) */
     #set-card-list {
-        width: 40%;
+        width: 44%;
         height: 100%;
         background: #0a0a14;
         border-right: solid #3d3d3d;
     }
 
-    #set-card-preview {
-        width: 35%;
+    /* Insights panel on right - 56% of detail (45% of screen) */
+    #set-insights-panel {
+        width: 56%;
         height: 100%;
         background: #0d0d0d;
+        overflow-y: auto;
+        padding: 0;
     }
 
     #sets-empty-detail {
@@ -259,7 +252,7 @@ class SetsScreen(BaseScreen[None]):
                 )
 
             # Right pane - set detail (initially empty)
-            with Vertical(id="sets-detail-pane"):
+            with Horizontal(id="sets-detail-pane"):
                 yield Static(
                     "[dim]Select a set from the list[/]",
                     id="sets-empty-detail",
@@ -517,11 +510,11 @@ class SetsScreen(BaseScreen[None]):
         self._update_header()
 
     async def _show_set_detail(
-        self, set_data: Set, cards: list[CardSummary], stats: SetStats
+        self, set_data: Set, cards: list[CardSummary], _stats: SetStats
     ) -> None:
-        """Show the set detail panel."""
+        """Show the set detail panel with insights."""
         try:
-            detail_pane = self.query_one("#sets-detail-pane", Vertical)
+            detail_pane = self.query_one("#sets-detail-pane", Horizontal)
 
             # Remove empty placeholder
             try:
@@ -532,30 +525,28 @@ class SetsScreen(BaseScreen[None]):
 
             # Check if detail widgets already exist
             try:
-                self.query_one("#set-info-panel", SetInfoPanel)
+                self.query_one("#set-insights-panel", SetInsightsPanel)
                 # Update existing widgets
-                info_panel = self.query_one("#set-info-panel", SetInfoPanel)
-                info_panel.update_info(set_data, stats, None)
-
                 card_list = self.query_one("#set-card-list", SetCardList)
                 await card_list.load_cards(cards)
-                card_list.set_on_select(self._on_card_selected)
                 card_list.focus()
+
+                # Load analysis asynchronously
+                self._load_set_analysis(set_data.code)
 
             except NoMatches:
-                # Create new detail widgets
-                info_panel = SetInfoPanel(id="set-info-panel")
+                # Create new detail widgets - card list and insights only (per design)
                 card_list = SetCardList(id="set-card-list")
-                preview = SetCardPreviewPanel(id="set-card-preview")
+                insights_panel = SetInsightsPanel(id="set-insights-panel")
 
-                await detail_pane.mount(info_panel)
                 await detail_pane.mount(card_list)
-                await detail_pane.mount(preview)
+                await detail_pane.mount(insights_panel)
 
-                info_panel.update_info(set_data, stats, None)
                 await card_list.load_cards(cards)
-                card_list.set_on_select(self._on_card_selected)
                 card_list.focus()
+
+                # Load analysis asynchronously
+                self._load_set_analysis(set_data.code)
 
             self.active_pane = "set-detail"
             self._update_statusbar()
@@ -563,11 +554,17 @@ class SetsScreen(BaseScreen[None]):
         except NoMatches:
             pass
 
-    def _on_card_selected(self, card: CardSummary) -> None:
-        """Handle card selection from list."""
+    @work(exclusive=True, group="set_analysis")
+    async def _load_set_analysis(self, set_code: str) -> None:
+        """Load set analysis data asynchronously."""
+        if not self._db:
+            return
+
+        analysis = await analyze_set(self._db, set_code)
+
         try:
-            preview = self.query_one("#set-card-preview", SetCardPreviewPanel)
-            preview.update_card(card)
+            insights_panel = self.query_one("#set-insights-panel", SetInsightsPanel)
+            insights_panel.update_analysis(analysis)
         except NoMatches:
             pass
 

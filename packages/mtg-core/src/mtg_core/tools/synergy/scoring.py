@@ -52,6 +52,10 @@ def create_synergy_result(
 ) -> SynergyResult:
     """Create a SynergyResult from card data."""
     score = calculate_synergy_score(card, source_card, synergy_type)
+
+    # Convert price from cents to dollars
+    price_usd = card.price_usd / 100.0 if card.price_usd else None
+
     return SynergyResult(
         name=card.name,
         synergy_type=synergy_type,
@@ -59,4 +63,11 @@ def create_synergy_result(
         score=score * score_modifier,
         mana_cost=card.mana_cost,
         type_line=card.type,
+        image_small=card.image_small,
+        # Card properties
+        rarity=card.rarity,
+        keywords=card.keywords or [],
+        price_usd=price_usd,
+        edhrec_rank=card.edhrec_rank,
+        # 17Lands data will be populated in post-processing
     )

@@ -27,17 +27,19 @@ if TYPE_CHECKING:
 async def search_cards(
     db: UnifiedDatabase,
     filters: SearchCardsInput,
+    collection_names: set[str] | None = None,
 ) -> SearchResult:
     """Search for Magic: The Gathering cards.
 
     Args:
         db: Unified MTG database connection
         filters: Search filters
+        collection_names: If provided, only return cards with names in this set
 
     Returns:
         SearchResult with matching cards
     """
-    cards, total_count = await db.search_cards(filters)
+    cards, total_count = await db.search_cards(filters, collection_names=collection_names)
     results = [_card_to_summary(card) for card in cards]
 
     return SearchResult(

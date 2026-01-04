@@ -193,6 +193,7 @@ def sample_balanced_deck() -> DeckWithCards:
         name="Balanced Deck",
         format="standard",
         commander=None,
+        description=None,
         cards=cards,
     )
 
@@ -288,6 +289,7 @@ def sample_aggro_deck() -> DeckWithCards:
         name="Aggro Deck",
         format="modern",
         commander=None,
+        description=None,
         cards=cards,
     )
 
@@ -515,6 +517,7 @@ class TestEnhancedDeckStatsWidget:
             name="Empty Deck",
             format="standard",
             commander=None,
+            description=None,
             cards=[],
         )
 
@@ -544,6 +547,7 @@ class TestEnhancedDeckStatsWidget:
             name="Commander Deck",
             format="commander",
             commander="Sol Ring",
+            description=None,
             cards=[],
         )
 

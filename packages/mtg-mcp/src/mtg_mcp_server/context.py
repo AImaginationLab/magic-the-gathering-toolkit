@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 from mcp.server.fastmcp import Context
 
 if TYPE_CHECKING:
-    from mtg_core.data.database import UnifiedDatabase
+    from mtg_core.data.database import UnifiedDatabase, UserDatabase
 
 
 @dataclass
@@ -16,6 +16,7 @@ class AppContext:
     """Application context with database connection."""
 
     db: UnifiedDatabase
+    user: UserDatabase | None = None
 
 
 # Type alias for Context with our AppContext

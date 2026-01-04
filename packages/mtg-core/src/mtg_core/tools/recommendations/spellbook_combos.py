@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import json
 import logging
-import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
+
+import aiosqlite
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +104,7 @@ class SpellbookComboDetector:
         """Number of loaded combos."""
         return self._combo_count
 
-    def initialize(self) -> bool:
+    async def initialize(self) -> bool:
         """Load combos and build inverted index.
 
         Returns:
@@ -117,7 +118,7 @@ class SpellbookComboDetector:
             return False
 
         try:
-            self._load_combos()
+            await self._load_combos()
             self._initialized = True
             logger.info(
                 f"Loaded {self._combo_count:,} combos from Commander Spellbook "
@@ -128,51 +129,49 @@ class SpellbookComboDetector:
             logger.error(f"Failed to load combos: {e}")
             return False
 
-    def _load_combos(self) -> None:
+    async def _load_combos(self) -> None:
         """Load combos from database and build inverted index."""
         assert self._db_path is not None
 
-        conn = sqlite3.connect(self._db_path)
-        conn.row_factory = sqlite3.Row
+        async with aiosqlite.connect(self._db_path) as conn:
+            conn.row_factory = aiosqlite.Row
 
-        # Query combos (filter by popularity if specified)
-        query = """
-            SELECT id, card_names, description, bracket_tag, popularity,
-                   identity, produces
-            FROM combos
-            WHERE popularity >= ?
-            ORDER BY popularity DESC
-        """
+            # Query combos (filter by popularity if specified)
+            query = """
+                SELECT id, card_names, description, bracket_tag, popularity,
+                       identity, produces
+                FROM combos
+                WHERE popularity >= ?
+                ORDER BY popularity DESC
+            """
 
-        cursor = conn.execute(query, (self._min_popularity,))
+            async with conn.execute(query, (self._min_popularity,)) as cursor:
+                async for row in cursor:
+                    combo_id = row["id"]
+                    card_names = json.loads(row["card_names"])
 
-        for row in cursor:
-            combo_id = row["id"]
-            card_names = json.loads(row["card_names"])
+                    combo = SpellbookCombo(
+                        id=combo_id,
+                        card_names=card_names,
+                        description=row["description"] or "",
+                        bracket_tag=row["bracket_tag"] or "C",
+                        popularity=row["popularity"] or 0,
+                        identity=row["identity"] or "",
+                        produces=json.loads(row["produces"]) if row["produces"] else [],
+                    )
 
-            combo = SpellbookCombo(
-                id=combo_id,
-                card_names=card_names,
-                description=row["description"] or "",
-                bracket_tag=row["bracket_tag"] or "C",
-                popularity=row["popularity"] or 0,
-                identity=row["identity"] or "",
-                produces=json.loads(row["produces"]) if row["produces"] else [],
-            )
+                    self._combos[combo_id] = combo
 
-            self._combos[combo_id] = combo
+                    # Build inverted index
+                    for card_name in card_names:
+                        card_lower = card_name.lower()
+                        if card_lower not in self._card_to_combos:
+                            self._card_to_combos[card_lower] = set()
+                        self._card_to_combos[card_lower].add(combo_id)
 
-            # Build inverted index
-            for card_name in card_names:
-                card_lower = card_name.lower()
-                if card_lower not in self._card_to_combos:
-                    self._card_to_combos[card_lower] = set()
-                self._card_to_combos[card_lower].add(combo_id)
-
-        conn.close()
         self._combo_count = len(self._combos)
 
-    def find_missing_pieces(
+    async def find_missing_pieces(
         self,
         deck_cards: list[str],
         max_missing: int = 2,
@@ -191,7 +190,7 @@ class SpellbookComboDetector:
             Tuple of (combo matches, missing_card -> combo_ids it completes)
         """
         if not self._initialized:
-            self.initialize()
+            await self.initialize()
 
         if not self._initialized:
             return [], {}
@@ -242,7 +241,7 @@ class SpellbookComboDetector:
         results.sort(key=lambda x: (-x.combo.popularity, -x.completion_ratio))
         return results, missing_to_combos
 
-    def find_combos_for_card(
+    async def find_combos_for_card(
         self,
         card_name: str,
         limit: int = 20,
@@ -259,7 +258,7 @@ class SpellbookComboDetector:
             List of combos containing the card, sorted by popularity
         """
         if not self._initialized:
-            self.initialize()
+            await self.initialize()
 
         if not self._initialized:
             return []
@@ -286,13 +285,13 @@ class SpellbookComboDetector:
         scores = {"R": 1.0, "S": 0.8, "P": 0.6, "C": 0.4, "O": 0.5}
         return scores.get(bracket_tag, 0.3)
 
-    def get_combo(self, combo_id: str) -> SpellbookCombo | None:
+    async def get_combo(self, combo_id: str) -> SpellbookCombo | None:
         """Get a combo by ID."""
         if not self._initialized:
-            self.initialize()
+            await self.initialize()
         return self._combos.get(combo_id)
 
-    def find_combos(
+    async def find_combos(
         self,
         deck_cards: list[str],
         max_missing: int = 0,
@@ -311,7 +310,7 @@ class SpellbookComboDetector:
         Returns:
             List of combo matches sorted by popularity
         """
-        matches, _ = self.find_missing_pieces(
+        matches, _ = await self.find_missing_pieces(
             deck_cards,
             max_missing=max_missing,
             min_present=2,  # At least 2 cards from combo must be present
@@ -375,10 +374,10 @@ class SpellbookComboDetector:
 _spellbook_detector: SpellbookComboDetector | None = None
 
 
-def get_spellbook_detector() -> SpellbookComboDetector:
+async def get_spellbook_detector() -> SpellbookComboDetector:
     """Get or create the global spellbook combo detector."""
     global _spellbook_detector
     if _spellbook_detector is None:
         _spellbook_detector = SpellbookComboDetector()
-        _spellbook_detector.initialize()
+        await _spellbook_detector.initialize()
     return _spellbook_detector

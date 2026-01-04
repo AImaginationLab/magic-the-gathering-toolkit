@@ -281,7 +281,7 @@ def hybrid_recommender(
     recommender._scorer = SynergyScorer()
     recommender._combo_detector = None  # Disable combos for basic tests
     recommender._spellbook_detector = None
-    recommender._limited_stats = None
+    recommender._gameplay_stats = None
     return recommender
 
 

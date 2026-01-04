@@ -2,7 +2,7 @@
 """Download and process 17lands Limited data using DuckDB.
 
 Downloads game data from 17lands public datasets, aggregates card statistics,
-and stores them in a SQLite database for use in recommendations.
+and stores them in a DuckDB database for fast columnar analytics.
 
 Performance optimizations:
 - Async concurrent downloads with aiohttp
@@ -22,13 +22,13 @@ from __future__ import annotations
 import asyncio
 import csv
 import io
-import sqlite3
 import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any
 
+import duckdb
 import polars as pl
 import typer
 from rich.console import Console
@@ -52,6 +52,7 @@ app = typer.Typer(help="Download and process 17lands Limited data")
 # 17lands S3 bucket URL pattern
 SEVENTEEN_LANDS_BASE = "https://17lands-public.s3.amazonaws.com/analysis_data"
 GAME_DATA_PATTERN = "{base}/game_data/game_data_public.{set_code}.{event_type}.csv.gz"
+DRAFT_DATA_PATTERN = "{base}/draft_data/draft_data_public.{set_code}.{event_type}.csv.gz"
 PUBLIC_DATASETS_URL = "https://www.17lands.com/public_datasets"
 
 # Dictionary URLs (card/ability definitions)
@@ -264,6 +265,7 @@ def get_set_event_types(set_code: str) -> list[str]:
 
     return _discovered_sets_cache.get(set_code, EVENT_TYPES)
 
+
 # Dictionary cache directory
 DICT_CACHE_DIR = Path.home() / ".cache" / "mtg-toolkit" / "dictionaries"
 
@@ -300,6 +302,9 @@ def download_dictionary(url: str, filename: str) -> Path | None:
 MAX_CONCURRENT_DOWNLOADS = 4  # Parallel download limit
 MAX_CONCURRENT_PROCESSING = 4  # Parallel processing limit (uses threads)
 PAIR_MIN_GAMES = 20  # Minimum games for pair tracking
+
+# Basic lands to exclude from synergy pairs (no meaningful synergy data)
+BASIC_LANDS = frozenset({"Plains", "Island", "Swamp", "Mountain", "Forest"})
 
 
 # Format categories for segmentation
@@ -578,9 +583,7 @@ def process_with_polars(
             agg_exprs.append((numeric_col(drawn_col) > 0).sum().alias(f"{card_name}__gih"))
             # Games in hand won
             agg_exprs.append(
-                ((numeric_col(drawn_col) > 0) & pl.col("won"))
-                .sum()
-                .alias(f"{card_name}__gih_won")
+                ((numeric_col(drawn_col) > 0) & pl.col("won")).sum().alias(f"{card_name}__gih_won")
             )
             # Games not drawn (in deck but not drawn)
             agg_exprs.append(
@@ -590,11 +593,7 @@ def process_with_polars(
             )
             # Games not drawn won
             agg_exprs.append(
-                (
-                    (numeric_col(deck_col) > 0)
-                    & (numeric_col(drawn_col) == 0)
-                    & pl.col("won")
-                )
+                ((numeric_col(deck_col) > 0) & (numeric_col(drawn_col) == 0) & pl.col("won"))
                 .sum()
                 .alias(f"{card_name}__gnd_won")
             )
@@ -602,9 +601,7 @@ def process_with_polars(
             agg_exprs.append((numeric_col(opening_col) > 0).sum().alias(f"{card_name}__oh"))
             # Opening hand won
             agg_exprs.append(
-                ((numeric_col(opening_col) > 0) & pl.col("won"))
-                .sum()
-                .alias(f"{card_name}__oh_won")
+                ((numeric_col(opening_col) > 0) & pl.col("won")).sum().alias(f"{card_name}__oh_won")
             )
 
     update_progress(description=f"{set_code}: Computing card stats...")
@@ -639,13 +636,20 @@ def process_with_polars(
             import numpy as np
 
             # Build int matrix: (games x cards) where 1 = card in deck, 0 = not
-            # Cast to Int64 to handle CSV columns inferred as strings, then to int8 for matmul
+            # Use int32 to avoid overflow during matrix multiplication (sum of 1M+ games)
             deck_matrix = (
-                df.select([pl.col(c).cast(pl.Int64, strict=False).fill_null(0) for c in deck_cols])
-                .to_numpy()
+                df.select(
+                    [pl.col(c).cast(pl.Int64, strict=False).fill_null(0) for c in deck_cols]
+                ).to_numpy()
                 > 0
-            ).astype(np.int8)  # Shape: (N_games, N_cards) - int8 for efficient matmul
-            won_array = df.select(numeric_col("won")).to_series().to_numpy().astype(np.int8)
+            ).astype(np.int32)
+            # Ensure won_array is strictly 0/1
+            won_array = (
+                df.select(pl.col("won").cast(pl.Boolean, strict=False).fill_null(False))
+                .to_series()
+                .to_numpy()
+                .astype(np.int32)
+            )
 
             # Matrix multiplication gives co-occurrence counts
             # M.T @ M gives (N_cards x N_cards) matrix where [i,j] = count of games with both cards
@@ -663,6 +667,10 @@ def process_with_polars(
                         wins = int(wins_matrix[i, j])
                         card_a = deck_cols[i][5:].replace("_", " ")
                         card_b = deck_cols[j][5:].replace("_", " ")
+
+                        # Skip pairs involving basic lands
+                        if card_a in BASIC_LANDS or card_b in BASIC_LANDS:
+                            continue
 
                         if card_a > card_b:
                             card_a, card_b = card_b, card_a
@@ -686,84 +694,114 @@ def process_with_polars(
 
 
 def create_database(db_path: Path) -> None:
-    """Create the limited_stats database schema."""
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+    """Create the gameplay database schema using DuckDB."""
+    conn = duckdb.connect(str(db_path))
 
-    cursor.executescript("""
+    # Create card_stats table
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS card_stats (
-            id INTEGER PRIMARY KEY,
-            card_name TEXT NOT NULL,
-            set_code TEXT NOT NULL,
-            format TEXT NOT NULL DEFAULT 'draft',
+            card_name VARCHAR NOT NULL,
+            set_code VARCHAR NOT NULL,
+            format VARCHAR NOT NULL DEFAULT 'draft',
             games_in_hand INTEGER DEFAULT 0,
             games_in_opening_hand INTEGER DEFAULT 0,
             games_not_drawn INTEGER DEFAULT 0,
-            gih_wr REAL,
-            gih_wr_adjusted REAL,
-            oh_wr REAL,
-            gnd_wr REAL,
-            iwd REAL,
-            ata REAL,
-            tier TEXT,
-            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(card_name, set_code, format)
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_card_stats_set ON card_stats(set_code);
-        CREATE INDEX IF NOT EXISTS idx_card_stats_name ON card_stats(card_name);
-        CREATE INDEX IF NOT EXISTS idx_card_stats_format ON card_stats(format);
-        CREATE INDEX IF NOT EXISTS idx_card_stats_set_format ON card_stats(set_code, format);
-        CREATE INDEX IF NOT EXISTS idx_card_stats_tier ON card_stats(set_code, format, tier);
-        CREATE INDEX IF NOT EXISTS idx_card_stats_gih ON card_stats(set_code, format, gih_wr DESC);
-
-        CREATE TABLE IF NOT EXISTS synergy_pairs (
-            id INTEGER PRIMARY KEY,
-            set_code TEXT NOT NULL,
-            format TEXT NOT NULL DEFAULT 'draft',
-            card_a TEXT NOT NULL,
-            card_b TEXT NOT NULL,
-            co_occurrence_count INTEGER,
-            win_rate_together REAL,
-            synergy_lift REAL,
-            UNIQUE(set_code, format, card_a, card_b)
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_synergy_set ON synergy_pairs(set_code);
-        CREATE INDEX IF NOT EXISTS idx_synergy_format ON synergy_pairs(format);
-        CREATE INDEX IF NOT EXISTS idx_synergy_set_format ON synergy_pairs(set_code, format);
-        CREATE INDEX IF NOT EXISTS idx_synergy_card ON synergy_pairs(card_a);
-
-        CREATE TABLE IF NOT EXISTS metadata (
-            key TEXT PRIMARY KEY,
-            value TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS abilities (
-            id INTEGER PRIMARY KEY,
-            text TEXT NOT NULL,
-            category TEXT DEFAULT 'keyword'
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_abilities_category ON abilities(category);
-
-        CREATE TABLE IF NOT EXISTS card_themes (
-            card_name TEXT NOT NULL,
-            theme TEXT NOT NULL,
-            PRIMARY KEY (card_name, theme)
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_card_themes_theme ON card_themes(theme);
+            gih_wr DOUBLE,
+            gih_wr_adjusted DOUBLE,
+            oh_wr DOUBLE,
+            gnd_wr DOUBLE,
+            iwd DOUBLE,
+            ata DOUBLE,
+            tier VARCHAR,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY(card_name, set_code, format)
+        )
     """)
 
-    conn.commit()
+    # Create synergy_pairs table
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS synergy_pairs (
+            set_code VARCHAR NOT NULL,
+            format VARCHAR NOT NULL DEFAULT 'draft',
+            card_a VARCHAR NOT NULL,
+            card_b VARCHAR NOT NULL,
+            co_occurrence_count INTEGER,
+            win_rate_together DOUBLE,
+            synergy_lift DOUBLE,
+            PRIMARY KEY(set_code, format, card_a, card_b)
+        )
+    """)
+
+    # Create metadata table
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS metadata (
+            key VARCHAR PRIMARY KEY,
+            value VARCHAR
+        )
+    """)
+
+    # Create abilities table
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS abilities (
+            id INTEGER PRIMARY KEY,
+            text VARCHAR NOT NULL,
+            category VARCHAR DEFAULT 'keyword'
+        )
+    """)
+
+    # Create card_themes table
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS card_themes (
+            card_name VARCHAR NOT NULL,
+            theme VARCHAR NOT NULL,
+            PRIMARY KEY (card_name, theme)
+        )
+    """)
+
+    # Create draft_stats table (ALSA/ATA)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS draft_stats (
+            card_name VARCHAR NOT NULL,
+            set_code VARCHAR NOT NULL,
+            alsa DOUBLE,
+            ata DOUBLE,
+            times_seen INTEGER DEFAULT 0,
+            times_picked INTEGER DEFAULT 0,
+            PRIMARY KEY(card_name, set_code)
+        )
+    """)
+
+    # Create archetype_stats table (color pair win rates)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS archetype_stats (
+            set_code VARCHAR NOT NULL,
+            archetype VARCHAR NOT NULL,
+            games INTEGER DEFAULT 0,
+            wins INTEGER DEFAULT 0,
+            win_rate DOUBLE,
+            PRIMARY KEY(set_code, archetype)
+        )
+    """)
+
+    # Create card_archetype_stats table (per-card win rates by archetype)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS card_archetype_stats (
+            card_name VARCHAR NOT NULL,
+            set_code VARCHAR NOT NULL,
+            archetype VARCHAR NOT NULL,
+            games_in_hand INTEGER DEFAULT 0,
+            wins_in_hand INTEGER DEFAULT 0,
+            gih_wr DOUBLE,
+            PRIMARY KEY(card_name, set_code, archetype)
+        )
+    """)
+
     conn.close()
 
 
 def save_stats_batch(db_path: Path, aggregator: SetAggregator) -> int:
     """Save aggregated stats to database using batch inserts."""
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+    conn = duckdb.connect(str(db_path))
 
     # Prepare batch data
     batch = []
@@ -775,12 +813,12 @@ def save_stats_batch(db_path: Path, aggregator: SetAggregator) -> int:
             (
                 stats.card_name,
                 stats.set_code,
-                aggregator.format,  # Use aggregator's format
+                aggregator.format,
                 stats.games_in_hand,
                 stats.games_in_opening_hand,
                 stats.games_not_drawn,
                 stats.gih_wr,
-                stats.gih_wr_adjusted,  # Bayesian adjusted
+                stats.gih_wr_adjusted,
                 stats.oh_wr,
                 stats.gnd_wr,
                 stats.iwd,
@@ -790,25 +828,34 @@ def save_stats_batch(db_path: Path, aggregator: SetAggregator) -> int:
         )
 
     if batch:
-        cursor.executemany(
+        conn.executemany(
             """
-            INSERT OR REPLACE INTO card_stats
+            INSERT INTO card_stats
             (card_name, set_code, format, games_in_hand, games_in_opening_hand, games_not_drawn,
-             gih_wr, gih_wr_adjusted, oh_wr, gnd_wr, iwd, ata, tier, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+             gih_wr, gih_wr_adjusted, oh_wr, gnd_wr, iwd, ata, tier)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (card_name, set_code, format) DO UPDATE SET
+                games_in_hand = excluded.games_in_hand,
+                games_in_opening_hand = excluded.games_in_opening_hand,
+                games_not_drawn = excluded.games_not_drawn,
+                gih_wr = excluded.gih_wr,
+                gih_wr_adjusted = excluded.gih_wr_adjusted,
+                oh_wr = excluded.oh_wr,
+                gnd_wr = excluded.gnd_wr,
+                iwd = excluded.iwd,
+                ata = excluded.ata,
+                tier = excluded.tier
             """,
             batch,
         )
 
-    conn.commit()
     conn.close()
     return len(batch)
 
 
 def save_synergy_pairs_batch(db_path: Path, aggregator: SetAggregator, min_games: int = 50) -> int:
     """Save synergy pair stats using batch inserts."""
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+    conn = duckdb.connect(str(db_path))
 
     # Calculate average set win rate
     total_games = 0
@@ -835,7 +882,7 @@ def save_synergy_pairs_batch(db_path: Path, aggregator: SetAggregator, min_games
         batch.append(
             (
                 aggregator.set_code,
-                aggregator.format,  # Include format
+                aggregator.format,
                 card_a,
                 card_b,
                 pair.games_together,
@@ -845,16 +892,19 @@ def save_synergy_pairs_batch(db_path: Path, aggregator: SetAggregator, min_games
         )
 
     if batch:
-        cursor.executemany(
+        conn.executemany(
             """
-            INSERT OR REPLACE INTO synergy_pairs
+            INSERT INTO synergy_pairs
             (set_code, format, card_a, card_b, co_occurrence_count, win_rate_together, synergy_lift)
             VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (set_code, format, card_a, card_b) DO UPDATE SET
+                co_occurrence_count = excluded.co_occurrence_count,
+                win_rate_together = excluded.win_rate_together,
+                synergy_lift = excluded.synergy_lift
             """,
             batch,
         )
 
-    conn.commit()
     conn.close()
     return len(batch)
 
@@ -869,8 +919,7 @@ def save_abilities(db_path: Path) -> int:
         console.print("[yellow]Warning: abilities.csv not available, skipping[/]")
         return 0
 
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+    conn = duckdb.connect(str(db_path))
 
     def categorize(text: str, ability_id: int) -> str:
         # WARNING: These ability IDs are tied to 17lands' internal numbering system
@@ -894,15 +943,247 @@ def save_abilities(db_path: Path) -> int:
             ability_id = int(row["id"])
             text = row["text"]
             category = categorize(text, ability_id)
-            cursor.execute(
-                "INSERT OR REPLACE INTO abilities (id, text, category) VALUES (?, ?, ?)",
+            conn.execute(
+                """
+                INSERT INTO abilities (id, text, category) VALUES (?, ?, ?)
+                ON CONFLICT (id) DO UPDATE SET text = excluded.text, category = excluded.category
+                """,
                 (ability_id, text, category),
             )
             saved += 1
 
-    conn.commit()
     conn.close()
     return saved
+
+
+def process_draft_data(
+    data: bytes,
+    set_code: str,
+    db_path: Path,
+    verbose: bool = False,
+) -> tuple[int, int]:
+    """Process draft data to calculate ALSA and ATA using DuckDB.
+
+    Returns (cards_processed, picks_processed).
+    """
+    import gzip
+    import tempfile
+
+    if verbose:
+        console.print(
+            f"    [dim]Decompressing draft data ({len(data) / 1024 / 1024:.1f} MB compressed)...[/]"
+        )
+
+    # Decompress to temp file (DuckDB reads files, not bytes)
+    csv_data = gzip.decompress(data)
+
+    if verbose:
+        console.print(
+            f"    [dim]Writing temp file ({len(csv_data) / 1024 / 1024:.1f} MB uncompressed)...[/]"
+        )
+
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=".csv", delete=False) as f:
+        f.write(csv_data)
+        temp_path = f.name
+
+    try:
+        conn = duckdb.connect(str(db_path))
+
+        # Get column names from CSV
+        cols_result = conn.execute(f"""
+            SELECT column_name FROM (DESCRIBE SELECT * FROM read_csv_auto('{temp_path}', sample_size=1000, ignore_errors=true))
+        """).fetchall()
+        all_cols = [r[0] for r in cols_result]
+        pack_cols = [c for c in all_cols if c.startswith("pack_card_")]
+
+        if not pack_cols:
+            conn.close()
+            return 0, 0
+
+        # Calculate ATA (Average Taken At) directly with SQL
+        conn.execute(f"""
+            INSERT INTO draft_stats (card_name, set_code, ata, times_picked)
+            SELECT
+                pick as card_name,
+                '{set_code}' as set_code,
+                AVG(pick_number) as ata,
+                COUNT(*) as times_picked
+            FROM read_csv_auto('{temp_path}', sample_size=1000, ignore_errors=true)
+            WHERE pick IS NOT NULL
+            GROUP BY pick
+            ON CONFLICT (card_name, set_code) DO UPDATE SET
+                ata = excluded.ata,
+                times_picked = excluded.times_picked
+        """)
+
+        # Calculate ALSA using UNPIVOT in DuckDB
+        pack_cols_str = ", ".join([f'"{c}"' for c in pack_cols])
+        conn.execute(f"""
+            INSERT INTO draft_stats (card_name, set_code, alsa, times_seen)
+            SELECT
+                REPLACE(REPLACE(card_col, 'pack_card_', ''), '_', ' ') as card_name,
+                '{set_code}' as set_code,
+                AVG(pick_number) as alsa,
+                COUNT(*) as times_seen
+            FROM (
+                UNPIVOT (
+                    SELECT pick_number, {pack_cols_str}
+                    FROM read_csv_auto('{temp_path}', sample_size=1000, ignore_errors=true)
+                )
+                ON {pack_cols_str}
+                INTO NAME card_col VALUE in_pack
+            )
+            WHERE CAST(in_pack AS INTEGER) > 0
+            GROUP BY card_col
+            ON CONFLICT (card_name, set_code) DO UPDATE SET
+                alsa = excluded.alsa,
+                times_seen = excluded.times_seen
+        """)
+
+        # Get counts
+        cards_row = conn.execute(
+            f"SELECT COUNT(*) FROM draft_stats WHERE set_code = '{set_code}'"
+        ).fetchone()
+        cards_count = cards_row[0] if cards_row else 0
+        picks_row = conn.execute(
+            f"SELECT COUNT(*) FROM read_csv_auto('{temp_path}', sample_size=1000, ignore_errors=true)"
+        ).fetchone()
+        picks_count = picks_row[0] if picks_row else 0
+
+        conn.close()
+        return cards_count, picks_count
+
+    finally:
+        import os
+
+        os.unlink(temp_path)
+
+
+def process_archetype_stats(
+    data: bytes,
+    set_code: str,
+    db_path: Path,
+    verbose: bool = False,
+) -> tuple[int, int]:
+    """Process game data to calculate archetype and per-card archetype stats using DuckDB.
+
+    Returns (archetypes_processed, card_archetype_stats_processed).
+    """
+    import gzip
+    import tempfile
+
+    if verbose:
+        console.print(
+            f"    [dim]Decompressing archetype data ({len(data) / 1024 / 1024:.1f} MB compressed)...[/]"
+        )
+
+    # Decompress to temp file
+    csv_data = gzip.decompress(data)
+
+    if verbose:
+        console.print(
+            f"    [dim]Writing temp file ({len(csv_data) / 1024 / 1024:.1f} MB uncompressed)...[/]"
+        )
+
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=".csv", delete=False) as f:
+        f.write(csv_data)
+        temp_path = f.name
+
+    try:
+        conn = duckdb.connect(str(db_path))
+
+        # Check if main_colors column exists
+        cols_result = conn.execute(f"""
+            SELECT column_name FROM (DESCRIBE SELECT * FROM read_csv_auto('{temp_path}', sample_size=1000, ignore_errors=true))
+        """).fetchall()
+        all_cols = [r[0] for r in cols_result]
+
+        if "main_colors" not in all_cols:
+            conn.close()
+            return 0, 0
+
+        # Valid 2-color archetypes (normalize to alphabetical)
+        valid_archetypes = "('WU','UW','WB','BW','WR','RW','WG','GW','UB','BU','UR','RU','UG','GU','BR','RB','BG','GB','RG','GR')"
+
+        # Calculate archetype win rates using SQL
+        conn.execute(f"""
+            INSERT INTO archetype_stats (set_code, archetype, games, wins, win_rate)
+            SELECT
+                '{set_code}' as set_code,
+                CASE
+                    WHEN main_colors[1] < main_colors[2] THEN main_colors
+                    ELSE main_colors[2] || main_colors[1]
+                END as archetype,
+                COUNT(*) as games,
+                SUM(CASE WHEN won THEN 1 ELSE 0 END) as wins,
+                SUM(CASE WHEN won THEN 1.0 ELSE 0.0 END) / COUNT(*) as win_rate
+            FROM read_csv_auto('{temp_path}', sample_size=1000, ignore_errors=true)
+            WHERE main_colors IN {valid_archetypes}
+            GROUP BY archetype
+            ON CONFLICT (set_code, archetype) DO UPDATE SET
+                games = excluded.games,
+                wins = excluded.wins,
+                win_rate = excluded.win_rate
+        """)
+
+        arch_row = conn.execute(
+            f"SELECT COUNT(*) FROM archetype_stats WHERE set_code = '{set_code}'"
+        ).fetchone()
+        arch_count = arch_row[0] if arch_row else 0
+
+        # Get drawn columns for per-card archetype stats
+        drawn_cols = [c for c in all_cols if c.startswith("drawn_")]
+
+        # Build UNION ALL query for all cards at once (much faster than per-card queries)
+        basic_lands_sql = "('Plains','Island','Swamp','Mountain','Forest')"
+
+        if drawn_cols:
+            # Use UNPIVOT to get card stats by archetype in one query
+            drawn_cols_str = ", ".join([f'"{c}"' for c in drawn_cols])
+
+            conn.execute(f"""
+                INSERT INTO card_archetype_stats (card_name, set_code, archetype, games_in_hand, wins_in_hand, gih_wr)
+                SELECT
+                    REPLACE(card_col, 'drawn_', '') as card_name,
+                    '{set_code}' as set_code,
+                    CASE
+                        WHEN main_colors[1] < main_colors[2] THEN main_colors
+                        ELSE main_colors[2] || main_colors[1]
+                    END as archetype,
+                    COUNT(*) as games_in_hand,
+                    SUM(CASE WHEN won THEN 1 ELSE 0 END) as wins_in_hand,
+                    SUM(CASE WHEN won THEN 1.0 ELSE 0.0 END) / COUNT(*) as gih_wr
+                FROM (
+                    UNPIVOT (
+                        SELECT main_colors, won, {drawn_cols_str}
+                        FROM read_csv_auto('{temp_path}', sample_size=1000, ignore_errors=true)
+                        WHERE main_colors IN {valid_archetypes}
+                    )
+                    ON {drawn_cols_str}
+                    INTO NAME card_col VALUE drawn_count
+                )
+                WHERE CAST(drawn_count AS INTEGER) > 0
+                  AND REPLACE(REPLACE(card_col, 'drawn_', ''), '_', ' ') NOT IN {basic_lands_sql}
+                GROUP BY card_col, archetype
+                HAVING COUNT(*) >= 20
+                ON CONFLICT (card_name, set_code, archetype) DO UPDATE SET
+                    games_in_hand = excluded.games_in_hand,
+                    wins_in_hand = excluded.wins_in_hand,
+                    gih_wr = excluded.gih_wr
+            """)
+
+        card_arch_row = conn.execute(
+            f"SELECT COUNT(*) FROM card_archetype_stats WHERE set_code = '{set_code}'"
+        ).fetchone()
+        card_arch_count = card_arch_row[0] if card_arch_row else 0
+
+        conn.close()
+        return arch_count, card_arch_count
+
+    finally:
+        import os
+
+        os.unlink(temp_path)
 
 
 def show_top_synergies(aggregator: SetAggregator, n: int = 10) -> None:
@@ -1113,7 +1394,9 @@ def process_single_set(
             total_games += format_aggregator.games_processed
 
             if show_stats:
-                console.print(f"  [{format_cat}] {cards_saved} cards, {format_aggregator.games_processed:,} games")
+                console.print(
+                    f"  [{format_cat}] {cards_saved} cards, {format_aggregator.games_processed:,} games"
+                )
 
     if progress and task_id is not None:
         progress.update(task_id, advance=1)
@@ -1129,7 +1412,7 @@ def download(
     ] = None,
     output_dir: Annotated[
         Path, typer.Option("--output-dir", "-o", help="Output directory for database")
-    ] = Path("resources"),
+    ] = Path.home() / ".mtg-spellbook",
     show_stats: Annotated[
         bool, typer.Option("--show-stats", help="Show top cards after processing each set")
     ] = True,
@@ -1183,8 +1466,10 @@ def download(
     if sets:
         set_list = [s.strip() for s in sets.split(",")]  # Keep original case for special sets
     elif all_sets:
-        set_list = get_available_sets(EVENT_TYPES)
-        log(f"[dim]Downloading ALL {len(set_list)} available sets[/]")
+        # --all means everything: all sets, all event types
+        set_list = get_available_sets(None)  # No filter = all sets
+        all_events = True  # Implicitly enable all events
+        log(f"[dim]Downloading ALL {len(set_list)} sets with ALL event types[/]")
     else:
         # Default: get all available sets with Premier/Trad data
         set_list = get_available_sets(EVENT_TYPES)[:15]  # Top 15 by default
@@ -1192,7 +1477,7 @@ def download(
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    db_path = output_dir / "limited_stats.sqlite"
+    db_path = output_dir / "gameplay.duckdb"
 
     log(f"\n[bold]Creating database at {db_path}[/]")
     create_database(db_path)
@@ -1241,13 +1526,30 @@ def download(
                 prog: Progress | None = progress,
                 tid: TaskID | None = task_id,
                 evts: list[str] = set_event_types,
-            ) -> dict[str, bytes]:
+            ) -> tuple[dict[str, bytes], dict[str, bytes]]:
                 timeout = aiohttp.ClientTimeout(total=300, connect=30)
                 connector = aiohttp.TCPConnector(limit=MAX_CONCURRENT_DOWNLOADS, force_close=True)
                 async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
-                    return await download_single_set(sc, session, prog, tid, evts)
+                    # Download game data
+                    game_data = await download_single_set(sc, session, prog, tid, evts)
 
-            downloaded = asyncio.run(download_set())
+                    # Download draft data (for ALSA/ATA)
+                    draft_data: dict[str, bytes] = {}
+                    for event_type in evts:
+                        url = DRAFT_DATA_PATTERN.format(
+                            base=SEVENTEEN_LANDS_BASE,
+                            set_code=sc,
+                            event_type=event_type,
+                        )
+                        result = await download_file_async(
+                            session, url, sc, event_type, asyncio.Semaphore(1)
+                        )
+                        if result.data is not None:
+                            draft_data[result.event_type] = result.data
+
+                    return game_data, draft_data
+
+            downloaded, draft_downloaded = asyncio.run(download_set())
 
             if not downloaded:
                 if quiet:
@@ -1256,10 +1558,66 @@ def download(
                     console.print("[yellow]  No data available[/]")
                 continue
 
+            # Log download sizes
+            if not quiet:
+                game_size = sum(len(d) for d in downloaded.values()) / 1024 / 1024
+                draft_size = (
+                    sum(len(d) for d in draft_downloaded.values()) / 1024 / 1024
+                    if draft_downloaded
+                    else 0
+                )
+                console.print(
+                    f"  [dim]Downloaded: {game_size:.1f} MB game data, {draft_size:.1f} MB draft data[/]"
+                )
+
             # Process phase
             cards, games, pairs = process_single_set(
                 set_code, db_path, downloaded, skip_pairs, show_stats, progress, task_id
             )
+
+            # Process draft data for ALSA/ATA
+            draft_cards = 0
+            if draft_downloaded:
+                if not quiet:
+                    console.print(
+                        f"  [dim]Processing draft data ({len(draft_downloaded)} files)...[/]"
+                    )
+                if progress and task_id is not None:
+                    progress.update(task_id, description=f"{set_code}: Processing draft data...")
+                for event_type, draft_data in draft_downloaded.items():
+                    try:
+                        dc, _ = process_draft_data(draft_data, set_code, db_path, verbose=not quiet)
+                        draft_cards += dc
+                        if not quiet:
+                            console.print(f"    [green]✓[/] {event_type}: {dc} cards processed")
+                    except Exception as e:
+                        if not quiet:
+                            console.print(f"[yellow]  Draft data error ({event_type}): {e}[/]")
+
+            # Process archetype stats from game data
+            archetypes = 0
+            card_arch = 0
+            if downloaded:
+                if not quiet:
+                    console.print(
+                        f"  [dim]Processing archetype stats ({len(downloaded)} files)...[/]"
+                    )
+                if progress and task_id is not None:
+                    progress.update(task_id, description=f"{set_code}: Processing archetypes...")
+                for event_type, game_data in downloaded.items():
+                    try:
+                        a, ca = process_archetype_stats(
+                            game_data, set_code, db_path, verbose=not quiet
+                        )
+                        archetypes += a
+                        card_arch += ca
+                        if not quiet:
+                            console.print(
+                                f"    [green]✓[/] {event_type}: {a} archetypes, {ca} card stats"
+                            )
+                    except Exception as e:
+                        if not quiet:
+                            console.print(f"[yellow]  Archetype data error: {e}[/]")
 
             if progress and task_id is not None:
                 progress.update(
@@ -1293,9 +1651,9 @@ def download(
 
 @app.command()
 def show(
-    db_path: Annotated[Path, typer.Argument(help="Path to limited_stats.sqlite")] = Path(
-        "resources/limited_stats.sqlite"
-    ),
+    db_path: Annotated[Path, typer.Argument(help="Path to gameplay.duckdb")] = Path.home()
+    / ".mtg-spellbook"
+    / "gameplay.duckdb",
     set_code: Annotated[str | None, typer.Option("--set", "-s", help="Filter by set code")] = None,
     tier: Annotated[
         str | None, typer.Option("--tier", "-t", help="Filter by tier (S/A/B/C/D/F)")
@@ -1308,9 +1666,7 @@ def show(
         console.print("[dim]Run 'download-17lands' first to create the database.[/]")
         raise typer.Exit(1)
 
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
+    conn = duckdb.connect(str(db_path), read_only=True)
 
     query = "SELECT * FROM card_stats WHERE gih_wr IS NOT NULL"
     params: list[str | int] = []
@@ -1326,11 +1682,13 @@ def show(
     query += " ORDER BY gih_wr DESC LIMIT ?"
     params.append(limit)
 
-    cursor.execute(query, params)
-    rows = cursor.fetchall()
+    result = conn.execute(query, params)
+    rows = result.fetchall()
+    columns = [desc[0] for desc in result.description]
 
     if not rows:
         console.print("[yellow]No cards found matching criteria[/]")
+        conn.close()
         return
 
     table = Table(title="Limited Card Statistics")
@@ -1341,7 +1699,11 @@ def show(
     table.add_column("IWD", justify="right")
     table.add_column("Games", justify="right", style="dim")
 
+    # Create a mapping of column names to indices
+    col_idx = {name: i for i, name in enumerate(columns)}
+
     for row in rows:
+        tier_val = row[col_idx["tier"]]
         tier_color = {
             "S": "bold magenta",
             "A": "green",
@@ -1349,15 +1711,18 @@ def show(
             "C": "yellow",
             "D": "orange3",
             "F": "red",
-        }.get(row["tier"], "white")
+        }.get(tier_val, "white")
+
+        gih_wr = row[col_idx["gih_wr"]]
+        iwd = row[col_idx["iwd"]]
 
         table.add_row(
-            row["card_name"],
-            row["set_code"],
-            f"[{tier_color}]{row['tier']}[/]",
-            f"{row['gih_wr']:.1%}" if row["gih_wr"] else "N/A",
-            f"{row['iwd']:+.1%}" if row["iwd"] else "N/A",
-            f"{row['games_in_hand']:,}",
+            row[col_idx["card_name"]],
+            row[col_idx["set_code"]],
+            f"[{tier_color}]{tier_val}[/]",
+            f"{gih_wr:.1%}" if gih_wr else "N/A",
+            f"{iwd:+.1%}" if iwd else "N/A",
+            f"{row[col_idx['games_in_hand']]:,}",
         )
 
     console.print(table)

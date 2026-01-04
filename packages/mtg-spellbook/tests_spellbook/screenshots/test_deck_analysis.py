@@ -255,6 +255,7 @@ def sample_deck_for_analysis() -> DeckWithCards:
         name="Mono-Red Burn",
         format="modern",
         commander=None,
+        description=None,
         cards=cards,
     )
 
@@ -292,18 +293,21 @@ class TestDeckAnalysisPanel:
             # Now update with the deck
             panel.update_analysis(sample_deck_for_analysis)
 
-            # Wait for UI to update
-            await pilot.pause()
+            # Wait for async analysis to complete (may take multiple pauses)
+            content = panel.query_one("#analysis-content", Static)
+            for _ in range(20):  # Max ~2 seconds wait
+                await pilot.pause()
+                rendered = str(content.render())
+                if "Mono-Red Burn" in rendered:
+                    break
 
             # The empty state should be hidden
             assert empty_static.display is False, "Empty state should be hidden after update"
 
             # Content should be visible
-            content = panel.query_one("#analysis-content", Static)
             assert content.display is True, "Content should be visible"
 
-            # Content should have the deck name
-            rendered = str(content.render())
+            # Content should have the deck name (already fetched in loop)
             assert "Mono-Red Burn" in rendered, f"Deck name not found. Got: {rendered[:200]}..."
             assert "Creatures" in rendered, f"'Creatures' not found. Got: {rendered[:200]}..."
             assert "Lands" in rendered, f"'Lands' not found. Got: {rendered[:200]}..."

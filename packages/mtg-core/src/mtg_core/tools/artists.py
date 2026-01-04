@@ -59,6 +59,8 @@ async def get_artist_cards(
             keywords=card.keywords or [],
             power=card.power,
             toughness=card.toughness,
+            image=card.image_normal,
+            image_small=card.image_small,
         )
         for card in cards
     ]

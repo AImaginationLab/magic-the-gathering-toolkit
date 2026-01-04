@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-Color = Literal["W", "U", "B", "R", "G"]
+Color = Literal["W", "U", "B", "R", "G", "C"]
 
 Format = Literal[
     "standard",

@@ -40,16 +40,16 @@ class CardTypeColors:
 class RarityColors:
     """Colors for rarity display."""
 
-    MYTHIC: str = "#e65c00"
-    RARE: str = "#c9a227"
-    UNCOMMON: str = "#c0c0c0"
-    COMMON: str = "#888"
-    DEFAULT: str = "#666"
+    MYTHIC: str = "#E67300"  # Warm orange
+    RARE: str = "#D4AF37"  # Muted gold
+    UNCOMMON: str = "#B8B8B8"  # Silver
+    COMMON: str = "#909090"  # Gray
+    DEFAULT: str = "#707070"  # Dim gray
 
 
 @dataclass(frozen=True)
 class UIColors:
-    """General UI theme colors."""
+    """General UI theme colors (WoW-inspired vibrancy)."""
 
     # Primary gold colors (brighter)
     GOLD: str = "#FFD700"  # Richer gold for headers
@@ -84,32 +84,49 @@ class UIColors:
     SCROLLBAR_ACTIVE: str = "#fff8dc"
 
     # Text colors
-    TEXT_DIM: str = "#888"
-    TEXT_ERROR: str = "#FF4444"  # Vibrant red
+    TEXT_DIM: str = "#999999"  # Dimmed text
+    TEXT_ERROR: str = "#E54545"  # Soft red
 
-    # Status colors (more distinctive)
-    SUCCESS: str = "#00FF00"  # Bright green
-    WARNING: str = "#FFA500"  # True orange
-    ERROR: str = "#FF4444"  # Vibrant red
-    INFO: str = "#4A9FD8"  # Bright blue
+    # Status colors
+    SUCCESS: str = "#4CAF50"  # Material green
+    WARNING: str = "#E5A020"  # Warm amber
+    ERROR: str = "#E54545"  # Soft red
+    INFO: str = "#4A9FD8"  # Sky blue
 
-    # Synergy colors (brighter)
-    SYNERGY_STRONG: str = "#32FF32"  # Brighter green
-    SYNERGY_MODERATE: str = "#FFD700"  # Bright yellow/gold
-    SYNERGY_WEAK: str = "#FFA500"  # Bright orange
+    # Synergy colors
+    SYNERGY_STRONG: str = "#4CAF50"  # Material green
+    SYNERGY_MODERATE: str = "#D4AF37"  # Muted gold
+    SYNERGY_WEAK: str = "#E5A020"  # Warm amber
+
+    # Positive/negative stat change colors
+    POSITIVE_STRONG: str = "#4CAF50"  # Material green - buffs
+    POSITIVE_MODERATE: str = "#66BB6A"  # Light green - moderate gains
+    NEGATIVE_STRONG: str = "#E54545"  # Soft red - nerfs
+    NEGATIVE_MODERATE: str = "#EF7070"  # Light red - moderate losses
+
+    # Quality tier colors
+    QUALITY_LEGENDARY: str = "#E67300"  # Warm orange - mythic cards
+    QUALITY_EPIC: str = "#9040C0"  # Muted purple - rare combos
+    QUALITY_RARE: str = "#4080D0"  # Muted blue
+    QUALITY_UNCOMMON: str = "#50B050"  # Muted green
+
+    # Accent colors
+    CYAN_ACCENT: str = "#40C4D0"  # Soft cyan
+    MAGENTA_ACCENT: str = "#C060C0"  # Soft magenta
+    TEAL_ACCENT: str = "#40C0A0"  # Soft teal
 
     # Tier colors (for ratings)
-    TIER_S: str = "#FFD700"  # Bright gold
-    TIER_A: str = "#32CD32"  # Bright green
-    TIER_B: str = "#87CEEB"  # Bright blue
-    TIER_C: str = "#FFA500"  # Orange
-    TIER_D: str = "#FF6B6B"  # Soft red
-    TIER_F: str = "#888888"  # Gray
+    TIER_S: str = "#E67300"  # Warm orange
+    TIER_A: str = "#9040C0"  # Muted purple
+    TIER_B: str = "#4080D0"  # Muted blue
+    TIER_C: str = "#50B050"  # Muted green
+    TIER_D: str = "#E5A020"  # Warm amber
+    TIER_F: str = "#707070"  # Gray
 
-    # Price colors
-    PRICE_HIGH: str = "#FFA500"  # Orange
-    PRICE_MEDIUM: str = "#FFFF00"  # Yellow
-    PRICE_LOW: str = "#00FF00"  # Green
+    # Price colors (inverted - low price is good)
+    PRICE_HIGH: str = "#E54545"  # Soft red - expensive
+    PRICE_MEDIUM: str = "#E5A020"  # Warm amber
+    PRICE_LOW: str = "#4CAF50"  # Material green - cheap
 
 
 mtg_colors = MTGColors()
@@ -182,3 +199,49 @@ def get_synergy_score_color(score: float) -> str:
     elif score >= 0.4:
         return ui_colors.SYNERGY_MODERATE
     return ui_colors.SYNERGY_WEAK
+
+
+def get_stat_change_color(change: float, invert: bool = False) -> str:
+    """Get color for stat changes (WoW-style).
+
+    Args:
+        change: Positive = buff, negative = nerf
+        invert: Reverse the color mapping (for costs where lower is better)
+
+    Returns:
+        Color for the change indicator
+    """
+    is_positive = change > 0
+    if invert:
+        is_positive = not is_positive
+
+    if is_positive:
+        if abs(change) > 2:
+            return ui_colors.POSITIVE_STRONG
+        return ui_colors.POSITIVE_MODERATE
+    else:
+        if abs(change) > 2:
+            return ui_colors.NEGATIVE_STRONG
+        return ui_colors.NEGATIVE_MODERATE
+
+
+def get_quality_color(quality: str) -> str:
+    """Get WoW-style quality color for special items.
+
+    Args:
+        quality: "legendary", "epic", "uncommon", etc.
+
+    Returns:
+        Color hex code
+    """
+    quality_map = {
+        "legendary": ui_colors.QUALITY_LEGENDARY,
+        "mythic": ui_colors.QUALITY_LEGENDARY,
+        "epic": ui_colors.QUALITY_EPIC,
+        "combo": ui_colors.QUALITY_EPIC,
+        "rare": ui_colors.QUALITY_RARE,
+        "uncommon": ui_colors.QUALITY_UNCOMMON,
+        "special": ui_colors.CYAN_ACCENT,
+        "alternate": ui_colors.MAGENTA_ACCENT,
+    }
+    return quality_map.get(quality.lower(), ui_colors.TEXT_DIM)
