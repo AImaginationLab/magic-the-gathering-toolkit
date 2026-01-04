@@ -12,6 +12,7 @@ export { GhostedCard } from "./GhostedCard";
 export { CommanderHeroCard } from "./CommanderHeroCard";
 export { DeckArchetypeCard } from "./DeckArchetypeCard";
 export { CategoryStack } from "./CategoryStack";
+export { CardSuggestionsPanel } from "./CardSuggestionsPanel";
 export { SuggestionsTabs } from "./SuggestionsTabs";
 export { FilterPanel } from "./FilterPanel";
 export type { FilterState, CardSource } from "./FilterPanel";

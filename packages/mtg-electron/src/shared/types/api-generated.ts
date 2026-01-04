@@ -3007,6 +3007,14 @@ export interface components {
             price_usd?: number | null;
             /** Owned */
             owned?: boolean | null;
+            /** Score */
+            score?: number | null;
+            /** Tier */
+            tier?: string | null;
+            /** Edhrec Rank */
+            edhrec_rank?: number | null;
+            /** Combo Count */
+            combo_count?: number | null;
         };
         /**
          * SynergyPair

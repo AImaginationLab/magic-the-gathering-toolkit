@@ -6,6 +6,7 @@ for Commander and Standard formats.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections import Counter
 from typing import TYPE_CHECKING, Any
@@ -773,9 +774,25 @@ class DeckFinder:
         # Analyze colors in collection
         color_counts = self._count_colors(card_data)
 
-        # Generate suggestions for each potential commander
-        for commander in potential_commanders:
-            suggestion = await self._create_commander_suggestion(
+        # Pre-index cards by color identity for O(1) lookups per commander
+        # Key: frozenset of colors (e.g. frozenset({'W', 'U'}))
+        # Value: list of cards that fit within that color identity
+        color_identity_index: dict[frozenset[str], list[CardData]] = {}
+        colorless_cards: list[CardData] = []  # Cards with no color identity fit any commander
+
+        for card in card_data:
+            card_identity = card.get_color_identity()
+            if not card_identity:
+                colorless_cards.append(card)
+            else:
+                identity_key = frozenset(card_identity)
+                if identity_key not in color_identity_index:
+                    color_identity_index[identity_key] = []
+                color_identity_index[identity_key].append(card)
+
+        # Generate suggestions for each potential commander (parallelized for speed)
+        async def process_commander(commander: CardData) -> DeckSuggestion | None:
+            return await self._create_commander_suggestion(
                 commander,
                 card_data,
                 tribal_counts,
@@ -783,9 +800,23 @@ class DeckFinder:
                 color_counts,
                 filters=filters,
                 filter_reasons=base_filter_reasons,
+                color_identity_index=color_identity_index,
+                colorless_cards=colorless_cards,
             )
-            if suggestion and suggestion.completion_pct >= min_completion:
-                suggestions.append(suggestion)
+
+        # Process commanders in parallel batches to avoid overwhelming the system
+        batch_size = 10
+        for i in range(0, len(potential_commanders), batch_size):
+            batch = potential_commanders[i : i + batch_size]
+            batch_results = await asyncio.gather(
+                *[process_commander(cmd) for cmd in batch],
+                return_exceptions=True,
+            )
+            for result in batch_results:
+                if isinstance(result, BaseException):
+                    continue  # Skip failed commanders
+                if result is not None and result.completion_pct >= min_completion:
+                    suggestions.append(result)
 
         # Also add tribal-based suggestions if strong tribal presence
         # (only if no specific tribal filter, or if it matches)
@@ -980,6 +1011,8 @@ class DeckFinder:
         _color_counts: Counter[str],
         filters: DeckFilters | None = None,
         filter_reasons: list[str] | None = None,
+        color_identity_index: dict[frozenset[str], list[CardData]] | None = None,
+        colorless_cards: list[CardData] | None = None,
     ) -> DeckSuggestion | None:
         """Create a deck suggestion around a specific commander."""
         commander_colors = self._get_commander_colors(commander)
@@ -1001,41 +1034,64 @@ class DeckFinder:
                 if not any(kw.lower() in cmd_text for kw in theme_keywords):
                     return None  # Commander doesn't match theme filter
 
-        # Get cards that fit this commander's colors (as CardData objects)
+        # Get cards that fit this commander's colors using pre-indexed data
         fitting_card_data: list[CardData] = []
         tribal_filter_lower = (
             filters.creature_type.lower() if filters and filters.creature_type else None
         )
 
-        for card in all_cards:
-            # Skip the commander itself
-            if card.name == commander.name:
-                continue
+        # Use optimized color identity lookup if index is provided
+        if color_identity_index is not None and colorless_cards is not None:
+            commander_color_set = frozenset(commander_colors) if commander_colors else frozenset()
 
-            # Apply tribal filter - only include creatures of the specified type
-            # (lands and support cards are still included)
-            if tribal_filter_lower:
-                card_type = (card.type_line or "").lower()
-                card_text = (card.text or "").lower()
-                is_creature = "creature" in card_type
-                is_tribal_creature = (
-                    tribal_filter_lower in card_type or tribal_filter_lower in card_text
-                )
-                # Skip non-tribal creatures, but keep lands and non-creatures
-                if is_creature and not is_tribal_creature:
+            # Start with colorless cards (fit any commander)
+            candidate_cards = list(colorless_cards)
+
+            # Add cards whose color identity is a subset of commander's colors
+            if not commander_colors:
+                # Colorless commander accepts all cards
+                for cards in color_identity_index.values():
+                    candidate_cards.extend(cards)
+            else:
+                for identity_key, cards in color_identity_index.items():
+                    if identity_key <= commander_color_set:  # subset check
+                        candidate_cards.extend(cards)
+
+            # Apply tribal filter and remove commander from candidates
+            for card in candidate_cards:
+                if card.name == commander.name:
                     continue
 
-            # Use color identity for proper filtering (important for lands!)
-            card_identity = card.get_color_identity()
-            # If commander has no color identity data, accept all cards
-            # Otherwise check color identity matching
-            if not commander_colors:
+                if tribal_filter_lower:
+                    card_type = (card.type_line or "").lower()
+                    card_text = (card.text or "").lower()
+                    is_creature = "creature" in card_type
+                    is_tribal_creature = (
+                        tribal_filter_lower in card_type or tribal_filter_lower in card_text
+                    )
+                    if is_creature and not is_tribal_creature:
+                        continue
+
                 fitting_card_data.append(card)
-            elif not card_identity:
-                # Truly colorless cards fit any commander
-                fitting_card_data.append(card)
-            elif all(c in commander_colors for c in card_identity):
-                fitting_card_data.append(card)
+        else:
+            # Fallback to original O(n) filtering if index not provided
+            for card in all_cards:
+                if card.name == commander.name:
+                    continue
+
+                if tribal_filter_lower:
+                    card_type = (card.type_line or "").lower()
+                    card_text = (card.text or "").lower()
+                    is_creature = "creature" in card_type
+                    is_tribal_creature = (
+                        tribal_filter_lower in card_type or tribal_filter_lower in card_text
+                    )
+                    if is_creature and not is_tribal_creature:
+                        continue
+
+                card_identity = card.get_color_identity()
+                if not commander_colors or not card_identity or all(c in commander_colors for c in card_identity):
+                    fitting_card_data.append(card)
 
         # Need at least some cards to make a suggestion
         if len(fitting_card_data) < 10:

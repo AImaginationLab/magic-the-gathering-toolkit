@@ -46,6 +46,7 @@ const MANA_COLORS = [
   { code: "B", bg: "#3a3a3a", text: "#ffffff", name: "Black" },
   { code: "R", bg: "#d3202a", text: "#ffffff", name: "Red" },
   { code: "G", bg: "#00733e", text: "#ffffff", name: "Green" },
+  { code: "C", bg: "#bab1ab", text: "#1a1a1a", name: "Colorless" },
 ];
 
 const FORMATS = [

@@ -48,11 +48,25 @@ def detect_themes(cards: list[Card]) -> list[str]:
 
 
 def detect_deck_colors(cards: list[Card]) -> list[str]:
-    """Detect deck colors from card color identities."""
+    """Detect deck colors from card color identities.
+
+    Excludes basic and dual lands from color detection since lands can have
+    color identities that don't represent the deck's actual spell colors.
+    For example, a Jeskai deck might have Temple Garden for mana fixing
+    but doesn't actually play green spells.
+    """
     colors: set[str] = set()
+
     for card in cards:
-        if card.color_identity:
-            colors.update(card.color_identity)
+        if not card.color_identity:
+            continue
+
+        # Skip lands - they shouldn't determine deck colors
+        # A deck with Temple Garden isn't necessarily a green deck
+        if card.types and "Land" in card.types:
+            continue
+
+        colors.update(card.color_identity)
 
     color_order = ["W", "U", "B", "R", "G"]
     return [c for c in color_order if c in colors]

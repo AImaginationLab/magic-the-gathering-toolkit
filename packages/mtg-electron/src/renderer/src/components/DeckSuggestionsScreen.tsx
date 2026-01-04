@@ -11,9 +11,8 @@ import { CardDetailModal } from "./CardDetailModal";
 import {
   SuggestionsTabs,
   FilterPanel,
-  CategoryStack,
+  CardSuggestionsPanel,
   DeckArchetypeCard,
-  CompletionRing,
 } from "./DeckSuggestions";
 import type { FilterState } from "./DeckSuggestions";
 
@@ -444,7 +443,7 @@ export function DeckSuggestionsScreen(): ReactNode {
   );
 }
 
-// Card Suggestions View
+// Card Suggestions View - Redesigned with editorial layout
 function CardSuggestionsView({
   result,
   isLoading,
@@ -490,71 +489,7 @@ function CardSuggestionsView({
     );
   }
 
-  // Group suggestions by category
-  const synergies = result.suggestions.filter((c) => c.category === "synergy");
-  const staples = result.suggestions.filter((c) => c.category === "staple");
-  const upgrades = result.suggestions.filter((c) => c.category === "upgrade");
-  const budget = result.suggestions.filter((c) => c.category === "budget");
-
-  return (
-    <div className="space-y-6">
-      {/* Detected themes */}
-      {result.detected_themes && result.detected_themes.length > 0 && (
-        <div className="flex items-center gap-3 mb-6">
-          <span className="text-xs" style={{ color: colors.text.muted }}>
-            Detected Themes:
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {result.detected_themes.map((theme) => (
-              <span
-                key={theme}
-                className="px-2.5 py-1 rounded-full text-xs font-display"
-                style={{
-                  background: `${synergyColors.strategy.color}20`,
-                  border: `1px solid ${synergyColors.strategy.color}40`,
-                  color: synergyColors.strategy.color,
-                }}
-              >
-                {theme}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Category stacks */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-        {synergies.length > 0 && (
-          <CategoryStack
-            category="synergy"
-            cards={synergies}
-            onCardClick={onViewCard}
-          />
-        )}
-        {staples.length > 0 && (
-          <CategoryStack
-            category="staple"
-            cards={staples}
-            onCardClick={onViewCard}
-          />
-        )}
-        {upgrades.length > 0 && (
-          <CategoryStack
-            category="upgrade"
-            cards={upgrades}
-            onCardClick={onViewCard}
-          />
-        )}
-        {budget.length > 0 && (
-          <CategoryStack
-            category="budget"
-            cards={budget}
-            onCardClick={onViewCard}
-          />
-        )}
-      </div>
-    </div>
-  );
+  return <CardSuggestionsPanel result={result} onViewCard={onViewCard} />;
 }
 
 // Synergy indicator colors (matching DeckImpactTooltip)
@@ -1178,22 +1113,83 @@ function DeckIdeasView({
   );
 }
 
-// Loading state
+// Loading state with animated spinner and elapsed time
 function LoadingState({ message }: { message: string }): ReactNode {
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTime = (seconds: number): string => {
+    if (seconds < 60) return `${seconds}s`;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}m ${secs}s`;
+  };
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center py-16">
-      <CompletionRing
-        percent={0}
-        size="large"
-        showLabel={false}
-        animated={false}
-      />
+      {/* Animated spinner */}
+      <div
+        className="relative w-20 h-20"
+        style={{
+          animation: "spin 2s linear infinite",
+        }}
+      >
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            border: `3px solid ${colors.void.lighter}`,
+          }}
+        />
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            border: `3px solid transparent`,
+            borderTopColor: colors.gold.standard,
+            borderRightColor: colors.gold.dim,
+          }}
+        />
+        {/* Center icon */}
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{ animation: "spin 2s linear infinite reverse" }}
+        >
+          <i
+            className="ms ms-ability-constellation"
+            style={{ color: colors.gold.standard, fontSize: 24 }}
+          />
+        </div>
+      </div>
+
       <p
-        className="mt-4 text-sm font-display tracking-wide"
-        style={{ color: colors.text.muted }}
+        className="mt-6 text-sm font-display tracking-wide"
+        style={{ color: colors.text.standard }}
       >
         {message.toUpperCase()}
       </p>
+
+      {/* Elapsed time */}
+      <p
+        className="mt-2 text-xs font-mono"
+        style={{ color: colors.text.muted }}
+      >
+        {formatTime(elapsedSeconds)} elapsed
+      </p>
+
+      {/* Helpful tip after 5 seconds */}
+      {elapsedSeconds >= 5 && (
+        <p
+          className="mt-4 text-xs max-w-xs text-center"
+          style={{ color: colors.text.muted, opacity: 0.7 }}
+        >
+          Analyzing your collection and finding the best matches...
+        </p>
+      )}
     </div>
   );
 }

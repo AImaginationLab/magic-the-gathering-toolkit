@@ -493,6 +493,12 @@ class SuggestedCard(BaseModel):
     # Collection status
     owned: bool | None = None  # True if card is in user's collection
 
+    # Enhanced scoring from data sources
+    score: float | None = None  # Overall relevance score (0-100)
+    tier: str | None = None  # 17Lands tier (S/A/B/C/D/F)
+    edhrec_rank: int | None = None  # EDHREC popularity rank (lower = more popular)
+    combo_count: int | None = None  # Number of combos this card enables
+
 
 class SuggestCardsResult(BaseModel):
     """Result of suggest_cards tool."""
