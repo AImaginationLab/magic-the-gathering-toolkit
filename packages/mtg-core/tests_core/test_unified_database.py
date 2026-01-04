@@ -6,10 +6,7 @@ set management, artist queries, and price filtering. Target coverage: 92%+.
 
 from __future__ import annotations
 
-import os
 from collections.abc import AsyncIterator
-from pathlib import Path
-from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -21,28 +18,7 @@ from mtg_core.data.models import Card, CardLegality, CardRuling, SearchCardsInpu
 from mtg_core.data.models.responses import ArtistSummary
 from mtg_core.exceptions import CardNotFoundError, SetNotFoundError
 
-if TYPE_CHECKING:
-    pass
-
-
-def get_test_db_path() -> Path | None:
-    """Get path to test database if it exists."""
-    env_path = os.environ.get("MTG_DB_PATH")
-    if env_path:
-        path = Path(env_path)
-        if path.exists():
-            return path
-
-    for candidate in [
-        Path("resources/mtg.sqlite"),
-        Path("../../resources/mtg.sqlite"),
-        Path(__file__).parent.parent.parent.parent.parent / "resources" / "mtg.sqlite",
-    ]:
-        if candidate.exists():
-            return candidate.resolve()
-
-    return None
-
+from .conftest import get_test_db_path
 
 DB_PATH = get_test_db_path()
 pytestmark = pytest.mark.skipif(

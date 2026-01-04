@@ -500,7 +500,7 @@ class HybridRecommender:
     _spellbook_detector: SpellbookComboDetector | None = field(
         default=None, repr=False
     )  # 73K+ combos
-    _limited_stats: Any = field(default=None, repr=False)  # LimitedStatsDB
+    _gameplay_stats: Any = field(default=None, repr=False)  # GameplayDB
     _card_encoder: CardEncoder = field(default_factory=CardEncoder, repr=False)
     _deck_encoder: DeckEncoder = field(default_factory=DeckEncoder, repr=False)
     _card_data: dict[str, dict[str, Any]] = field(default_factory=dict, repr=False)
@@ -535,7 +535,7 @@ class HybridRecommender:
 
         # Initialize Commander Spellbook combo detector (73K+ combos)
         try:
-            self._spellbook_detector = get_spellbook_detector()
+            self._spellbook_detector = await get_spellbook_detector()
             if self._spellbook_detector.is_available:
                 logger.info(
                     f"Loaded {self._spellbook_detector.combo_count:,} combos from Commander Spellbook"
@@ -558,21 +558,21 @@ class HybridRecommender:
                 logger.warning(f"Could not load legacy combo detector: {e}")
                 self._combo_detector = None
 
-        # Initialize 17lands limited stats (optional)
+        # Initialize 17lands gameplay stats (optional)
         try:
-            from .limited_stats import LimitedStatsDB
+            from .gameplay import GameplayDB
 
-            self._limited_stats = LimitedStatsDB()
-            if self._limited_stats.is_available:
-                self._limited_stats.connect()
-                sets = self._limited_stats.get_set_codes()
+            self._gameplay_stats = GameplayDB()
+            if self._gameplay_stats.is_available:
+                self._gameplay_stats.connect()
+                sets = self._gameplay_stats.get_set_codes()
                 logger.info(f"Loaded 17lands stats for {len(sets)} sets: {', '.join(sets[:5])}...")
             else:
-                logger.info("17lands limited_stats.sqlite not found (optional)")
-                self._limited_stats = None
+                logger.info("17lands gameplay.duckdb not found (optional)")
+                self._gameplay_stats = None
         except Exception as e:
             logger.warning(f"Could not load 17lands stats: {e}")
-            self._limited_stats = None
+            self._gameplay_stats = None
 
         self._init_time = time.perf_counter() - start
         self._initialized = True
@@ -580,7 +580,7 @@ class HybridRecommender:
 
         return self._init_time
 
-    def recommend_for_deck(
+    async def recommend_for_deck(
         self,
         deck_cards: list[dict[str, Any]],
         n: int = 20,
@@ -638,8 +638,11 @@ class HybridRecommender:
         combo_meta: dict[str, dict[str, Any]] = {}  # combo_id -> metadata for scoring
 
         if self._spellbook_detector:
-            spellbook_matches, missing_card_to_combos = (
-                self._spellbook_detector.find_missing_pieces(list(deck_card_names), max_missing=2)
+            (
+                spellbook_matches,
+                missing_card_to_combos,
+            ) = await self._spellbook_detector.find_missing_pieces(
+                list(deck_card_names), max_missing=2
             )
             # Build meta for scoring
             for match in spellbook_matches:
@@ -754,20 +757,20 @@ class HybridRecommender:
             limited_score = 0.5  # Neutral default
             limited_tier: str | None = None
             limited_gih_wr: float | None = None
-            if self._limited_stats:
-                stats = self._limited_stats.get_card_stats(tfidf_rec.name)
+            if self._gameplay_stats:
+                stats = self._gameplay_stats.get_card_stats(tfidf_rec.name)
                 if stats:
                     # Use format-weighted score (70% Draft, 30% Sealed)
-                    limited_score = self._limited_stats.get_weighted_score(tfidf_rec.name)
+                    limited_score = self._gameplay_stats.get_weighted_score(tfidf_rec.name)
                     limited_tier = stats.tier
                     limited_gih_wr = stats.gih_wr
                     if explain and limited_tier in ("S", "A"):
                         reasons.append(f"Limited powerhouse ({limited_tier}-tier)")
                     # Add insights about bomb/synergy characteristics
                     if explain:
-                        if self._limited_stats.is_bomb(tfidf_rec.name):
+                        if self._gameplay_stats.is_bomb(tfidf_rec.name):
                             reasons.append("Standalone bomb (wins on its own)")
-                        elif self._limited_stats.is_synergy_dependent(tfidf_rec.name):
+                        elif self._gameplay_stats.is_synergy_dependent(tfidf_rec.name):
                             reasons.append("Synergy-dependent (needs support)")
 
             # Calculate land score - boost lands when deck needs them, penalize when not
@@ -1020,7 +1023,7 @@ class HybridRecommender:
 
         return candidates
 
-    def get_near_combos(
+    async def get_near_combos(
         self,
         deck_cards: list[dict[str, Any]],
         max_missing: int = 2,
@@ -1038,7 +1041,7 @@ class HybridRecommender:
 
         # Prefer Spellbook (73K+ combos) over legacy detector
         if self._spellbook_detector:
-            matches, _ = self._spellbook_detector.find_missing_pieces(
+            matches, _ = await self._spellbook_detector.find_missing_pieces(
                 deck_card_names, max_missing=max_missing
             )
             # Convert SpellbookComboMatch to ComboMatch for API compatibility

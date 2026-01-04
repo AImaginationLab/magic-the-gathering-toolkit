@@ -26,15 +26,23 @@ class BaseDatabase:
     _execute() context manager for all queries.
     """
 
-    def __init__(self, db: aiosqlite.Connection, max_connections: int = 5):
+    def __init__(
+        self,
+        db: aiosqlite.Connection,
+        max_connections: int = 5,
+        semaphore: asyncio.Semaphore | None = None,
+    ):
         """Initialize with a database connection.
 
         Args:
             db: An open aiosqlite connection with row_factory set.
-            max_connections: Maximum concurrent queries (semaphore limit).
+            max_connections: Maximum concurrent queries (only used if semaphore is None).
+            semaphore: Optional shared semaphore for global concurrency control.
+                      If provided, max_connections is ignored.
         """
         self._db = db
-        self._semaphore = asyncio.Semaphore(max_connections)
+        # Use shared semaphore if provided, otherwise create our own
+        self._semaphore = semaphore if semaphore is not None else asyncio.Semaphore(max_connections)
 
     @property
     def connection(self) -> aiosqlite.Connection:
@@ -60,6 +68,14 @@ class BaseDatabase:
             try:
                 async with self._db.execute(query, params) as cursor:
                     yield cursor
+            except Exception as e:
+                logger.error(
+                    "SQL error: %s\nQuery: %s\nParams: %s",
+                    e,
+                    query[:500],
+                    params[:20] if params else [],
+                )
+                raise
             finally:
                 if settings.log_slow_queries:
                     duration_ms = (time.perf_counter() - start) * 1000

@@ -10,9 +10,7 @@ These tests verify all deck analysis functionality:
 
 from __future__ import annotations
 
-import os
 from collections.abc import AsyncIterator
-from pathlib import Path
 
 import pytest
 
@@ -21,27 +19,7 @@ from mtg_core.data.database import UnifiedDatabase, create_database
 from mtg_core.data.models import AnalyzeDeckInput, DeckCardInput, ValidateDeckInput
 from mtg_core.tools import deck
 
-
-def get_test_db_path() -> Path | None:
-    """Get path to test database if it exists."""
-    # Check environment variable first
-    env_path = os.environ.get("MTG_DB_PATH")
-    if env_path:
-        path = Path(env_path)
-        if path.exists():
-            return path
-
-    # Check default locations
-    for candidate in [
-        Path("resources/mtg.sqlite"),
-        Path("../../resources/mtg.sqlite"),
-        Path(__file__).parent.parent.parent.parent.parent / "resources" / "mtg.sqlite",
-    ]:
-        if candidate.exists():
-            return candidate.resolve()
-
-    return None
-
+from .conftest import get_test_db_path
 
 # Skip tests if no database available
 DB_PATH = get_test_db_path()
@@ -420,7 +398,7 @@ class TestAnalyzeManaCurve:
         assert result.x_spell_count >= 4
 
     async def test_mana_curve_lands_excluded(self, db: UnifiedDatabase) -> None:
-        """Lands should not appear in mana curve (if types field is populated)."""
+        """Lands should not appear in mana curve."""
         cards = [
             DeckCardInput(name="Forest", quantity=30),
             DeckCardInput(name="Mountain", quantity=30),
@@ -428,9 +406,9 @@ class TestAnalyzeManaCurve:
         input_data = AnalyzeDeckInput(cards=cards)
         result = await deck.analyze_mana_curve(db, input_data)
 
-        # If types field is None, lands will be counted as nonlands with CMC 0
-        # This tests that the function doesn't crash with all-land decks
-        assert result.curve[0] == 60
+        # Lands are excluded from mana curve, so an all-land deck has empty curve
+        assert result.curve.get(0, 0) == 0
+        assert result.land_count == 60
 
     async def test_mana_curve_high_cmc_cards(self, db: UnifiedDatabase) -> None:
         """Should handle high CMC cards (6+)."""
@@ -916,8 +894,8 @@ class TestFormatRules:
 
     def test_interaction_patterns(self) -> None:
         """INTERACTION_PATTERNS should include common removal keywords."""
-        assert "destroy" in deck.INTERACTION_PATTERNS
-        assert "exile" in deck.INTERACTION_PATTERNS
+        assert "destroy target" in deck.INTERACTION_PATTERNS
+        assert "exile target" in deck.INTERACTION_PATTERNS
         assert "counter target" in deck.INTERACTION_PATTERNS
 
     def test_ramp_patterns(self) -> None:

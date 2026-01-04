@@ -99,14 +99,14 @@ class RecommendationDetailView(Vertical, can_focus=False):
             f"[{ui_colors.TEXT_DIM}]to close[/]"
         )
 
-    def show_recommendation(self, rec: ScoredRecommendation) -> None:
+    async def show_recommendation(self, rec: ScoredRecommendation) -> None:
         """Display recommendation detail."""
         self._recommendation = rec
         self.is_visible = True
-        self._update_display()
+        await self._update_display()
         self.focus()
 
-    def _update_display(self) -> None:
+    async def _update_display(self) -> None:
         """Update the detail display."""
         if not self._recommendation:
             return
@@ -129,11 +129,11 @@ class RecommendationDetailView(Vertical, can_focus=False):
         # Update content
         try:
             content = self.query_one("#rec-detail-content", Static)
-            content.update(self._render_detail_content())
+            content.update(await self._render_detail_content())
         except NoMatches:
             pass
 
-    def _render_detail_content(self) -> str:
+    async def _render_detail_content(self) -> str:
         """Render the full detail content."""
         if not self._recommendation:
             return ""
@@ -161,7 +161,7 @@ class RecommendationDetailView(Vertical, can_focus=False):
         # Combos it completes
         if rec.completes_combos:
             lines.append("[bold]Completes Combos:[/]")
-            lines.extend(self._render_combos(rec.completes_combos[:5]))
+            lines.extend(await self._render_combos(rec.completes_combos[:5]))
             if len(rec.completes_combos) > 5:
                 lines.append(
                     f"  [{ui_colors.TEXT_DIM}]...and {len(rec.completes_combos) - 5} more[/]"
@@ -275,7 +275,7 @@ class RecommendationDetailView(Vertical, can_focus=False):
         }
         return descriptions.get(tier.upper(), "Unknown tier")
 
-    def _render_combos(self, combo_ids: list[str]) -> list[str]:
+    async def _render_combos(self, combo_ids: list[str]) -> list[str]:
         """Render combo info with human-readable names."""
         lines: list[str] = []
         try:
@@ -283,9 +283,9 @@ class RecommendationDetailView(Vertical, can_focus=False):
                 get_spellbook_detector,
             )
 
-            detector = get_spellbook_detector()
+            detector = await get_spellbook_detector()
             for combo_id in combo_ids:
-                combo = detector.get_combo(combo_id)
+                combo = await detector.get_combo(combo_id)
                 if combo:
                     # Show card names (truncate if too many)
                     card_names = combo.card_names[:3]

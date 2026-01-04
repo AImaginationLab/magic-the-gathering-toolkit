@@ -191,6 +191,7 @@ def sample_deck_with_variety() -> DeckWithCards:
         name="Test Deck",
         format="standard",
         commander=None,
+        description=None,
         cards=cards,
     )
 
@@ -479,6 +480,7 @@ class TestDeckStatsBarWidget:
             name="Empty",
             format="standard",
             commander=None,
+            description=None,
             cards=[],
         )
 

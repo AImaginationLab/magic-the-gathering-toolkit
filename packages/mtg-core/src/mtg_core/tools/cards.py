@@ -27,18 +27,27 @@ if TYPE_CHECKING:
 async def search_cards(
     db: UnifiedDatabase,
     filters: SearchCardsInput,
+    collection_names: set[str] | None = None,
+    owned_cards: set[str] | None = None,
 ) -> SearchResult:
     """Search for Magic: The Gathering cards.
 
     Args:
         db: Unified MTG database connection
         filters: Search filters
+        collection_names: If provided, only return cards with names in this set
+        owned_cards: If provided, populate the `owned` field on results
 
     Returns:
         SearchResult with matching cards
     """
-    cards, total_count = await db.search_cards(filters)
+    cards, total_count = await db.search_cards(filters, collection_names=collection_names)
     results = [_card_to_summary(card) for card in cards]
+
+    # Populate owned field if owned_cards set is provided
+    if owned_cards is not None:
+        for result in results:
+            result.owned = result.name in owned_cards
 
     return SearchResult(
         cards=results,

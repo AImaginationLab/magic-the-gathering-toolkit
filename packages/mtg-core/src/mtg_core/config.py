@@ -6,23 +6,9 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-def _find_workspace_root() -> Path:
-    """Find the workspace root by looking for pyproject.toml with workspace config."""
-    current = Path.cwd()
-    for parent in [current, *current.parents]:
-        pyproject = parent / "pyproject.toml"
-        if pyproject.exists():
-            content = pyproject.read_text()
-            if "tool.uv.workspace" in content or "magic-the-gathering" in content:
-                return parent
-    # Fallback to current directory
-    return current
-
-
 def _get_default_db_path() -> Path:
     """Get default path to unified mtg.sqlite database."""
-    workspace = _find_workspace_root()
-    return workspace / "resources" / "mtg.sqlite"
+    return Path.home() / ".mtg-spellbook" / "mtg.sqlite"
 
 
 def _get_default_user_db_path() -> Path:
@@ -33,6 +19,16 @@ def _get_default_user_db_path() -> Path:
 def _get_default_combo_db_path() -> Path:
     """Get default path to combo database."""
     return Path.home() / ".mtg-spellbook" / "combos.sqlite"
+
+
+def _get_default_gameplay_db_path() -> Path:
+    """Get default path to gameplay database (17lands stats)."""
+    return Path.home() / ".mtg-spellbook" / "gameplay.duckdb"
+
+
+def _get_default_gameplay_sqlite_path() -> Path:
+    """Get default path to gameplay SQLite database (abilities, themes)."""
+    return Path.home() / ".mtg-spellbook" / "gameplay.sqlite"
 
 
 def _get_default_image_cache_path() -> Path:
@@ -67,6 +63,14 @@ class Settings(BaseSettings):
         default_factory=_get_default_combo_db_path,
         description="Path to combo database",
     )
+    gameplay_db_path: Path = Field(
+        default_factory=_get_default_gameplay_db_path,
+        description="Path to gameplay database (17lands Limited stats)",
+    )
+    gameplay_sqlite_path: Path = Field(
+        default_factory=_get_default_gameplay_sqlite_path,
+        description="Path to gameplay SQLite database (abilities, themes)",
+    )
 
     # Logging
     log_level: str = Field(
@@ -96,7 +100,7 @@ class Settings(BaseSettings):
 
     # Connection pooling
     db_max_connections: int = Field(
-        default=5,
+        default=50,
         description="Maximum concurrent database operations (semaphore limit)",
     )
 

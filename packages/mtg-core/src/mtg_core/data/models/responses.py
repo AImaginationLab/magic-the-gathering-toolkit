@@ -38,6 +38,9 @@ class CardSummary(BaseModel):
     price_usd: float | None = None
     purchase_link: str | None = None
 
+    # Collection status
+    owned: bool | None = None  # True if card is in user's collection
+
 
 class ImageUrls(BaseModel):
     """Card image URLs in various sizes."""
@@ -391,7 +394,7 @@ class PriceAnalysisResult(BaseModel):
 # =============================================================================
 
 # Type literals for synergy detection
-SynergyType = Literal["keyword", "tribal", "ability", "theme", "archetype"]
+SynergyType = Literal["keyword", "tribal", "ability", "theme", "archetype", "combo"]
 ComboType = Literal["infinite", "value", "lock", "win"]
 SuggestionCategory = Literal["synergy", "staple", "upgrade", "budget"]
 
@@ -405,6 +408,38 @@ class SynergyResult(BaseModel):
     score: float = Field(ge=0.0, le=1.0)  # Synergy strength
     mana_cost: str | None = None
     type_line: str | None = None
+    image_small: str | None = None  # Scryfall small image URL
+
+    # Card properties
+    rarity: str | None = None
+    keywords: list[str] = Field(default_factory=list)
+    price_usd: float | None = None  # Price in dollars
+    edhrec_rank: int | None = None  # Commander popularity (lower = more popular)
+
+    # Collection status
+    owned: bool | None = None  # True if card is in user's collection
+
+    # 17Lands gameplay data (when available)
+    synergy_lift: float | None = None  # % improvement when played together
+    win_rate_together: float | None = None  # Win rate when both in hand (0-1)
+    sample_size: int | None = None  # Co-occurrence count for confidence
+    tier: str | None = None  # S/A/B/C/D/F tier rating
+    gih_wr: float | None = None  # Games in Hand Win Rate (0-1)
+    iwd: float | None = None  # Improvement When Drawn (late game impact)
+    oh_wr: float | None = None  # Opening Hand Win Rate (early game strength)
+
+    # Archetype context (color pairs this card performs best in)
+    best_archetypes: list[str] = Field(
+        default_factory=list
+    )  # e.g., ["UR", "UB"] - top performing color pairs
+
+    # Card classification
+    is_bomb: bool | None = None  # Standalone power (Sealed > Draft)
+    is_synergy_dependent: bool | None = None  # Needs archetype support (Draft > Sealed)
+
+    # Combo connections (when available from Spellbook)
+    combo_count: int | None = None  # Number of known combos involving this card
+    combo_preview: str | None = None  # First combo description (teaser)
 
 
 class FindSynergiesResult(BaseModel):
@@ -454,6 +489,15 @@ class SuggestedCard(BaseModel):
     mana_cost: str | None = None
     type_line: str | None = None
     price_usd: float | None = None
+
+    # Collection status
+    owned: bool | None = None  # True if card is in user's collection
+
+    # Enhanced scoring from data sources
+    score: float | None = None  # Overall relevance score (0-100)
+    tier: str | None = None  # 17Lands tier (S/A/B/C/D/F)
+    edhrec_rank: int | None = None  # EDHREC popularity rank (lower = more popular)
+    combo_count: int | None = None  # Number of combos this card enables
 
 
 class SuggestCardsResult(BaseModel):
@@ -530,3 +574,128 @@ class BlockSummary(BaseModel):
     first_release: str | None = None
     last_release: str | None = None
     sets: list[SetSummary] = Field(default_factory=list)
+
+
+# =============================================================================
+# Comprehensive Deck Health Analysis
+# =============================================================================
+
+# Archetype literals
+ArchetypeType = Literal[
+    "Aggro",
+    "Midrange",
+    "Control",
+    "Combo",
+    "Spellslinger",
+    "Creature-heavy",
+    "Lands Matter",
+    "Balanced",
+]
+
+# Grade literals
+GradeType = Literal["S", "A", "B", "C", "D", "F"]
+
+
+class DeckHealthIssue(BaseModel):
+    """A health issue or warning for the deck."""
+
+    message: str
+    severity: Literal["warning", "error"]  # warning = yellow, error = red
+
+
+class KeywordCount(BaseModel):
+    """Count of a specific keyword in the deck."""
+
+    keyword: str
+    count: int
+
+
+class DeckTheme(BaseModel):
+    """A detected deck theme with card count."""
+
+    name: str
+    card_count: int
+    description: str | None = None
+
+
+class SynergyPair(BaseModel):
+    """A synergy between two cards."""
+
+    card1: str
+    card2: str
+    reason: str
+    category: str  # e.g., "Death triggers", "ETB effects", "Gameplay Data"
+
+
+class MatchupInfo(BaseModel):
+    """Deck matchup information."""
+
+    strong_against: list[str] = Field(default_factory=list)
+    weak_against: list[str] = Field(default_factory=list)
+
+
+class DeckHealthResult(BaseModel):
+    """Comprehensive deck health analysis."""
+
+    # Overall score and grade
+    score: int = Field(ge=0, le=100)  # 0-100
+    grade: GradeType  # S, A, B, C, D, F
+
+    # Archetype detection
+    archetype: ArchetypeType
+    archetype_confidence: int = Field(ge=0, le=100)  # 0-100%
+
+    # Key metrics
+    total_cards: int
+    expected_cards: int  # 60 or 99 based on format
+    land_count: int
+    land_percentage: float
+    average_cmc: float
+    interaction_count: int
+    card_draw_count: int
+    ramp_count: int
+
+    # Breakdown counts
+    creature_count: int
+    instant_count: int
+    sorcery_count: int
+    artifact_count: int
+    enchantment_count: int
+    planeswalker_count: int
+
+    # Top keywords
+    top_keywords: list[KeywordCount] = Field(default_factory=list)
+
+    # Issues and suggestions
+    issues: list[DeckHealthIssue] = Field(default_factory=list)
+
+    # Archetype traits (human-readable explanations)
+    archetype_traits: list[str] = Field(default_factory=list)
+
+    # Deck themes (e.g., Tokens, Sacrifice, Lifegain)
+    themes: list[DeckTheme] = Field(default_factory=list)
+
+    # Tribal info (if dominant tribe detected)
+    dominant_tribe: str | None = None
+    tribal_count: int = 0
+
+    # Matchup information
+    matchups: MatchupInfo | None = None
+
+    # Synergy pairs between cards in the deck
+    synergy_pairs: list[SynergyPair] = Field(default_factory=list)
+
+
+# =============================================================================
+# Preload Response Models
+# =============================================================================
+
+
+class PreloadResult(BaseModel):
+    """Result of preloading card data into cache."""
+
+    cards_requested: int
+    cards_cached: int
+    cards_already_cached: int
+    cards_failed: int
+    failed_cards: list[str] = Field(default_factory=list)

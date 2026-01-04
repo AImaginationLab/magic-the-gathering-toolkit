@@ -6,8 +6,27 @@ from pydantic import BaseModel, Field
 
 from .types import Color, Format, Rarity
 
-SortField = Literal["name", "cmc", "color", "rarity", "type"]
+SortField = Literal["name", "cmc", "color", "rarity", "type", "random"]
 SortOrder = Literal["asc", "desc"]
+
+# Collection sorting fields
+CollectionSortField = Literal[
+    # Fast sorts (collection table only)
+    "name",  # card_name
+    "dateAdded",  # added_at
+    "quantity",  # quantity + foil_quantity
+    "setCode",  # set_code
+    # Metadata sorts (require JOIN with cards table)
+    "price",  # price_usd
+    "rarity",  # mythic > rare > uncommon > common
+    "cmc",  # mana value
+    "type",  # type_line
+    "color",  # WUBRG order
+    # 17Lands stats (require JOIN with gameplay database)
+    "winRate",  # gih_wr
+    "tier",  # A+ > A > B+ > B > C+ > C > D+ > D > F
+    "draftPick",  # ata (Average Taken At)
+]
 
 
 class SearchCardsInput(BaseModel):
@@ -36,6 +55,8 @@ class SearchCardsInput(BaseModel):
     sort_order: SortOrder = Field(default="asc", description="Sort order (asc, desc)")
     page: int = Field(default=1, ge=1, description="Page number")
     page_size: int = Field(default=25, ge=1, le=100, description="Results per page")
+    random: bool = Field(default=False, description="Return random cards instead of sorted results")
+    in_collection: bool = Field(default=False, description="Only return cards in user's collection")
 
 
 class GetCardInput(BaseModel):
@@ -133,3 +154,18 @@ class AnalyzeDeckInput(BaseModel):
     cards: list[DeckCardInput] = Field(..., description="Deck cards")
     format: Format | None = Field(default=None, description="Format (optional)")
     commander: str | None = Field(default=None, description="Commander card name")
+
+
+class GetCollectionInput(BaseModel):
+    """Input parameters for listing collection cards with sorting and pagination."""
+
+    sort_by: CollectionSortField = Field(
+        default="name",
+        description="Field to sort by",
+    )
+    sort_order: SortOrder = Field(
+        default="asc",
+        description="Sort order (asc or desc)",
+    )
+    page: int = Field(default=1, ge=1, description="Page number (1-indexed)")
+    page_size: int = Field(default=50, ge=1, le=500, description="Results per page")

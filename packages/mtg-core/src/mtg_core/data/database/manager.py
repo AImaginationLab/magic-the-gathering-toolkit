@@ -21,7 +21,11 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
-    """Manages database lifecycle for the MCP server."""
+    """Manages database lifecycle for the MCP server.
+
+    IMPORTANT: Each FastAPI worker should have its own DatabaseManager instance.
+    The connection and databases are NOT safe to share across processes/workers.
+    """
 
     def __init__(self, settings: Settings | None = None):
         self._settings = settings or get_settings()
@@ -29,6 +33,8 @@ class DatabaseManager:
         self._db: UnifiedDatabase | None = None
         self._user: UserDatabase | None = None
         self._cache = CardCache(max_size=self._settings.cache_max_size)
+        # Global semaphore to limit total concurrent DB operations across all databases
+        self._global_semaphore = asyncio.Semaphore(self._settings.db_max_connections)
 
     @property
     def db(self) -> UnifiedDatabase:
@@ -51,22 +57,29 @@ class DatabaseManager:
                 "Run 'create-mtg-db' to build the unified database."
             )
 
-        max_conn = self._settings.db_max_connections
-
-        self._conn = await aiosqlite.connect(db_path)
+        # Create connection with better concurrency settings
+        self._conn = await aiosqlite.connect(
+            db_path,
+            timeout=30.0,  # Increase timeout for concurrent access
+            check_same_thread=False,  # Allow access from multiple async tasks
+        )
         self._conn.row_factory = aiosqlite.Row
 
-        # Set performance pragmas (WAL mode set during database creation)
-        await self._conn.execute("PRAGMA cache_size = -64000")  # 64MB
-        await self._conn.execute("PRAGMA mmap_size = 268435456")  # 256MB
-        await self._conn.execute("PRAGMA busy_timeout = 5000")  # 5 seconds
+        # Set performance pragmas
+        await self._conn.execute("PRAGMA journal_mode = WAL")  # Write-Ahead Logging for concurrency
+        await self._conn.execute("PRAGMA synchronous = NORMAL")  # Balance safety and speed
+        await self._conn.execute("PRAGMA cache_size = -64000")  # 64MB page cache
+        await self._conn.execute("PRAGMA mmap_size = 268435456")  # 256MB memory-mapped I/O
+        await self._conn.execute("PRAGMA busy_timeout = 10000")  # 10 seconds for lock waits
         await self._conn.execute("PRAGMA temp_store = MEMORY")
+        await self._conn.execute("PRAGMA threads = 4")  # Enable multi-threaded operations
 
-        self._db = UnifiedDatabase(self._conn, self._cache, max_connections=max_conn)
+        # Pass the global semaphore to the database
+        self._db = UnifiedDatabase(self._conn, self._cache, semaphore=self._global_semaphore)
         logger.info("Unified MTG database loaded from %s", db_path)
 
         # User database (always created, stores decks/collections)
-        user_db = UserDatabase(self._settings.user_db_path, max_connections=max_conn)
+        user_db = UserDatabase(self._settings.user_db_path, semaphore=self._global_semaphore)
         try:
             await user_db.connect()
             self._user = user_db
@@ -89,7 +102,7 @@ class DatabaseManager:
         if self._user is None:
             self._user = UserDatabase(
                 self._settings.user_db_path,
-                max_connections=self._settings.db_max_connections,
+                semaphore=self._global_semaphore,
             )
             await self._user.connect()
         return self._user

@@ -85,7 +85,7 @@ class TestDatabaseConnection:
         async with db.conn.execute("SELECT version FROM schema_version") as cursor:
             row = await cursor.fetchone()
             assert row is not None
-            assert row["version"] == 4
+            assert row["version"] == 6
 
     async def test_foreign_keys_enabled(self, db: UserDatabase) -> None:
         """Foreign keys should be enabled."""
@@ -649,11 +649,19 @@ class TestCollectionOperations:
         assert card.collector_number == "161"
 
     async def test_add_to_collection_existing_increases_quantity(self, db: UserDatabase) -> None:
-        """Adding same card should increase quantity."""
-        await db.add_to_collection("Lightning Bolt", quantity=2)
-        await db.add_to_collection("Lightning Bolt", quantity=2, foil_quantity=1)
+        """Adding same card with same printing should increase quantity."""
+        # Must specify set_code and collector_number for conflict detection
+        # (NULL values don't conflict in SQLite unique constraints)
+        await db.add_to_collection(
+            "Lightning Bolt", quantity=2, set_code="LEA", collector_number="161"
+        )
+        await db.add_to_collection(
+            "Lightning Bolt", quantity=2, foil_quantity=1, set_code="LEA", collector_number="161"
+        )
 
-        card = await db.get_collection_card("Lightning Bolt")
+        card = await db.get_collection_card(
+            "Lightning Bolt", set_code="LEA", collector_number="161"
+        )
         assert card is not None
         assert card.quantity == 4
         assert card.foil_quantity == 1
@@ -961,7 +969,7 @@ class TestMigrations:
             # Verify schema version is current
             async with db.conn.execute("SELECT version FROM schema_version") as cursor:
                 row = await cursor.fetchone()
-                assert row["version"] == 4
+                assert row["version"] == 6
 
             await db.close()
 
@@ -1017,7 +1025,7 @@ class TestMigrations:
             # Verify schema version is current
             async with db.conn.execute("SELECT version FROM schema_version") as cursor:
                 row = await cursor.fetchone()
-                assert row["version"] == 4
+                assert row["version"] == 6
 
             # Verify migration added columns
             exists = await db._column_exists("deck_cards", "set_code")

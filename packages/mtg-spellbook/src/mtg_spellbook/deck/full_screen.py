@@ -13,7 +13,7 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.css.query import NoMatches
 from textual.reactive import reactive
-from textual.widgets import Input, ListItem, ListView, Static
+from textual.widgets import Input, ListItem, ListView, Static, TextArea
 
 from ..collection.card_preview import CollectionCardPreview
 from ..recommendations.messages import AddCardToDeck
@@ -26,6 +26,8 @@ from ..widgets.recommendation_detail import (
 )
 from .analysis_panel import DeckAnalysisPanel
 from .editor_panel import SortOrder
+from .impact import get_impact_calculator
+from .impact_widget import DeckImpactWidget
 from .list_panel import DeckListItem
 from .messages import CardAddedToDeck
 from .modals import ConfirmDeleteModal, NewDeckModal
@@ -183,7 +185,9 @@ class FullDeckScreen(BaseScreen[None]):
         Binding("plus,equal", "increase_qty", "+1", show=False),
         Binding("minus", "decrease_qty", "-1", show=False),
         Binding("delete", "remove_card", "Remove", show=False),
-        Binding("s", "toggle_sideboard", "Sideboard", show=False),
+        Binding("m", "show_mainboard", "Mainboard", show=False),
+        Binding("s", "show_sideboard", "Sideboard", show=False),
+        Binding("shift+s", "move_to_sideboard", "Move to Side", show=False),
         Binding("o", "cycle_sort", "Sort", show=False),
         Binding("v", "validate", "Validate", show=True),
         Binding("r", "recommend", "Recommend", show=True),
@@ -303,31 +307,48 @@ class FullDeckScreen(BaseScreen[None]):
         border-bottom: solid #3d3d3d;
     }
 
-    #mainboard-list, #sideboard-list, #search-results-list {
+    #mainboard-list, #search-results-list {
         height: 1fr;
         scrollbar-color: #c9a227;
     }
 
-    #mainboard-list > ListItem, #sideboard-list > ListItem, #search-results-list > ListItem {
+    #mainboard-list > ListItem, #search-results-list > ListItem {
         padding: 0 1;
         height: auto;
     }
 
-    #mainboard-list > ListItem:hover, #sideboard-list > ListItem:hover, #search-results-list > ListItem:hover {
+    #mainboard-list > ListItem:hover, #search-results-list > ListItem:hover {
         background: #1a1a2e;
     }
 
-    #mainboard-list > ListItem.-highlight, #sideboard-list > ListItem.-highlight, #search-results-list > ListItem.-highlight {
+    #mainboard-list > ListItem.-highlight, #search-results-list > ListItem.-highlight {
         background: #2a2a4e;
         border-left: heavy #c9a227;
     }
 
-    #sideboard-header {
+    /* Notes container */
+    #notes-container {
+        height: 1fr;
+        padding: 0 1;
+        background: #0d0d0d;
+        border-top: solid #3d3d3d;
+    }
+
+    #notes-header {
         height: 2;
         padding: 0 1;
         background: #1a1a1a;
-        border-top: solid #3d3d3d;
         border-bottom: solid #3d3d3d;
+    }
+
+    #deck-notes {
+        height: 1fr;
+        background: #0d0d0d;
+        border: none;
+    }
+
+    #deck-notes:focus {
+        border: solid #c9a227;
     }
 
     /* Right pane - analysis and card preview */
@@ -346,6 +367,19 @@ class FullDeckScreen(BaseScreen[None]):
     }
 
     #deck-card-preview.visible {
+        display: block;
+    }
+
+    #deck-impact-widget {
+        width: 100%;
+        height: auto;
+        max-height: 12;
+        display: none;
+        background: #0d0d14;
+        border-top: solid #3d3d3d;
+    }
+
+    #deck-impact-widget.visible {
         display: block;
     }
 
@@ -403,7 +437,8 @@ class FullDeckScreen(BaseScreen[None]):
         self._decks: list[DeckSummary] = []
         self._search_results: list[CardSummary] = []
         self._card_sort_order: SortOrder = SortOrder.NAME
-        self._active_list: str = "mainboard"  # mainboard, sideboard, or search
+        self._active_list: str = "mainboard"  # mainboard or search (sideboard shown via toggle)
+        self._showing_sideboard: bool = False  # Toggle between mainboard/sideboard view
         self._recommender: HybridRecommender | None = None
         self._recommender_initializing: bool = False
         self._recommendation_details: dict[str, ScoredRecommendation] = {}
@@ -432,18 +467,21 @@ class FullDeckScreen(BaseScreen[None]):
                             id="deck-search-input",
                         )
 
-                    # Deck contents (mainboard + sideboard)
+                    # Deck contents (mainboard/sideboard toggle + notes)
                     with Vertical(id="mainboard-container"):
                         yield Static(
                             "[dim]Select a deck from the list[/]",
                             id="deck-content-header",
                         )
                         yield ListView(id="mainboard-list")
-                        yield Static(
-                            f"[{ui_colors.GOLD_DIM}]Sideboard[/]",
-                            id="sideboard-header",
-                        )
-                        yield ListView(id="sideboard-list")
+
+                        # Notes section
+                        with Vertical(id="notes-container"):
+                            yield Static(
+                                f"[{ui_colors.GOLD_DIM}]Notes[/]",
+                                id="notes-header",
+                            )
+                            yield TextArea(id="deck-notes")
 
                     # Search results (hidden by default)
                     with Vertical(id="search-results-container"):
@@ -459,6 +497,7 @@ class FullDeckScreen(BaseScreen[None]):
                 with Vertical(id="deck-preview-pane"):
                     yield DeckAnalysisPanel(id="deck-analysis-panel")
                     yield CollectionCardPreview(id="deck-card-preview")
+                    yield DeckImpactWidget(id="deck-impact-widget")
 
             # Footer with context-sensitive hints
             yield Static(
@@ -495,7 +534,8 @@ class FullDeckScreen(BaseScreen[None]):
         elif self.current_view == ViewMode.DECK_VIEW:
             return (
                 f"[{ui_colors.GOLD}]+/-[/]:Qty  "
-                f"[{ui_colors.GOLD}]s[/]:Side  "
+                f"[{ui_colors.GOLD}]m/s[/]:Main/Side  "
+                f"[{ui_colors.GOLD}]S[/]:Move  "
                 f"[{ui_colors.GOLD}]o[/]:Sort  "
                 f"[{ui_colors.GOLD}]a[/]:Analysis  "
                 f"[{ui_colors.GOLD}]r[/]:Recommend  "
@@ -602,26 +642,37 @@ class FullDeckScreen(BaseScreen[None]):
 
         try:
             header = self.query_one("#deck-content-header", Static)
-            mainboard = self.query_one("#mainboard-list", ListView)
-            sideboard = self.query_one("#sideboard-list", ListView)
-            side_header = self.query_one("#sideboard-header", Static)
+            card_list = self.query_one("#mainboard-list", ListView)
+            notes_area = self.query_one("#deck-notes", TextArea)
 
-            mainboard.clear()
-            sideboard.clear()
+            card_list.clear()
 
             if deck is None:
                 header.update("[dim]Select a deck from the list[/]")
+                notes_area.text = ""
                 return
 
-            # Update header with ownership counts if available
+            # Update header with deck name and mode toggle indicator
             format_str = f" ({deck.format})" if deck.format else ""
             sort_label = {"name": "A-Z", "cmc": "CMC", "type": "Type"}[self._card_sort_order.value]
+
+            # Determine which cards to show based on toggle
+            if self._showing_sideboard:
+                cards_to_show = deck.sideboard
+                mode_label = "Sideboard"
+                count = deck.sideboard_count
+                mode_hint = "[dim]m[/]:Main"
+            else:
+                cards_to_show = deck.mainboard
+                mode_label = "Mainboard"
+                count = deck.mainboard_count
+                mode_hint = "[dim]s[/]:Side"
 
             # Count owned/needed for header
             owned_count = 0
             needed_count = 0
             if self._collection_cards:
-                for card in deck.mainboard:
+                for card in cards_to_show:
                     if card.card_name in self._collection_cards:
                         owned_count += 1
                     else:
@@ -630,52 +681,54 @@ class FullDeckScreen(BaseScreen[None]):
             if self._collection_cards and needed_count > 0:
                 header.update(
                     f"[bold {ui_colors.GOLD}]{deck.name}[/]{format_str}  "
+                    f"[{ui_colors.GOLD}]{mode_label}[/] ({count})  "
                     f"[green]✓{owned_count}[/] [yellow]⚠{needed_count}[/]  "
-                    f"[dim]Sort:[/] [{ui_colors.GOLD}]{sort_label}[/]"
+                    f"{mode_hint}  [dim]Sort:[/] [{ui_colors.GOLD}]{sort_label}[/]"
                 )
             else:
                 header.update(
                     f"[bold {ui_colors.GOLD}]{deck.name}[/]{format_str}  "
-                    f"[dim]Mainboard[/] [{ui_colors.GOLD}]{deck.mainboard_count}[/]  "
-                    f"[dim]Sort:[/] [{ui_colors.GOLD}]{sort_label}[/]"
+                    f"[{ui_colors.GOLD}]{mode_label}[/] ({count})  "
+                    f"{mode_hint}  [dim]Sort:[/] [{ui_colors.GOLD}]{sort_label}[/]"
                 )
 
-            # Split mainboard into owned/needed (owned first)
-            sorted_main = self._sort_cards(deck.mainboard)
-            owned_main = []
-            needed_main = []
+            # Sort and populate card list
+            sorted_cards = self._sort_cards(cards_to_show)
+            owned_cards = []
+            needed_cards = []
 
             if self._collection_cards:
-                for card in sorted_main:
+                for card in sorted_cards:
                     if card.card_name in self._collection_cards:
-                        owned_main.append(card)
+                        owned_cards.append(card)
                     else:
-                        needed_main.append(card)
+                        needed_cards.append(card)
 
                 # Populate with owned first, then needed
-                for card in owned_main:
-                    mainboard.append(
-                        self._create_card_item(card, is_sideboard=False, is_owned=True)
+                for card in owned_cards:
+                    card_list.append(
+                        self._create_card_item(
+                            card, is_sideboard=self._showing_sideboard, is_owned=True
+                        )
                     )
-                for card in needed_main:
-                    mainboard.append(
-                        self._create_card_item(card, is_sideboard=False, is_owned=False)
+                for card in needed_cards:
+                    card_list.append(
+                        self._create_card_item(
+                            card, is_sideboard=self._showing_sideboard, is_owned=False
+                        )
                     )
             else:
                 # No collection data - show all without ownership info
-                for card in sorted_main:
-                    mainboard.append(self._create_card_item(card, is_sideboard=False))
+                for card in sorted_cards:
+                    card_list.append(
+                        self._create_card_item(card, is_sideboard=self._showing_sideboard)
+                    )
 
-            # Update sideboard header and list
-            side_header.update(
-                f"[{ui_colors.GOLD_DIM}]Sideboard[/] [{ui_colors.GOLD}]{deck.sideboard_count}[/]"
-            )
-            sorted_side = self._sort_cards(deck.sideboard)
-            for card in sorted_side:
-                is_owned = (
-                    card.card_name in self._collection_cards if self._collection_cards else None
-                )
-                sideboard.append(self._create_card_item(card, is_sideboard=True, is_owned=is_owned))
+            # Load notes from deck description
+            if deck.description and notes_area.text != deck.description:
+                notes_area.text = deck.description
+            elif not deck.description:
+                notes_area.text = ""
 
             # Update analysis panel
             self._update_analysis_panel(prices)
@@ -695,7 +748,7 @@ class FullDeckScreen(BaseScreen[None]):
             header = self.query_one("#deck-content-header", Static)
             header.update("[dim]Select a deck from the list[/]")
             self.query_one("#mainboard-list", ListView).clear()
-            self.query_one("#sideboard-list", ListView).clear()
+            self.query_one("#deck-notes", TextArea).text = ""
             # Clear analysis panel
             self.query_one("#deck-analysis-panel", DeckAnalysisPanel).update_analysis(None)
         except NoMatches:
@@ -714,12 +767,14 @@ class FullDeckScreen(BaseScreen[None]):
             pass
 
     def _show_analysis_panel(self) -> None:
-        """Show analysis panel, hide card preview."""
+        """Show analysis panel, hide card preview and impact."""
         try:
             analysis = self.query_one("#deck-analysis-panel", DeckAnalysisPanel)
             preview = self.query_one("#deck-card-preview", CollectionCardPreview)
+            impact = self.query_one("#deck-impact-widget", DeckImpactWidget)
             analysis.remove_class("hidden")
             preview.remove_class("visible")
+            impact.remove_class("visible")
         except NoMatches:
             pass
 
@@ -840,7 +895,7 @@ class FullDeckScreen(BaseScreen[None]):
 
     @work(exclusive=True, group="preview")
     async def _load_search_card_preview(self, card_name: str, set_code: str | None) -> None:
-        """Load search result card into CollectionCardPreview."""
+        """Load search result card into CollectionCardPreview and calculate deck impact."""
         try:
             preview = self.query_one("#deck-card-preview", CollectionCardPreview)
 
@@ -852,7 +907,84 @@ class FullDeckScreen(BaseScreen[None]):
                 None,
             )
 
+            # Calculate deck impact if we have an active deck
+            await self._calculate_and_show_impact(card_name)
+
         except NoMatches:
+            pass
+
+    async def _calculate_and_show_impact(self, card_name: str) -> None:
+        """Calculate and display the impact of adding a card to the current deck."""
+        try:
+            impact_widget = self.query_one("#deck-impact-widget", DeckImpactWidget)
+
+            # Only show impact if we have an active deck
+            if not self._current_deck or not self._current_deck.cards:
+                impact_widget.remove_class("visible")
+                return
+
+            # Get full card data from database
+            if not self._db:
+                impact_widget.remove_class("visible")
+                return
+
+            card = await self._db.get_card_by_name(card_name)
+            if not card:
+                impact_widget.remove_class("visible")
+                return
+
+            # Convert card to dict for the impact calculator
+            card_dict = {
+                "name": card.name,
+                "manaCost": card.mana_cost,
+                "manaValue": card.cmc,
+                "type": card.type,
+                "colors": card.colors or [],
+                "colorIdentity": card.color_identity or [],
+                "text": card.text,
+                "power": card.power,
+                "toughness": card.toughness,
+                "keywords": card.keywords or [],
+                "subtypes": card.subtypes or [],
+            }
+
+            # Convert deck cards to dicts
+            deck_dicts = []
+            for dc in self._current_deck.cards:
+                if dc.card:
+                    deck_dicts.append(
+                        {
+                            "name": dc.card.name,
+                            "manaCost": dc.card.mana_cost,
+                            "manaValue": dc.card.cmc,
+                            "type": dc.card.type,
+                            "colors": dc.card.colors or [],
+                            "colorIdentity": dc.card.color_identity or [],
+                            "text": dc.card.text,
+                            "power": dc.card.power,
+                            "toughness": dc.card.toughness,
+                            "keywords": dc.card.keywords or [],
+                            "subtypes": dc.card.subtypes or [],
+                        }
+                    )
+
+            # Calculate impact
+            calculator = get_impact_calculator()
+            impact = calculator.calculate_impact(card_dict, deck_dicts, quantity=1)
+
+            # Update widget
+            impact_widget.update_impact(impact)
+
+            # Show the widget if there's impact to display
+            if impact.has_impact():
+                impact_widget.add_class("visible")
+            else:
+                impact_widget.remove_class("visible")
+
+        except NoMatches:
+            pass
+        except Exception:
+            # Don't let impact calculation errors break the preview
             pass
 
     # ===== Event handlers =====
@@ -875,8 +1007,6 @@ class FullDeckScreen(BaseScreen[None]):
             self._active_list = "deck-list"
         elif widget.id == "mainboard-list":
             self._active_list = "mainboard"
-        elif widget.id == "sideboard-list":
-            self._active_list = "sideboard"
         elif widget.id == "search-results-list":
             self._active_list = "search"
 
@@ -884,14 +1014,6 @@ class FullDeckScreen(BaseScreen[None]):
     def on_mainboard_highlighted(self, event: ListView.Highlighted) -> None:
         """Track active list and update preview."""
         self._active_list = "mainboard"
-        if event.item and isinstance(event.item, DeckCardResultItem):
-            self._show_card_preview()
-            self._update_preview_from_deck_card(event.item.card_name)
-
-    @on(ListView.Highlighted, "#sideboard-list")
-    def on_sideboard_highlighted(self, event: ListView.Highlighted) -> None:
-        """Track active list and update preview."""
-        self._active_list = "sideboard"
         if event.item and isinstance(event.item, DeckCardResultItem):
             self._show_card_preview()
             self._update_preview_from_deck_card(event.item.card_name)
@@ -904,7 +1026,7 @@ class FullDeckScreen(BaseScreen[None]):
             self._update_preview_from_search(event.item.card)
 
     @on(ListView.Selected, "#search-results-list")
-    def on_search_selected(self, event: ListView.Selected) -> None:
+    async def on_search_selected(self, event: ListView.Selected) -> None:
         """Handle click on search result - show recommendation detail if available."""
         self._active_list = "search"
         if event.item and isinstance(event.item, CardResultItem):
@@ -914,7 +1036,7 @@ class FullDeckScreen(BaseScreen[None]):
             if rec:
                 try:
                     detail_view = self.query_one("#recommendation-detail", RecommendationDetailView)
-                    detail_view.show_recommendation(rec)
+                    await detail_view.show_recommendation(rec)
                 except NoMatches:
                     pass
 
@@ -927,6 +1049,24 @@ class FullDeckScreen(BaseScreen[None]):
             self._do_search(query)
         else:
             self.current_view = ViewMode.DECK_VIEW if self._current_deck else ViewMode.DECK_LIST
+
+    @on(TextArea.Changed, "#deck-notes")
+    def on_notes_changed(self, event: TextArea.Changed) -> None:
+        """Save notes when changed."""
+        if self._current_deck:
+            self._save_notes(event.text_area.text)
+
+    @work(exclusive=True, group="save_notes")
+    async def _save_notes(self, notes: str) -> None:
+        """Save deck notes with debounce."""
+        if not self._current_deck:
+            return
+        # Debounce to avoid saving on every keystroke
+        await asyncio.sleep(0.5)
+        await self._deck_manager.update_deck(
+            self._current_deck.id,
+            description=notes,
+        )
 
     @work(exclusive=True, group="deck_search")
     async def _do_search(self, query: str) -> None:
@@ -1011,13 +1151,14 @@ class FullDeckScreen(BaseScreen[None]):
         """Cycle focus between panes.
 
         Flow:
-        - Deck view: deck-list → search-input → mainboard → sideboard → deck-list
+        - Deck view: deck-list → search-input → mainboard → notes → deck-list
         - Search mode: deck-list → search-input → search-results → deck-list
         - No deck: deck-list → search-input → deck-list
         """
         try:
             focused = self.app.focused
             search_input = self.query_one("#deck-search-input", Input)
+            notes_area = self.query_one("#deck-notes", TextArea)
 
             # If search input is focused, go to appropriate list
             if focused == search_input:
@@ -1037,14 +1178,13 @@ class FullDeckScreen(BaseScreen[None]):
                 search_input.focus()
                 return
 
-            # From mainboard, go to sideboard
+            # From mainboard, go to notes
             if self._active_list == "mainboard":
-                self.query_one("#sideboard-list", ListView).focus()
-                self._active_list = "sideboard"
+                notes_area.focus()
                 return
 
-            # From sideboard or search results, go back to deck list
-            if self._active_list in ("sideboard", "search"):
+            # From notes or search results, go back to deck list
+            if focused == notes_area or self._active_list == "search":
                 self.query_one("#deck-list", ListView).focus()
                 self._active_list = "deck-list"
                 return
@@ -1060,12 +1200,13 @@ class FullDeckScreen(BaseScreen[None]):
         """Cycle focus between panes in reverse.
 
         Flow (reverse of forward):
-        - Deck view: deck-list ← search-input ← mainboard ← sideboard ← deck-list
+        - Deck view: deck-list ← search-input ← mainboard ← notes ← deck-list
         - Search mode: deck-list ← search-input ← search-results ← deck-list
         """
         try:
             focused = self.app.focused
             search_input = self.query_one("#deck-search-input", Input)
+            notes_area = self.query_one("#deck-notes", TextArea)
 
             # If search input is focused, go back to deck list
             if focused == search_input:
@@ -1078,8 +1219,8 @@ class FullDeckScreen(BaseScreen[None]):
                 search_input.focus()
                 return
 
-            # From sideboard, go back to mainboard
-            if self._active_list == "sideboard":
+            # From notes, go back to mainboard
+            if focused == notes_area:
                 self.query_one("#mainboard-list", ListView).focus()
                 self._active_list = "mainboard"
                 return
@@ -1089,14 +1230,13 @@ class FullDeckScreen(BaseScreen[None]):
                 search_input.focus()
                 return
 
-            # From deck list, go to sideboard (or search in search mode)
+            # From deck list, go to notes (or search in search mode)
             if self._active_list == "deck-list":
                 if self.current_view == ViewMode.CARD_SEARCH:
                     self.query_one("#search-results-list", ListView).focus()
                     self._active_list = "search"
                 elif self._current_deck:
-                    self.query_one("#sideboard-list", ListView).focus()
-                    self._active_list = "sideboard"
+                    notes_area.focus()
                 else:
                     search_input.focus()
                 return
@@ -1113,7 +1253,6 @@ class FullDeckScreen(BaseScreen[None]):
         list_map = {
             "deck-list": "#deck-list",
             "mainboard": "#mainboard-list",
-            "sideboard": "#sideboard-list",
             "search": "#search-results-list",
         }
         list_id = list_map.get(self._active_list, "#mainboard-list")
@@ -1125,7 +1264,6 @@ class FullDeckScreen(BaseScreen[None]):
         list_map = {
             "deck-list": "#deck-list",
             "mainboard": "#mainboard-list",
-            "sideboard": "#sideboard-list",
             "search": "#search-results-list",
         }
         list_id = list_map.get(self._active_list, "#mainboard-list")
@@ -1296,7 +1434,7 @@ class FullDeckScreen(BaseScreen[None]):
 
         # Get recommendations with hybrid scoring
         try:
-            recommendations = self._recommender.recommend_for_deck(
+            recommendations = await self._recommender.recommend_for_deck(
                 deck_card_dicts, n=20, explain=True
             )
 
@@ -1376,20 +1514,17 @@ class FullDeckScreen(BaseScreen[None]):
             pass
 
     def _get_selected_deck_card(self) -> tuple[DeckCardResultItem | None, bool]:
-        """Get selected card from mainboard or sideboard."""
+        """Get selected card from the deck list.
+
+        Returns tuple of (item, is_sideboard) based on current toggle state.
+        """
         try:
             if self._active_list == "mainboard":
-                mainboard = self.query_one("#mainboard-list", ListView)
-                if mainboard.highlighted_child and isinstance(
-                    mainboard.highlighted_child, DeckCardResultItem
+                card_list = self.query_one("#mainboard-list", ListView)
+                if card_list.highlighted_child and isinstance(
+                    card_list.highlighted_child, DeckCardResultItem
                 ):
-                    return mainboard.highlighted_child, False
-            elif self._active_list == "sideboard":
-                sideboard = self.query_one("#sideboard-list", ListView)
-                if sideboard.highlighted_child and isinstance(
-                    sideboard.highlighted_child, DeckCardResultItem
-                ):
-                    return sideboard.highlighted_child, True
+                    return card_list.highlighted_child, self._showing_sideboard
         except NoMatches:
             pass
         return None, False
@@ -1439,7 +1574,21 @@ class FullDeckScreen(BaseScreen[None]):
         self._refresh_deck_display()
         self.notify(f"Removed {card_name}", timeout=1)
 
-    def action_toggle_sideboard(self) -> None:
+    def action_show_mainboard(self) -> None:
+        """Switch to mainboard view."""
+        if self._showing_sideboard:
+            self._showing_sideboard = False
+            self._refresh_deck_display()
+            self.notify("Mainboard", timeout=1)
+
+    def action_show_sideboard(self) -> None:
+        """Switch to sideboard view."""
+        if not self._showing_sideboard:
+            self._showing_sideboard = True
+            self._refresh_deck_display()
+            self.notify("Sideboard", timeout=1)
+
+    def action_move_to_sideboard(self) -> None:
         """Move selected card to/from sideboard."""
         card, is_sideboard = self._get_selected_deck_card()
         if card and self._current_deck:
@@ -1513,7 +1662,7 @@ class FullDeckScreen(BaseScreen[None]):
         self._quick_add(4)
 
     # Handle keys not covered by bindings
-    def on_key(self, event: events.Key) -> None:
+    async def on_key(self, event: events.Key) -> None:
         """Handle keys not covered by bindings."""
         if event.key == "d" and self._active_list == "deck-list":
             self._delete_selected_deck()
@@ -1530,10 +1679,10 @@ class FullDeckScreen(BaseScreen[None]):
             except NoMatches:
                 pass
         elif event.key == "e" and self._active_list == "search":
-            self._expand_current_recommendation()
+            await self._expand_current_recommendation()
             event.stop()
 
-    def _expand_current_recommendation(self) -> None:
+    async def _expand_current_recommendation(self) -> None:
         """Show detail for the currently highlighted recommendation."""
         if not self._recommendation_details:
             return
@@ -1548,7 +1697,7 @@ class FullDeckScreen(BaseScreen[None]):
             rec = self._recommendation_details.get(card_name)
             if rec:
                 detail_view = self.query_one("#recommendation-detail", RecommendationDetailView)
-                detail_view.show_recommendation(rec)
+                await detail_view.show_recommendation(rec)
         except NoMatches:
             pass
 
@@ -1575,7 +1724,7 @@ class FullDeckScreen(BaseScreen[None]):
                 self.current_deck_id = None
             self._load_decks()
 
-    def action_expand_recommendation(self) -> None:
+    async def action_expand_recommendation(self) -> None:
         """Show detailed explanation for selected recommendation."""
         if self.current_view != ViewMode.CARD_SEARCH:
             self.notify("Not in search view", timeout=1)
@@ -1599,7 +1748,7 @@ class FullDeckScreen(BaseScreen[None]):
             rec = self._recommendation_details.get(card_name)
             if rec:
                 detail_view = self.query_one("#recommendation-detail", RecommendationDetailView)
-                detail_view.show_recommendation(rec)
+                await detail_view.show_recommendation(rec)
             else:
                 self.notify(f"No details for {card_name}", timeout=1)
         except NoMatches as e:

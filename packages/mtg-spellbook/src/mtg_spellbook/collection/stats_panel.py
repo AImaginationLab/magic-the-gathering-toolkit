@@ -560,7 +560,15 @@ class CollectionStatsPanel(Vertical):
         """
         cards_to_use = cards if cards is not None else self._cards
         total_value = 0.0
-        card_values: list[tuple[str, float]] = []
+        # Track single card prices for stats
+        all_prices: list[float] = []
+        # Track (name, price) for most valuable list
+        card_prices: list[tuple[str, float]] = []
+        # Price tier counts
+        tier_bulk = 0  # $0-1
+        tier_playable = 0  # $1-10
+        tier_chase = 0  # $10-50
+        tier_premium = 0  # $50+
 
         for card_data in cards_to_use:
             key = self._price_key(
@@ -571,21 +579,33 @@ class CollectionStatsPanel(Vertical):
                 continue
 
             usd_price, foil_price = prices
-            card_value = 0.0
+            card_total = 0.0
 
             # Regular copies
             if usd_price and card_data.quantity > 0:
-                card_value += usd_price * card_data.quantity
+                card_total += usd_price * card_data.quantity
 
             # Foil copies
             if card_data.foil_quantity > 0:
                 foil = foil_price if foil_price else usd_price
                 if foil:
-                    card_value += foil * card_data.foil_quantity
+                    card_total += foil * card_data.foil_quantity
 
-            if card_value > 0:
-                total_value += card_value
-                card_values.append((card_data.card_name, card_value))
+            if card_total > 0:
+                total_value += card_total
+                single_price = usd_price if usd_price else (foil_price or 0.0)
+                if single_price > 0:
+                    all_prices.append(single_price)
+                    card_prices.append((card_data.card_name, single_price))
+                    # Categorize into price tiers
+                    if single_price >= 50:
+                        tier_premium += 1
+                    elif single_price >= 10:
+                        tier_chase += 1
+                    elif single_price >= 1:
+                        tier_playable += 1
+                    else:
+                        tier_bulk += 1
 
         # Update value display
         value_widget = self.query_one("#collection-value", Static)
@@ -594,21 +614,57 @@ class CollectionStatsPanel(Vertical):
             value_widget.update("[dim]No price data[/]")
             return
 
+        # Calculate median
+        all_prices.sort()
+        median_price = 0.0
+        if all_prices:
+            mid = len(all_prices) // 2
+            if len(all_prices) % 2 == 0:
+                median_price = (all_prices[mid - 1] + all_prices[mid]) / 2
+            else:
+                median_price = all_prices[mid]
+
+        # Calculate top 5 concentration
+        card_prices.sort(key=lambda x: x[1], reverse=True)
+        top5_value = sum(p for _, p in card_prices[:5])
+        top5_pct = (top5_value / total_value * 100) if total_value > 0 else 0
+
         # Build display lines
         lines = [
             f"[bold {ui_colors.GOLD}]${total_value:,.2f}[/] [dim]USD[/]",
+            f"[dim]Median:[/] [{ui_colors.GOLD}]${median_price:.2f}[/]  "
+            f"[dim]Top 5 =[/] [{ui_colors.GOLD}]{top5_pct:.0f}%[/]",
         ]
 
-        if card_values:
-            card_values.sort(key=lambda x: x[1], reverse=True)
-            top_cards = card_values[:10]
+        # Price tier breakdown
+        total_cards = tier_bulk + tier_playable + tier_chase + tier_premium
+        if total_cards > 0:
             lines.append("")
-            lines.append("[dim]Most Valuable Cards:[/]")
-            for name, value in top_cards:
-                # Truncate long names
+            lines.append("[dim]Price Tiers:[/]")
+            if tier_premium > 0:
+                lines.append(
+                    f"  [#ff8c00]★[/] Premium ($50+)    [{ui_colors.GOLD}]{tier_premium:>3}[/]"
+                )
+            if tier_chase > 0:
+                lines.append(
+                    f"  [#e6c84a]◆[/] Chase ($10-50)    [{ui_colors.GOLD}]{tier_chase:>3}[/]"
+                )
+            if tier_playable > 0:
+                lines.append(
+                    f"  [#c0c0c0]◇[/] Playable ($1-10)  [{ui_colors.GOLD}]{tier_playable:>3}[/]"
+                )
+            if tier_bulk > 0:
+                lines.append(f"  [#666]●[/] Bulk (<$1)        [{ui_colors.GOLD}]{tier_bulk:>3}[/]")
+
+        # Most valuable cards (top 5)
+        if card_prices:
+            top_cards = card_prices[:5]
+            lines.append("")
+            lines.append("[dim]Most Valuable:[/]")
+            for name, price in top_cards:
                 display_name = name[:16] + "…" if len(name) > 17 else name
                 lines.append(
-                    f"  [{ui_colors.TEXT_DIM}]{display_name:17}[/] [#7ec850]${value:.2f}[/]"
+                    f"  [{ui_colors.TEXT_DIM}]{display_name:17}[/] [#7ec850]${price:.2f}[/]"
                 )
 
         value_widget.update("\n".join(lines))

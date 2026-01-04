@@ -5,7 +5,7 @@ from __future__ import annotations
 import contextlib
 import re
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
 
 from textual import work
@@ -83,6 +83,15 @@ class DeckAnalysis:
 
     # Card rarities for display (card_name -> rarity)
     card_rarities: dict[str, str]
+
+    # Deck quality validation (Phase 12)
+    curve_warnings: list[str] = field(default_factory=list)
+    quality_score: float = 0.0
+    mana_base_quality: str = ""
+    fixing_land_count: int = 0
+    win_condition_types: list[str] = field(default_factory=list)
+    tribal_strength: str = ""
+    theme_strength: str = ""
 
 
 # Theme descriptions - short and practical
@@ -224,19 +233,19 @@ class DeckAnalysisPanel(VerticalScroll):
         except Exception:
             pass
 
-    @work(exclusive=True, group="deck_analysis", thread=True)
-    def _run_analysis(
+    @work(exclusive=True, group="deck_analysis")
+    async def _run_analysis(
         self,
         deck: DeckWithCards,
         collection_cards: set[str] | None,
         prices: dict[str, float] | None,
     ) -> None:
-        """Run deck analysis in background thread."""
-        # Perform analysis (CPU-bound work) in thread
-        self._analysis = self._analyze_deck(deck, collection_cards, prices)
+        """Run deck analysis in background."""
+        # Perform analysis
+        self._analysis = await self._analyze_deck(deck, collection_cards, prices)
 
-        # Schedule UI update on main thread
-        self.app.call_from_thread(self._update_content)
+        # Update UI
+        self._update_content()
 
     def _show_empty(self) -> None:
         """Show empty state."""
@@ -319,6 +328,12 @@ class DeckAnalysisPanel(VerticalScroll):
         # DECK HEALTH
         lines.append(self._build_health_text(a))
         lines.append("")
+
+        # DECK QUALITY (if quality data present)
+        quality_text = self._build_quality_text(a)
+        if quality_text:
+            lines.append(quality_text)
+            lines.append("")
 
         # COLOR IDENTITY
         lines.append(self._build_colors_text(a))
@@ -779,9 +794,50 @@ class DeckAnalysisPanel(VerticalScroll):
 
         return "\n".join(lines)
 
+    def _build_quality_text(self, a: DeckAnalysis) -> str:
+        """Build deck quality section with validation results."""
+        lines = [f"[bold {ui_colors.GOLD}]--- Deck Quality ---[/]", ""]
+
+        # Quality grade
+        if a.quality_score > 0:
+            grade, color = self._get_quality_grade(a.quality_score)
+            lines.append(f"Grade: [{color}]{grade}[/] ({a.quality_score:.0%})")
+
+        # Mana base quality
+        if a.mana_base_quality:
+            if a.mana_base_quality == "excellent":
+                mana_color = "green"
+            elif a.mana_base_quality == "good":
+                mana_color = "yellow"
+            else:
+                mana_color = "red"
+            mana_str = f"Mana Base: [{mana_color}]{a.mana_base_quality.title()}[/]"
+            if a.fixing_land_count > 0:
+                mana_str += f" ({a.fixing_land_count} fixing lands)"
+            lines.append(mana_str)
+
+        # Win conditions
+        if a.win_condition_types:
+            lines.append(f"Win Conditions: {', '.join(a.win_condition_types)}")
+
+        # Synergy strengths
+        if a.tribal_strength and a.tribal_strength != "minimal":
+            lines.append(f"Tribal: {a.tribal_strength.title()}")
+        if a.theme_strength and a.theme_strength != "minimal":
+            lines.append(f"Theme: {a.theme_strength.title()}")
+
+        # Curve warnings
+        if a.curve_warnings:
+            lines.append("")
+            lines.append("[red]Warnings:[/]")
+            for warning in a.curve_warnings[:3]:
+                lines.append(f"  - {warning}")
+
+        return "\n".join(lines) if len(lines) > 2 else ""
+
     def _build_collection_text(self, a: DeckAnalysis) -> str:
         """Build collection section with progress visualization."""
-        lines = [f"[bold {ui_colors.GOLD}]━━━ 📦 Collection ━━━[/]", ""]
+        lines = [f"[bold {ui_colors.GOLD}]--- Collection ---[/]", ""]
 
         total = a.owned_count + a.needed_count
         owned_pct = int((a.owned_count / total) * 100) if total > 0 else 0
@@ -914,7 +970,26 @@ class DeckAnalysisPanel(VerticalScroll):
             return "D"
         return "F"
 
-    def _analyze_deck(
+    def _get_quality_grade(self, quality_score: float) -> tuple[str, str]:
+        """Get letter grade and color for quality score."""
+        if quality_score >= 0.9:
+            return "A+", "green"
+        elif quality_score >= 0.8:
+            return "A", "green"
+        elif quality_score >= 0.7:
+            return "B+", "cyan"
+        elif quality_score >= 0.6:
+            return "B", "cyan"
+        elif quality_score >= 0.5:
+            return "C+", "yellow"
+        elif quality_score >= 0.4:
+            return "C", "yellow"
+        elif quality_score >= 0.3:
+            return "D", "orange1"
+        else:
+            return "F", "red"
+
+    async def _analyze_deck(
         self,
         deck: DeckWithCards,
         collection_cards: set[str] | None = None,
@@ -1085,7 +1160,7 @@ class DeckAnalysisPanel(VerticalScroll):
                 card_rarities[card_data.card_name] = card_data.card.rarity
 
         # Get combos
-        combos = self._detect_combos(deck)
+        combos = await self._detect_combos(deck)
 
         # Look up rarities for any missing combo cards not in the deck
         self._fill_missing_rarities(combos, card_rarities)
@@ -1096,6 +1171,33 @@ class DeckAnalysisPanel(VerticalScroll):
         # Most expensive cards
         card_prices.sort(key=lambda x: -x[1])
         expensive_cards = card_prices[:5]
+
+        # Deck quality validation (Phase 12)
+        curve_warnings: list[str] = []
+        quality_score = 0.0
+        mana_base_quality = ""
+        fixing_land_count = 0
+        win_condition_types: list[str] = []
+        tribal_strength = ""
+        theme_strength = ""
+
+        # Calculate quality metrics
+        quality_score, curve_warnings, mana_base_quality, fixing_land_count = (
+            self._calculate_quality_metrics(deck, avg_cmc, colors, lands, card_count, archetype)
+        )
+
+        # Detect win conditions
+        win_condition_types = self._detect_win_conditions(deck)
+
+        # Assess tribal strength if dominant tribe present
+        if dominant_tribe and tribe_counter:
+            tribal_count = tribe_counter[dominant_tribe]
+            tribal_strength = self._assess_tribal_strength(tribal_count)
+
+        # Assess theme strength based on dominant themes
+        if themes:
+            _top_theme_name, top_theme_count = themes[0]
+            theme_strength = self._assess_theme_strength(top_theme_count)
 
         return DeckAnalysis(
             card_count=card_count,
@@ -1126,6 +1228,13 @@ class DeckAnalysisPanel(VerticalScroll):
             total_price=total_price,
             expensive_cards=expensive_cards,
             card_rarities=card_rarities,
+            curve_warnings=curve_warnings,
+            quality_score=quality_score,
+            mana_base_quality=mana_base_quality,
+            fixing_land_count=fixing_land_count,
+            win_condition_types=win_condition_types,
+            tribal_strength=tribal_strength,
+            theme_strength=theme_strength,
         )
 
     def _detect_archetype(
@@ -1200,9 +1309,9 @@ class DeckAnalysisPanel(VerticalScroll):
 
         # 1. Check 17Lands synergy data first (data-driven synergies)
         try:
-            from mtg_core.tools.recommendations.limited_stats import LimitedStatsDB
+            from mtg_core.tools.recommendations.gameplay import GameplayDB
 
-            db = LimitedStatsDB()
+            db = GameplayDB()
             if db.is_available:
                 card_names = {c.card_name for c in deck.mainboard}
 
@@ -1267,7 +1376,7 @@ class DeckAnalysisPanel(VerticalScroll):
 
         return synergies[:12]
 
-    def _detect_combos(self, deck: DeckWithCards) -> list[SpellbookComboMatch]:
+    async def _detect_combos(self, deck: DeckWithCards) -> list[SpellbookComboMatch]:
         """Detect complete and near-complete combos in the deck.
 
         Shows combos the user has or is close to completing (missing 1-2 cards).
@@ -1278,7 +1387,7 @@ class DeckAnalysisPanel(VerticalScroll):
                 get_spellbook_detector,
             )
 
-            detector = get_spellbook_detector()
+            detector = await get_spellbook_detector()
             card_names = [c.card_name for c in deck.mainboard]
 
             # Include commander if present
@@ -1287,7 +1396,7 @@ class DeckAnalysisPanel(VerticalScroll):
 
             # Find combos missing 0-2 pieces (complete + near-complete)
             # min_present=1 so 2-card combos show when you have 1 piece
-            matches, _ = detector.find_missing_pieces(
+            matches, _ = await detector.find_missing_pieces(
                 card_names,
                 max_missing=2,  # Show combos missing up to 2 cards
                 min_present=1,  # Include 2-card combos where you have 1 piece
@@ -1353,9 +1462,9 @@ class DeckAnalysisPanel(VerticalScroll):
         top_cards: list[tuple[str, str, float | None]] = []
 
         try:
-            from mtg_core.data.database.limited_stats import LimitedStatsDB
+            from mtg_core.tools.recommendations.gameplay import GameplayDB
 
-            db = LimitedStatsDB()
+            db = GameplayDB()
             for card_data in deck.mainboard:
                 stats = db.get_card_stats(card_data.card_name)
                 if stats and stats.tier:
@@ -1367,3 +1476,180 @@ class DeckAnalysisPanel(VerticalScroll):
             pass
 
         return tier_counts, top_cards
+
+    def _calculate_quality_metrics(
+        self,
+        deck: DeckWithCards,
+        avg_cmc: float,
+        colors: dict[str, int],
+        lands: int,
+        card_count: int,
+        archetype: str,
+    ) -> tuple[float, list[str], str, int]:
+        """Calculate deck quality metrics based on deck_finder validation patterns.
+
+        Returns:
+            (quality_score, curve_warnings, mana_base_quality, fixing_land_count)
+        """
+        curve_warnings: list[str] = []
+        quality_score = 1.0
+        mana_base_quality = ""
+        fixing_land_count = 0
+
+        # Curve thresholds by archetype
+        curve_thresholds = {
+            "Aggro": {"avg_cmc_max": 2.5, "low_cmc_ratio_min": 0.50},
+            "Low Curve": {"avg_cmc_max": 3.0, "low_cmc_ratio_min": 0.40},
+            "Control": {"avg_cmc_max": 4.0, "low_cmc_ratio_min": 0.20},
+            "Midrange": {"avg_cmc_max": 3.5, "low_cmc_ratio_min": 0.30},
+            "Ramp": {"avg_cmc_max": 4.5, "low_cmc_ratio_min": 0.15},
+            "_default": {"avg_cmc_max": 3.5, "low_cmc_ratio_min": 0.25},
+        }
+
+        # Get thresholds for this archetype
+        thresholds = curve_thresholds.get(archetype, curve_thresholds["_default"])
+
+        # Calculate low CMC ratio
+        non_land_count = 0
+        low_cmc_count = 0
+        for card_data in deck.mainboard:
+            card = card_data.card
+            if card and "Land" not in (card.type or ""):
+                non_land_count += card_data.quantity
+                if card.cmc is not None and card.cmc <= 2:
+                    low_cmc_count += card_data.quantity
+
+        low_cmc_ratio = low_cmc_count / non_land_count if non_land_count > 0 else 0
+
+        # Validate curve
+        if avg_cmc > thresholds["avg_cmc_max"]:
+            curve_warnings.append(f"High avg CMC ({avg_cmc:.1f} > {thresholds['avg_cmc_max']})")
+            quality_score -= 0.15
+
+        if low_cmc_ratio < thresholds["low_cmc_ratio_min"]:
+            curve_warnings.append(
+                f"Low early game ({low_cmc_ratio:.0%} < "
+                f"{thresholds['low_cmc_ratio_min']:.0%} at CMC 1-2)"
+            )
+            quality_score -= 0.1
+
+        # Validate mana base for multi-color decks
+        num_colors = len([c for c, v in colors.items() if v > 0])
+        if num_colors >= 2:
+            # Count fixing lands (dual lands, fetch lands, etc.)
+            fixing_land_count = self._count_fixing_lands(deck)
+
+            # Color fixing requirements by number of colors
+            color_fixing_reqs = {1: 0, 2: 6, 3: 12, 4: 18, 5: 22}
+            required = color_fixing_reqs.get(num_colors, 12)
+
+            if fixing_land_count >= int(required * 1.2):
+                mana_base_quality = "excellent"
+                quality_score += 0.05
+            elif fixing_land_count >= required:
+                mana_base_quality = "good"
+            elif fixing_land_count >= int(required * 0.5):
+                mana_base_quality = "poor"
+                quality_score -= 0.1
+            else:
+                mana_base_quality = "critical"
+                curve_warnings.append(
+                    f"Low color fixing ({fixing_land_count} dual lands, "
+                    f"need {required}+ for {num_colors} colors)"
+                )
+                quality_score -= 0.2
+
+        # Validate land ratio
+        if card_count > 0:
+            land_ratio = lands / card_count
+            if land_ratio < 0.30:
+                curve_warnings.append(f"Low land count ({lands}, {land_ratio:.0%})")
+                quality_score -= 0.1
+            elif land_ratio > 0.45:
+                curve_warnings.append(f"High land count ({lands}, {land_ratio:.0%})")
+                quality_score -= 0.05
+
+        # Clamp quality score
+        quality_score = max(0.0, min(1.0, quality_score))
+
+        return quality_score, curve_warnings, mana_base_quality, fixing_land_count
+
+    def _count_fixing_lands(self, deck: DeckWithCards) -> int:
+        """Count lands that provide color fixing (dual lands, fetch lands, etc.)."""
+        fixing_count = 0
+        dual_patterns = [
+            r"add \{[WUBRG]\} or \{[WUBRG]\}",
+            r"add \{[WUBRG]\}, \{[WUBRG]\}, or \{[WUBRG]\}",
+            r"add one mana of any color",
+            r"add .* mana of any type",
+            r"search your library for .* land",
+        ]
+
+        for card_data in deck.mainboard:
+            card = card_data.card
+            if card and "Land" in (card.type or ""):
+                text = (card.text or "").lower()
+                for pattern in dual_patterns:
+                    if re.search(pattern, text, re.IGNORECASE):
+                        fixing_count += card_data.quantity
+                        break
+
+        return fixing_count
+
+    def _detect_win_conditions(self, deck: DeckWithCards) -> list[str]:
+        """Detect win condition types present in the deck."""
+        win_condition_patterns = {
+            "Evasion": [
+                r"flying",
+                r"can't be blocked",
+                r"unblockable",
+                r"menace",
+                r"trample",
+            ],
+            "Finisher": [r"win the game", r"lose the game", r"infect"],
+            "Burn": [
+                r"deals? \d+ damage to .* player",
+                r"each opponent loses",
+                r"deals damage equal to",
+            ],
+            "Value": [r"draw .* card", r"create .* token", r"search your library"],
+        }
+
+        detected: dict[str, int] = {}
+
+        for card_data in deck.mainboard:
+            card = card_data.card
+            if not card:
+                continue
+
+            text = (card.text or "").lower()
+            type_line = (card.type or "").lower()
+
+            for win_type, patterns in win_condition_patterns.items():
+                for pattern in patterns:
+                    if re.search(pattern, text) or re.search(pattern, type_line):
+                        detected[win_type] = detected.get(win_type, 0) + card_data.quantity
+                        break
+
+        # Return win condition types that have meaningful presence (3+ cards)
+        return [wc for wc, count in detected.items() if count >= 3]
+
+    def _assess_tribal_strength(self, creature_count: int) -> str:
+        """Assess tribal theme strength based on creature count."""
+        if creature_count >= 25:
+            return "strong"
+        elif creature_count >= 15:
+            return "viable"
+        elif creature_count >= 8:
+            return "weak"
+        return "minimal"
+
+    def _assess_theme_strength(self, supporting_card_count: int) -> str:
+        """Assess theme strength based on supporting card count."""
+        if supporting_card_count >= 15:
+            return "strong"
+        elif supporting_card_count >= 10:
+            return "viable"
+        elif supporting_card_count >= 5:
+            return "weak"
+        return "minimal"

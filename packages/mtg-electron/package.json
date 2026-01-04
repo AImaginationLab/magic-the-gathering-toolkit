@@ -1,0 +1,104 @@
+{
+  "name": "mtg-electron",
+  "version": "0.1.0",
+  "description": "Magic: The Gathering Spellbook - Desktop App",
+  "main": "./out/main/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "package": "electron-vite build && electron-builder --dir",
+    "build:sidecar": "node scripts/build-sidecar.js",
+    "make": "npm run build:sidecar && electron-vite build && electron-builder",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "typecheck:node": "tsc -p tsconfig.node.json --noEmit",
+    "typecheck:web": "tsc -p tsconfig.web.json --noEmit",
+    "generate-api-types": "cd ../mtg-core && uv run python -m mtg_core.api.export_schema && cd ../mtg-electron && npx openapi-typescript ../mtg-core/src/mtg_core/api/schema/openapi.json -o src/shared/types/api-generated.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.1",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.4.2",
+    "@techstark/opencv-js": "^4.12.0-release.1",
+    "@types/react-window": "^1.8.8",
+    "better-sqlite3": "^12.5.0",
+    "d3": "^7.9.0",
+    "electron-context-menu": "^4.1.1",
+    "electron-log": "^5.4.3",
+    "electron-store": "^11.0.2",
+    "electron-unhandled": "^5.0.0",
+    "maath": "^0.10.8",
+    "openapi-fetch": "^0.15.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-virtualized-auto-sizer": "^2.0.0",
+    "react-window": "^2.2.3",
+    "tesseract.js": "^7.0.0",
+    "three": "^0.182.0"
+  },
+  "devDependencies": {
+    "@electron-toolkit/utils": "^4.0.0",
+    "@electron/rebuild": "^4.0.2",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/d3": "^7.4.3",
+    "@types/node": "^25.0.3",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/react-virtualized-auto-sizer": "^1.0.4",
+    "@vitejs/plugin-react": "^4.3.0",
+    "autoprefixer": "^10.4.20",
+    "electron": "^39.2.7",
+    "electron-builder": "^26.0.12",
+    "electron-debug": "^4.1.0",
+    "electron-devtools-installer": "^4.0.0",
+    "electron-reloader": "^1.2.3",
+    "electron-vite": "^5.0.0",
+    "openapi-typescript": "^7.10.1",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.7.0",
+    "vite": "^7.3.0"
+  },
+  "build": {
+    "appId": "com.mtgspellbook.app",
+    "productName": "MTG Spellbook",
+    "directories": {
+      "buildResources": "build",
+      "output": "release"
+    },
+    "files": [
+      "out/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/sidecar",
+        "to": "sidecar",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icon.icns"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "build"
+    }
+  }
+}

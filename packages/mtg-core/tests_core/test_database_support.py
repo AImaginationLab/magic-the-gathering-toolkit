@@ -9,11 +9,10 @@ Tests cover:
 from __future__ import annotations
 
 import asyncio
-import os
+import tempfile
 import time
 from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import aiosqlite
 import pytest
@@ -32,30 +31,7 @@ from mtg_core.data.database.fts import (
 from mtg_core.data.database.query import QueryBuilder
 from mtg_core.data.models import Card, SearchCardsInput
 
-if TYPE_CHECKING:
-    pass
-
-
-def get_test_db_path() -> Path | None:
-    """Get path to test database if it exists."""
-    # Check environment variable first
-    env_path = os.environ.get("MTG_DB_PATH")
-    if env_path:
-        path = Path(env_path)
-        if path.exists():
-            return path
-
-    # Check default locations
-    for candidate in [
-        Path("resources/mtg.sqlite"),
-        Path("../../resources/mtg.sqlite"),
-        Path(__file__).parent.parent.parent.parent.parent / "resources" / "mtg.sqlite",
-    ]:
-        if candidate.exists():
-            return candidate.resolve()
-
-    return None
-
+from .conftest import get_test_db_path
 
 # Skip tests if no database available
 DB_PATH = get_test_db_path()
@@ -429,14 +405,15 @@ class TestQueryBuilder:
         assert qb.conditions == []
 
     def test_add_format_legality_valid(self) -> None:
-        """add_format_legality adds subquery for valid formats."""
+        """add_format_legality adds json_extract condition for valid formats."""
         qb = QueryBuilder()
         qb.add_format_legality("commander")
 
         assert len(qb.conditions) == 1
-        assert "cardLegalities" in qb.conditions[0]
-        assert "commander" in qb.conditions[0]
-        assert "Legal" in qb.conditions[0]
+        assert "json_extract" in qb.conditions[0]
+        assert "legal" in qb.conditions[0]
+        assert len(qb.params) == 2
+        assert qb.params[0] == "$.commander"
 
     def test_add_format_legality_case_insensitive(self) -> None:
         """add_format_legality is case-insensitive."""
@@ -444,7 +421,7 @@ class TestQueryBuilder:
         qb.add_format_legality("COMMANDER")
 
         assert len(qb.conditions) == 1
-        assert "commander" in qb.conditions[0]
+        assert "$.commander" in qb.params
 
     def test_add_format_legality_invalid(self) -> None:
         """add_format_legality ignores invalid formats."""
@@ -716,7 +693,6 @@ class TestFTSEdgeCases:
     async def test_check_fts_available_with_exception(self) -> None:
         """check_fts_available handles database errors gracefully."""
         # Create a connection to a non-existent database
-        import tempfile
 
         temp_db = Path(tempfile.gettempdir()) / "nonexistent.db"
 

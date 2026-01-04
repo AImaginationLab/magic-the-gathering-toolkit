@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import re
+import sqlite3
 from dataclasses import dataclass, field
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -16,13 +19,13 @@ SYNERGY_KEYWORDS = {
     "death_trigger": ["when .* dies", "whenever .* dies", "dying"],
     "aristocrats": ["blood artist", "whenever a creature dies", "lose life"],
     # ETB themes
-    "etb": ["enters the battlefield", "enters under your control", "etb"],
+    "etb": ["enters the battlefield", "enters under your control", "etb", "when .* enters"],
     "blink": ["exile .* return", "flicker", "blink"],
     # Graveyard themes
     "graveyard": ["from your graveyard", "graveyard to", "reanimate"],
     "self_mill": ["mill", "put .* into your graveyard"],
     # Token themes
-    "tokens": ["create .* token", "token creature", "populate"],
+    "tokens": ["create .* token", "token creature", "populate", "creates .* token"],
     "go_wide": ["all creatures you control", "each creature you control"],
     # +1/+1 counter themes
     "counters": ["\\+1/\\+1 counter", "proliferate", "counter on"],
@@ -46,10 +49,44 @@ SYNERGY_KEYWORDS = {
     # Tribal
     "tribal_lord": ["other .* get \\+", "creatures you control get"],
     "tribal_synergy": ["share a creature type", "choose a creature type"],
+    # Exile themes
+    "exile": ["exile .* card", "exiled card", "exile target", "from exile"],
+    # Hand disruption
+    "hand_reveal": ["reveals .* hand", "reveal .* hand", "look at .* hand"],
+    "discard": ["discard .* card", "discards a card", "each opponent discards"],
+    # Life manipulation
+    "lifegain": ["gain .* life", "gains .* life", "lifelink"],
+    "life_payment": ["pay .* life", "lose .* life"],
+    # Set mechanics (regex patterns for oracle text references)
+    "suspect": ["suspect", "suspected"],
+    "investigate": ["investigate", "clue token"],
+    "surveil": ["surveil"],
+    "explore": ["explore"],
+    "amass": ["amass"],
+    "incubate": ["incubate"],
+    "adapt": ["adapt \\d"],
+    "proliferate": ["proliferate"],
+    "populate": ["populate"],
+    "energy": ["\\{e\\}", "energy counter"],
+    "food": ["food token", "create .* food"],
+    "treasure": ["treasure token", "create .* treasure"],
+    "blood": ["blood token", "create .* blood"],
+    "clue": ["clue token", "create .* clue"],
+    "landfall": ["landfall", "whenever a land enters"],
+    "magecraft": ["magecraft", "whenever you cast or copy an instant or sorcery"],
+    "constellation": ["constellation", "whenever .* enchantment enters"],
+    "raid": ["raid", "if you attacked"],
+    "revolt": ["revolt", "if a permanent you controlled left"],
+    "delirium": ["delirium", "four or more card types"],
+    "threshold": ["threshold", "seven or more cards in your graveyard"],
+    "metalcraft": ["metalcraft", "three or more artifacts"],
+    "morbid": ["morbid", "if a creature died"],
+    "formidable": ["formidable", "creatures .* total power 8"],
+    "ferocious": ["ferocious", "creature with power 4 or greater"],
 }
 
-# Common keyword abilities to track
-KEYWORD_ABILITIES = [
+# Fallback keyword abilities (used if database unavailable)
+_FALLBACK_KEYWORD_ABILITIES = [
     "flying",
     "first strike",
     "double strike",
@@ -67,6 +104,48 @@ KEYWORD_ABILITIES = [
     "ward",
     "protection",
 ]
+
+
+@lru_cache(maxsize=1)
+def _load_keyword_abilities_from_db() -> list[str]:
+    """Load keyword abilities from gameplay.sqlite database."""
+    from mtg_core.config import get_settings
+
+    settings = get_settings()
+    db_path: Path = settings.gameplay_sqlite_path
+
+    if not db_path.exists():
+        return _FALLBACK_KEYWORD_ABILITIES
+
+    try:
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.execute(
+            "SELECT DISTINCT text FROM abilities WHERE category = 'keyword' ORDER BY text"
+        )
+        keywords = []
+        for (text,) in cursor.fetchall():
+            # Normalize: lowercase, strip numbers/punctuation for matching
+            kw = text.lower().strip()
+            # Skip compound abilities like "Amass Orcs 2" - just keep base keyword
+            if " " in kw:
+                base = kw.split()[0]
+                if base not in keywords:
+                    keywords.append(base)
+            elif kw and kw not in keywords:
+                keywords.append(kw)
+        conn.close()
+        return keywords if keywords else _FALLBACK_KEYWORD_ABILITIES
+    except Exception:
+        return _FALLBACK_KEYWORD_ABILITIES
+
+
+def get_keyword_abilities() -> list[str]:
+    """Get list of keyword abilities from database (cached)."""
+    return _load_keyword_abilities_from_db()
+
+
+# For backwards compatibility - this is now a function call
+KEYWORD_ABILITIES = _FALLBACK_KEYWORD_ABILITIES  # Initial value, updated at runtime
 
 
 @dataclass
@@ -141,8 +220,8 @@ class CardFeatures:
         vec.append(min(self.power / 10.0, 1.0))
         vec.append(min(self.toughness / 10.0, 1.0))
 
-        # Keyword abilities (16 dims)
-        for kw in KEYWORD_ABILITIES:
+        # Keyword abilities (dynamic dims based on database)
+        for kw in get_keyword_abilities():
             vec.append(1.0 if kw in self.keyword_abilities else 0.0)
 
         # Synergy themes (len(SYNERGY_KEYWORDS) dims)
@@ -230,6 +309,57 @@ class DeckFeatures:
 class CardEncoder:
     """Encodes cards into structured feature vectors."""
 
+    def __init__(self, use_precomputed_themes: bool = True) -> None:
+        """Initialize encoder.
+
+        Args:
+            use_precomputed_themes: If True, try to load themes from database
+                instead of detecting via regex. Falls back to regex if unavailable.
+        """
+        self._use_precomputed = use_precomputed_themes
+        self._themes_cache: dict[str, set[str]] = {}
+        self._themes_loaded = False
+
+    def _load_themes_cache(self) -> None:
+        """Load all card themes from database into memory cache."""
+        if self._themes_loaded:
+            return
+
+        self._themes_loaded = True
+
+        try:
+            from mtg_core.config import get_settings
+
+            settings = get_settings()
+            db_path = settings.gameplay_sqlite_path
+
+            if not db_path.exists():
+                return
+
+            import sqlite3
+
+            conn = sqlite3.connect(str(db_path))
+            cursor = conn.execute("SELECT card_name, theme FROM card_themes")
+            for card_name, theme in cursor.fetchall():
+                if card_name not in self._themes_cache:
+                    self._themes_cache[card_name] = set()
+                self._themes_cache[card_name].add(theme)
+            conn.close()
+        except Exception:
+            pass  # Fall back to regex detection
+
+    def _get_precomputed_themes(self, card_name: str) -> set[str] | None:
+        """Get pre-computed themes for a card, or None if unavailable."""
+        if not self._use_precomputed:
+            return None
+
+        self._load_themes_cache()
+
+        if card_name in self._themes_cache:
+            return self._themes_cache[card_name]
+
+        return None
+
     def encode(self, card: dict[str, Any]) -> CardFeatures:
         """Encode a card dict into CardFeatures."""
         features = CardFeatures(name=card.get("name", "Unknown"))
@@ -283,11 +413,16 @@ class CardEncoder:
             keywords = [k.strip().lower() for k in keywords.split(",") if k.strip()]
         else:
             keywords = [k.lower() for k in keywords]
-        features.keyword_abilities = set(keywords) & set(KEYWORD_ABILITIES)
+        features.keyword_abilities = set(keywords) & set(get_keyword_abilities())
 
-        # Synergy themes from oracle text
-        oracle_text = (card.get("text") or "").lower()
-        features.synergy_themes = self._detect_synergy_themes(oracle_text)
+        # Synergy themes - try pre-computed first, fall back to regex
+        card_name = card.get("name", "")
+        precomputed = self._get_precomputed_themes(card_name)
+        if precomputed is not None:
+            features.synergy_themes = precomputed
+        else:
+            oracle_text = (card.get("text") or "").lower()
+            features.synergy_themes = self._detect_synergy_themes(oracle_text)
 
         # EDHRec rank
         features.edhrec_rank = card.get("edhrecRank") or card.get("edhrec_rank")

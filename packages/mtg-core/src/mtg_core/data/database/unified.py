@@ -6,6 +6,7 @@ database that has complete card data in every query.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import random
@@ -28,6 +29,61 @@ logger = logging.getLogger(__name__)
 EXCLUDE_EXTRAS = "is_promo = 0 AND is_digital_only = 0"
 EXCLUDE_TOKENS = "is_token = 0"
 
+# MTG card type categories for parsing type lines
+SUPERTYPES = frozenset({"Basic", "Legendary", "Ongoing", "Snow", "World", "Host"})
+CARD_TYPES = frozenset(
+    {
+        "Artifact",
+        "Battle",
+        "Conspiracy",
+        "Creature",
+        "Dungeon",
+        "Enchantment",
+        "Instant",
+        "Kindred",
+        "Land",
+        "Phenomenon",
+        "Plane",
+        "Planeswalker",
+        "Scheme",
+        "Sorcery",
+        "Tribal",
+        "Vanguard",
+    }
+)
+
+
+def _parse_type_line(type_line: str | None) -> tuple[list[str], list[str], list[str]]:
+    """Parse a type line into (supertypes, types, subtypes).
+
+    Examples:
+        "Legendary Creature — Human Wizard" -> (["Legendary"], ["Creature"], ["Human", "Wizard"])
+        "Basic Land — Forest" -> (["Basic"], ["Land"], ["Forest"])
+        "Instant" -> ([], ["Instant"], [])
+        "Artifact — Equipment" -> ([], ["Artifact"], ["Equipment"])
+    """
+    if not type_line:
+        return [], [], []
+
+    # Split on em dash to separate main types from subtypes
+    parts = type_line.split("—")
+    main_part = parts[0].strip()
+    subtype_part = parts[1].strip() if len(parts) > 1 else ""
+
+    # Parse main part into supertypes and types
+    supertypes: list[str] = []
+    types: list[str] = []
+    for word in main_part.split():
+        if word in SUPERTYPES:
+            supertypes.append(word)
+        elif word in CARD_TYPES:
+            types.append(word)
+
+    # Parse subtypes (everything after the em dash)
+    subtypes = subtype_part.split() if subtype_part else []
+
+    return supertypes, types, subtypes
+
 
 class UnifiedDatabase(BaseDatabase):
     """Unified database access for MTG cards, images, prices, and rulings.
@@ -41,8 +97,9 @@ class UnifiedDatabase(BaseDatabase):
         db: aiosqlite.Connection,
         cache: CardCache | None = None,
         max_connections: int = 5,
+        semaphore: asyncio.Semaphore | None = None,
     ):
-        super().__init__(db, max_connections)
+        super().__init__(db, max_connections, semaphore)
         self._cache = cache or CardCache()
         self._fts_available: bool | None = None
 
@@ -59,6 +116,8 @@ class UnifiedDatabase(BaseDatabase):
 
     def _row_to_card(self, row: aiosqlite.Row) -> Card:
         """Convert a database row to a Card model with all data."""
+        type_line = row["type_line"]
+        supertypes, types, subtypes = _parse_type_line(type_line)
         return Card(
             uuid=row["id"],
             name=row["name"],
@@ -68,7 +127,10 @@ class UnifiedDatabase(BaseDatabase):
             cmc=row["cmc"],
             colors=self._parse_json_list(row["colors"]),
             color_identity=self._parse_json_list(row["color_identity"]),
-            type=row["type_line"],
+            type=type_line,
+            supertypes=supertypes or None,
+            types=types or None,
+            subtypes=subtypes or None,
             text=row["oracle_text"],
             flavor=row["flavor_text"],
             power=row["power"],
@@ -132,6 +194,9 @@ class UnifiedDatabase(BaseDatabase):
     async def get_card_by_name(self, name: str, include_extras: bool = True) -> Card:
         """Get a card by exact name. Returns most recent non-promo printing.
 
+        Also matches double-faced cards when searching by front face name only.
+        E.g. "Garland, Knight of Cornelia" matches "Garland, Knight of Cornelia // Chaos, the Endless"
+
         Raises CardNotFoundError if not found.
         """
         cache_key = f"name:{name.lower()}:extras={include_extras}"
@@ -139,15 +204,18 @@ class UnifiedDatabase(BaseDatabase):
         if cached:
             return cached
 
+        # First try exact match, then try as front face of double-faced card
         async with self._execute(
             f"""
             SELECT * FROM cards
-            WHERE name COLLATE NOCASE = ?
+            WHERE (name COLLATE NOCASE = ? OR name COLLATE NOCASE LIKE ? ESCAPE '\\')
             AND {EXCLUDE_EXTRAS}
-            ORDER BY release_date DESC
+            ORDER BY
+                CASE WHEN name COLLATE NOCASE = ? THEN 0 ELSE 1 END,
+                release_date DESC
             LIMIT 1
             """,
-            (name,),
+            (name, name.replace("%", "\\%").replace("_", "\\_") + " // %", name),
         ) as cursor:
             row = await cursor.fetchone()
             if row:
@@ -224,10 +292,11 @@ class UnifiedDatabase(BaseDatabase):
             params: list[str] = []
             for set_code, collector_number in batch:
                 normalized = collector_number.lstrip("0") or "0"
+                # Use lowercase set_code to match database storage and enable index usage
                 conditions.append(
-                    "(UPPER(set_code) = ? AND (collector_number = ? OR collector_number = ?))"
+                    "(set_code = ? AND (collector_number = ? OR collector_number = ?))"
                 )
-                params.extend([set_code.upper(), collector_number, normalized])
+                params.extend([set_code.lower(), collector_number, normalized])
 
             query = f"""
                 SELECT set_code, collector_number, price_usd, price_usd_foil
@@ -292,6 +361,30 @@ class UnifiedDatabase(BaseDatabase):
                 printings.append(self._row_to_card(row))
         return printings
 
+    async def get_printings_count_batch(self, names: list[str]) -> dict[str, int]:
+        """Get printing counts for multiple card names in a single query.
+
+        Returns a dict mapping card name (lowercase) to number of printings.
+        More efficient than calling get_all_printings() in a loop.
+        """
+        if not names:
+            return {}
+
+        # Use parameterized query with IN clause
+        placeholders = ",".join("?" * len(names))
+        query = f"""
+            SELECT LOWER(name) as name_lower, COUNT(*) as count
+            FROM cards
+            WHERE name COLLATE NOCASE IN ({placeholders})
+            GROUP BY LOWER(name)
+        """
+
+        result: dict[str, int] = {}
+        async with self._execute(query, names) as cursor:
+            async for row in cursor:
+                result[row["name_lower"]] = row["count"]
+        return result
+
     async def get_unique_artworks(self, name: str) -> list[Card]:
         """Get all unique artworks for a card (one per illustration_id).
 
@@ -317,82 +410,39 @@ class UnifiedDatabase(BaseDatabase):
                 artworks.append(self._row_to_card(row))
         return artworks
 
-    async def search_cards(self, filters: SearchCardsInput) -> tuple[list[Card], int]:
+    async def search_cards(
+        self,
+        filters: SearchCardsInput,
+        collection_names: set[str] | None = None,
+    ) -> tuple[list[Card], int]:
         """Search for cards matching the given filters.
+
+        Args:
+            filters: Search filters
+            collection_names: If provided, only return cards with names in this set
 
         Returns:
             Tuple of (cards on this page, total matching count)
         """
-        conditions: list[str] = [EXCLUDE_EXTRAS]
-        # Note: Tokens are included in searches. They are excluded from recommendations/synergy.
-        params: list[Any] = []
+        from .query import QueryBuilder
 
-        if filters.name:
-            # Search both name and flavor_name (e.g., SpongeBob → Jodah, the Unifier)
-            conditions.append("(name COLLATE NOCASE LIKE ? OR flavor_name COLLATE NOCASE LIKE ?)")
-            params.append(f"%{filters.name}%")
-            params.append(f"%{filters.name}%")
+        # Build query using QueryBuilder (no table prefix since we query cards directly)
+        qb = QueryBuilder.from_filters(filters, use_table_prefix=False)
 
-        if filters.type:
-            conditions.append("type_line LIKE ?")
-            params.append(f"%{filters.type}%")
+        # Add base exclusions
+        qb.conditions.insert(0, EXCLUDE_EXTRAS)
 
-        if filters.text:
-            conditions.append("oracle_text LIKE ?")
-            params.append(f"%{filters.text}%")
+        # Filter by collection if provided
+        if collection_names is not None:
+            if not collection_names:
+                # Empty collection - return no results
+                return [], 0
+            placeholders = ",".join("?" * len(collection_names))
+            qb.conditions.append(f"name COLLATE NOCASE IN ({placeholders})")
+            qb.params.extend(collection_names)
 
-        if filters.set_code:
-            conditions.append("set_code COLLATE NOCASE = ?")
-            params.append(filters.set_code)
-
-        if filters.rarity:
-            conditions.append("rarity COLLATE NOCASE = ?")
-            params.append(filters.rarity)
-
-        if filters.cmc is not None:
-            conditions.append("cmc = ?")
-            params.append(filters.cmc)
-
-        if filters.cmc_min is not None:
-            conditions.append("cmc >= ?")
-            params.append(filters.cmc_min)
-
-        if filters.cmc_max is not None:
-            conditions.append("cmc <= ?")
-            params.append(filters.cmc_max)
-
-        if filters.colors:
-            for color in filters.colors:
-                conditions.append("colors LIKE ?")
-                params.append(f'%"{color}"%')
-
-        if filters.color_identity:
-            for color in filters.color_identity:
-                conditions.append("color_identity LIKE ?")
-                params.append(f'%"{color}"%')
-
-        # Use generated columns for legality filtering
-        if filters.format_legal:
-            fmt = filters.format_legal.lower()
-            if fmt == "commander":
-                conditions.append("legal_commander = 1")
-            elif fmt == "modern":
-                conditions.append("legal_modern = 1")
-            elif fmt == "standard":
-                conditions.append("legal_standard = 1")
-            else:
-                conditions.append(f"json_extract(legalities, '$.{fmt}') = 'legal'")
-
-        if filters.artist:
-            conditions.append("artist COLLATE NOCASE LIKE ?")
-            params.append(f"%{filters.artist}%")
-
-        if filters.keywords:
-            for kw in filters.keywords:
-                conditions.append("keywords LIKE ?")
-                params.append(f'%"{kw}"%')
-
-        where_clause = " AND ".join(conditions)
+        where_clause = qb.build_where()
+        params = qb.params
 
         # Get total count
         count_query = f"""
@@ -411,8 +461,12 @@ class UnifiedDatabase(BaseDatabase):
             "cmc": "cmc",
             "rarity": "CASE rarity WHEN 'common' THEN 1 WHEN 'uncommon' THEN 2 WHEN 'rare' THEN 3 WHEN 'mythic' THEN 4 ELSE 0 END",
             "price": "price_usd",
+            "random": "RANDOM()",
         }
-        sort_col = sort_map.get(filters.sort_by or "name", "name")
+
+        # Use random ordering if random flag is set
+        sort_key = "random" if filters.random else (filters.sort_by or "name")
+        sort_col = sort_map.get(sort_key, "name")
 
         # Get paginated results (one per card name)
         query = f"""
@@ -705,6 +759,132 @@ class UnifiedDatabase(BaseDatabase):
                     if keyword_list:
                         keywords.update(keyword_list)
         return keywords
+
+    async def find_cards_that_care_about(
+        self,
+        keyword: str,
+        color_identity: list[str] | None = None,
+        format_legal: str | None = None,
+        limit: int = 20,
+    ) -> list[Card]:
+        """Find cards whose oracle text references a keyword (cards that 'care about' it).
+
+        This finds synergy cards - e.g. for "Flying", finds cards with text like
+        "creatures with flying get +1/+1" or "whenever a creature with flying enters".
+
+        Args:
+            keyword: The keyword to search for in oracle text
+            color_identity: Optional color identity filter
+            format_legal: Optional format legality filter
+            limit: Maximum number of results
+
+        Returns:
+            List of cards that reference the keyword in their text (deduplicated by name)
+        """
+        conditions = [
+            EXCLUDE_EXTRAS,
+            EXCLUDE_TOKENS,
+            # Match keyword in oracle text
+            "oracle_text LIKE ?",
+            # Exclude cards that have this keyword themselves (we want cards that CARE about it)
+            "(keywords IS NULL OR keywords NOT LIKE ?)",
+        ]
+        keyword_lower = keyword.lower()
+        params: list[Any] = [f"%{keyword_lower}%", f'%"{keyword}"%']
+
+        if color_identity:
+            # Card's color identity must be a subset of allowed colors
+            # (colorless cards always allowed - empty identity is subset of anything)
+            allowed_colors = set(color_identity)
+            excluded = {"W", "U", "B", "R", "G"} - allowed_colors
+            for exc_color in excluded:
+                conditions.append(
+                    f"(color_identity IS NULL OR color_identity = '[]' OR color_identity NOT LIKE '%{exc_color}%')"
+                )
+
+        if format_legal:
+            conditions.append(f"json_extract(legalities, '$.{format_legal}') = 'legal'")
+
+        where_clause = " AND ".join(conditions)
+
+        # Use GROUP BY to deduplicate by name, keeping the best printing (lowest edhrec_rank)
+        cards: list[Card] = []
+        seen_names: set[str] = set()
+        async with self._execute(
+            f"""
+            SELECT * FROM cards
+            WHERE {where_clause}
+            ORDER BY edhrec_rank ASC NULLS LAST
+            LIMIT ?
+            """,
+            [*params, limit * 3],  # Fetch extra to account for duplicates
+        ) as cursor:
+            async for row in cursor:
+                name_lower = row["name"].lower()
+                if name_lower not in seen_names:
+                    seen_names.add(name_lower)
+                    cards.append(self._row_to_card(row))
+                    if len(cards) >= limit:
+                        break
+        return cards
+
+    async def find_cards_with_keyword(
+        self,
+        keyword: str,
+        color_identity: list[str] | None = None,
+        format_legal: str | None = None,
+        limit: int = 20,
+    ) -> list[Card]:
+        """Find cards that have a specific keyword.
+
+        Args:
+            keyword: The keyword to search for
+            color_identity: Optional color identity filter
+            format_legal: Optional format legality filter
+            limit: Maximum number of results
+
+        Returns:
+            List of cards with the keyword (deduplicated by name)
+        """
+        conditions = [
+            EXCLUDE_EXTRAS,
+            EXCLUDE_TOKENS,
+            "keywords LIKE ?",
+        ]
+        params: list[Any] = [f'%"{keyword}"%']
+
+        if color_identity:
+            allowed_colors = set(color_identity)
+            excluded = {"W", "U", "B", "R", "G"} - allowed_colors
+            for exc_color in excluded:
+                conditions.append(
+                    f"(color_identity IS NULL OR color_identity = '[]' OR color_identity NOT LIKE '%{exc_color}%')"
+                )
+
+        if format_legal:
+            conditions.append(f"json_extract(legalities, '$.{format_legal}') = 'legal'")
+
+        where_clause = " AND ".join(conditions)
+
+        cards: list[Card] = []
+        seen_names: set[str] = set()
+        async with self._execute(
+            f"""
+            SELECT * FROM cards
+            WHERE {where_clause}
+            ORDER BY edhrec_rank ASC NULLS LAST
+            LIMIT ?
+            """,
+            [*params, limit * 3],
+        ) as cursor:
+            async for row in cursor:
+                name_lower = row["name"].lower()
+                if name_lower not in seen_names:
+                    seen_names.add(name_lower)
+                    cards.append(self._row_to_card(row))
+                    if len(cards) >= limit:
+                        break
+        return cards
 
     async def get_random_artist_for_spotlight(self, min_cards: int = 20) -> ArtistSummary | None:
         """Get a random artist for the dashboard spotlight.

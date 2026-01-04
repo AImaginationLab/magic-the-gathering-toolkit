@@ -271,15 +271,15 @@ class MTGSpellbook(CommandHandlersMixin, App[None]):  # type: ignore[misc]
         self._preinit_combo_detector()
         self._preinit_collection()
 
-    @work(thread=True, group="preinit")
-    def _preinit_combo_detector(self) -> None:
-        """Pre-initialize the combo detector in background thread."""
+    @work(group="preinit")
+    async def _preinit_combo_detector(self) -> None:
+        """Pre-initialize the combo detector in background."""
         try:
             from mtg_core.tools.recommendations.spellbook_combos import get_spellbook_detector
 
-            detector = get_spellbook_detector()
+            detector = await get_spellbook_detector()
             if detector.is_available:
-                detector.initialize()
+                await detector.initialize()
         except Exception:
             pass  # Silently fail - combo detection is optional
 

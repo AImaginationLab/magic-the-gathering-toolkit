@@ -975,14 +975,46 @@ class FullCollectionScreen(BaseScreen[None]):
                         mana_cost=card.mana_cost,
                         text=card.text,
                         color_identity=card.color_identity,
+                        set_code=card_data.set_code or card.set_code,
                     )
                 )
             else:
-                # Card without full data - include name only
-                card_info_list.append(CollectionCardInfo(name=card_data.card_name))
+                # Card without full data - include name and set_code
+                card_info_list.append(
+                    CollectionCardInfo(
+                        name=card_data.card_name,
+                        set_code=card_data.set_code,
+                    )
+                )
+
+        # Get existing deck names to filter out from suggestions
+        existing_deck_names: set[str] = set()
+        deck_manager = getattr(self.app, "_deck_manager", None)
+        if deck_manager is not None:
+            # list_decks is async, so we spawn a worker to get names and push screen
+            self._show_deck_suggestions_with_names(card_info_list)
+        else:
+            self.app.push_screen(
+                DeckSuggestionsScreen(card_info_list, existing_deck_names),
+                callback=self._on_deck_suggestion_result,
+            )
+
+    @work
+    async def _show_deck_suggestions_with_names(
+        self, card_info_list: list[CollectionCardInfo]
+    ) -> None:
+        """Show deck suggestions after loading existing deck names."""
+        existing_deck_names: set[str] = set()
+        deck_manager = getattr(self.app, "_deck_manager", None)
+        if deck_manager is not None:
+            try:
+                decks = await deck_manager.list_decks()
+                existing_deck_names = {d.name for d in decks}
+            except Exception:
+                pass  # Continue without filtering if deck list fails
 
         self.app.push_screen(
-            DeckSuggestionsScreen(card_info_list),
+            DeckSuggestionsScreen(card_info_list, existing_deck_names),
             callback=self._on_deck_suggestion_result,
         )
 
@@ -1016,6 +1048,17 @@ class FullCollectionScreen(BaseScreen[None]):
             if not deck_id:
                 self.notify("Failed to create deck", severity="error")
                 return
+
+            # Add commander first (if present)
+            if result.commander:
+                with contextlib.suppress(Exception):
+                    # Commander might already be tracked via create_deck
+                    await deck_manager.add_card(
+                        deck_id=deck_id,
+                        card_name=result.commander,
+                        quantity=1,
+                        sideboard=False,
+                    )
 
             # Add owned cards to the deck
             added_count = 0

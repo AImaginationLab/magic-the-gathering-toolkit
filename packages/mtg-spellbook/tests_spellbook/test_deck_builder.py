@@ -106,6 +106,7 @@ def sample_deck_with_cards() -> DeckWithCards:
         name="Test Commander Deck",
         format="commander",
         commander=None,
+        description=None,
         cards=[
             DeckCardWithData(
                 card_name="Lightning Bolt",

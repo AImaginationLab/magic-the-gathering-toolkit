@@ -10,10 +10,7 @@ These tests verify the functionality of:
 
 from __future__ import annotations
 
-import os
 from collections.abc import AsyncIterator
-from pathlib import Path
-from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
@@ -28,28 +25,7 @@ from mtg_core.data.models import (
 from mtg_core.exceptions import CardNotFoundError, SetNotFoundError, ValidationError
 from mtg_core.tools import artists, cards, images, sets
 
-if TYPE_CHECKING:
-    pass
-
-
-def get_test_db_path() -> Path | None:
-    """Get path to test database if it exists."""
-    env_path = os.environ.get("MTG_DB_PATH")
-    if env_path:
-        path = Path(env_path)
-        if path.exists():
-            return path
-
-    for candidate in [
-        Path("resources/mtg.sqlite"),
-        Path("../../resources/mtg.sqlite"),
-        Path(__file__).parent.parent.parent.parent.parent / "resources" / "mtg.sqlite",
-    ]:
-        if candidate.exists():
-            return candidate.resolve()
-
-    return None
-
+from .conftest import get_test_db_path
 
 DB_PATH = get_test_db_path()
 pytestmark = pytest.mark.skipif(
@@ -323,9 +299,7 @@ class TestCardPrintings:
 
     async def test_get_card_printings(self, db: UnifiedDatabase) -> None:
         """Get card printings should return all printings."""
-        # Clear cache to ensure fresh results
-        with patch("mtg_core.tools.images.get_cached", return_value=None):
-            result = await images.get_card_printings(db, "Lightning Bolt", use_cache=False)
+        result = await images.get_card_printings(db, "Lightning Bolt")
 
         assert result.card_name == "Lightning Bolt"
         assert len(result.printings) > 0
@@ -336,16 +310,14 @@ class TestCardPrintings:
 
     async def test_get_card_printings_includes_images(self, db: UnifiedDatabase) -> None:
         """Get card printings should include images for each printing."""
-        with patch("mtg_core.tools.images.get_cached", return_value=None):
-            result = await images.get_card_printings(db, "Lightning Bolt", use_cache=False)
+        result = await images.get_card_printings(db, "Lightning Bolt")
 
         for printing in result.printings:
             assert printing.image is not None or printing.art_crop is not None
 
     async def test_get_card_printings_includes_prices(self, db: UnifiedDatabase) -> None:
         """Get card printings should include prices for each printing."""
-        with patch("mtg_core.tools.images.get_cached", return_value=None):
-            result = await images.get_card_printings(db, "Lightning Bolt", use_cache=False)
+        result = await images.get_card_printings(db, "Lightning Bolt")
 
         assert len(result.printings) > 0
 
@@ -354,10 +326,10 @@ class TestCardPrintings:
         with pytest.raises(CardNotFoundError):
             await images.get_card_printings(db, "ThisCardDoesNotExist12345")
 
-    async def test_get_card_printings_caching(self, db: UnifiedDatabase) -> None:
-        """Get card printings should use cache when enabled."""
-        result1 = await images.get_card_printings(db, "Lightning Bolt", use_cache=True)
-        result2 = await images.get_card_printings(db, "Lightning Bolt", use_cache=True)
+    async def test_get_card_printings_consistent(self, db: UnifiedDatabase) -> None:
+        """Get card printings should return consistent results."""
+        result1 = await images.get_card_printings(db, "Lightning Bolt")
+        result2 = await images.get_card_printings(db, "Lightning Bolt")
 
         assert result1.card_name == result2.card_name
         assert len(result1.printings) == len(result2.printings)

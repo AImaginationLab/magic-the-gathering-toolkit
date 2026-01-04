@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from ..cache import get_cached, set_cached
 from ..data.models import (
     Card,
     CardImageResponse,
@@ -25,10 +24,6 @@ if TYPE_CHECKING:
     from ..data.database import UnifiedDatabase
 
 logger = logging.getLogger(__name__)
-
-# Cache namespace and TTL for printings
-_PRINTINGS_CACHE_NS = "printings"
-_PRINTINGS_TTL_DAYS = 7
 
 
 async def get_card_image(
@@ -52,41 +47,25 @@ async def get_card_image(
 async def get_card_printings(
     db: UnifiedDatabase,
     name: str,
-    *,
-    use_cache: bool = True,
 ) -> PrintingsResponse:
     """Get all printings of a card with images and prices.
 
     Args:
         db: Unified MTG database
         name: Card name to search for
-        use_cache: Whether to use disk cache (default True)
 
     Returns:
         PrintingsResponse with all printings and their metadata
     """
-    # Check cache first
-    cache_key = name
-    if use_cache:
-        cached = get_cached(_PRINTINGS_CACHE_NS, cache_key, PrintingsResponse, _PRINTINGS_TTL_DAYS)
-        if cached is not None:
-            return cached
-
     printings = await db.get_all_printings(name)
 
     if not printings:
         raise CardNotFoundError(name)
 
-    result = PrintingsResponse(
+    return PrintingsResponse(
         card_name=name,
         printings=[_card_to_printing_info(card) for card in printings],
     )
-
-    # Cache result for future use
-    if use_cache:
-        set_cached(_PRINTINGS_CACHE_NS, cache_key, result)
-
-    return result
 
 
 async def get_card_price(

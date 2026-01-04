@@ -9,6 +9,8 @@ dependencies = [
     "mtg-core",
     "mtg-spellbook",
     "mtg-mcp",
+    "paddleocr>=2.10.0",
+    "paddlepaddle>=3.2.2",
 ]
 
 [project.optional-dependencies]
@@ -24,6 +26,7 @@ dev = [
 
 [tool.uv.workspace]
 members = ["packages/*"]
+exclude = ["packages/mtg-electron"]
 
 [tool.uv.sources]
 mtg-core = { workspace = true }
@@ -75,9 +78,13 @@ filterwarnings = [
 
 [dependency-groups]
 dev = [
+    "mypy>=1.19.0",
     "pypdf>=6.4.2",
     "pytest>=9.0.2",
+    "pytest-asyncio>=0.24",
     "pytest-cov>=4.0",
+    "pytest-textual-snapshot>=1.0.0",
     "pytest-xdist>=3.8.0",
+    "ruff>=0.14.9",
     "types-pyyaml>=6.0.12.20250915",
 ]

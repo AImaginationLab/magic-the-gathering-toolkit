@@ -33,7 +33,7 @@ class QueryBuilder:
         """
         if value:
             pattern = f"%{value}%"
-            self.conditions.append("(c.name LIKE ? OR c.flavorName LIKE ?)")
+            self.conditions.append("(c.name LIKE ? OR c.flavor_name LIKE ?)")
             self.params.extend([pattern, pattern])
 
     def add_exact(self, column: str, value: Any, case_insensitive: bool = False) -> None:
@@ -65,10 +65,34 @@ class QueryBuilder:
         self.params.append(f"%{value}%")
 
     def add_colors(self, colors: Sequence[str] | None) -> None:
-        """Add color filter conditions (card must have all colors)."""
+        """Add color filter conditions (card must have all colors).
+
+        Special handling for "C" (colorless) - matches cards with empty/null colors.
+        Colors are validated against allowed values to prevent SQL injection.
+        """
         if colors:
-            for color in colors:
-                self.add_like("c.colors", color)
+            # Validate colors against allowed values
+            valid_colors = {"W", "U", "B", "R", "G", "C"}
+            safe_colors = [c for c in colors if c in valid_colors]
+
+            has_colorless = "C" in safe_colors
+            other_colors = [c for c in safe_colors if c != "C"]
+
+            if has_colorless and not other_colors:
+                # Only colorless requested - cards with no colors
+                self.conditions.append("(c.colors IS NULL OR c.colors = '' OR c.colors = '[]')")
+            elif has_colorless and other_colors:
+                # Colorless OR specific colors (parameterized)
+                color_conditions = ["(c.colors IS NULL OR c.colors = '' OR c.colors = '[]')"]
+                for color in other_colors:
+                    color_conditions.append("c.colors LIKE ?")
+                    self.params.append(f'%"{color}"%')
+                self.conditions.append(f"({' OR '.join(color_conditions)})")
+            else:
+                # Standard color filtering - must have all colors
+                for color in other_colors:
+                    self.conditions.append("c.colors LIKE ?")
+                    self.params.append(f'%"{color}"%')
 
     def add_color_identity(self, identity: Sequence[str] | None) -> None:
         """Add color identity filter (card must be subset of identity)."""
@@ -76,18 +100,19 @@ class QueryBuilder:
             # Card must NOT contain any colors outside the given identity
             excluded = [c for c in ["W", "U", "B", "R", "G"] if c not in identity]
             for color in excluded:
-                self.add_not_like("c.colorIdentity", color)
+                self.add_not_like("c.color_identity", color)
 
     def add_format_legality(self, format_name: str | None) -> None:
-        """Add format legality subquery condition."""
+        """Add format legality condition using JSON legalities column."""
         if format_name and format_name.lower() in VALID_FORMATS:
             fmt = format_name.lower()
-            self.conditions.append(f"""
-                c.uuid IN (
-                    SELECT uuid FROM cardLegalities
-                    WHERE {fmt} = 'Legal' OR {fmt} = 'Restricted'
-                )
-            """)
+            # Legalities are stored as JSON in the legalities column
+            # Use json_extract to check the format's legality value
+            self.conditions.append(
+                "(json_extract(c.legalities, ?) = 'legal' OR json_extract(c.legalities, ?) = 'restricted')"
+            )
+            json_path = f"$.{fmt}"
+            self.params.extend([json_path, json_path])
 
     def add_keywords(self, keywords: list[str] | None) -> None:
         """Add keyword filter conditions."""
@@ -99,25 +124,146 @@ class QueryBuilder:
         """Build the WHERE clause."""
         return " AND ".join(self.conditions) if self.conditions else "1=1"
 
+    def add_format_legality_optimized(self, format_name: str | None) -> None:
+        """Add format legality using generated columns (faster than JSON extract)."""
+        if format_name:
+            fmt = format_name.lower()
+            # Use generated columns for common formats (much faster)
+            if fmt == "commander":
+                self.conditions.append("c.legal_commander = 1")
+            elif fmt == "modern":
+                self.conditions.append("c.legal_modern = 1")
+            elif fmt == "standard":
+                self.conditions.append("c.legal_standard = 1")
+            elif fmt in VALID_FORMATS:
+                # Fall back to JSON extract for other formats
+                self.conditions.append(f"json_extract(c.legalities, '$.{fmt}') = 'legal'")
+
     @classmethod
-    def from_filters(cls, filters: SearchCardsInput) -> QueryBuilder:
-        """Build a QueryBuilder from SearchCardsInput."""
+    def from_filters(cls, filters: SearchCardsInput, use_table_prefix: bool = True) -> QueryBuilder:
+        """Build a QueryBuilder from SearchCardsInput.
+
+        Args:
+            filters: Search filters to apply
+            use_table_prefix: If True, prefix columns with 'c.' (default).
+                              Set False for queries without table alias.
+        """
         qb = cls()
-        qb.add_name_search(filters.name)
-        qb.add_colors(filters.colors)
-        qb.add_color_identity(filters.color_identity)
-        qb.add_like("c.type", filters.type)
-        qb.add_like("c.subtypes", filters.subtype)
-        qb.add_like("c.supertypes", filters.supertype)
-        qb.add_exact("c.rarity", filters.rarity, case_insensitive=True)
-        qb.add_exact("c.setCode", filters.set_code, case_insensitive=True)
-        qb.add_comparison("c.manaValue", "=", filters.cmc)
-        qb.add_comparison("c.manaValue", ">=", filters.cmc_min)
-        qb.add_comparison("c.manaValue", "<=", filters.cmc_max)
-        qb.add_exact("c.power", filters.power)
-        qb.add_exact("c.toughness", filters.toughness)
-        qb.add_like("c.text", filters.text)
-        qb.add_keywords(filters.keywords)
-        qb.add_format_legality(filters.format_legal)
-        qb.add_like("c.artist", filters.artist)
+        p = "c." if use_table_prefix else ""
+
+        # Name search (checks both name and flavor_name)
+        if filters.name:
+            pattern = f"%{filters.name}%"
+            qb.conditions.append(
+                f"({p}name COLLATE NOCASE LIKE ? OR {p}flavor_name COLLATE NOCASE LIKE ?)"
+            )
+            qb.params.extend([pattern, pattern])
+
+        # Color filters (validated against allowed values to prevent injection)
+        if filters.colors:
+            valid_colors = {"W", "U", "B", "R", "G", "C"}
+            safe_colors = [c for c in filters.colors if c in valid_colors]
+
+            has_colorless = "C" in safe_colors
+            other_colors = [c for c in safe_colors if c != "C"]
+
+            if has_colorless and not other_colors:
+                qb.conditions.append(f"({p}colors IS NULL OR {p}colors = '' OR {p}colors = '[]')")
+            elif has_colorless and other_colors:
+                # Build OR condition with parameterized queries
+                color_conditions = [f"({p}colors IS NULL OR {p}colors = '' OR {p}colors = '[]')"]
+                for color in other_colors:
+                    color_conditions.append(f"{p}colors LIKE ?")
+                    qb.params.append(f'%"{color}"%')
+                qb.conditions.append(f"({' OR '.join(color_conditions)})")
+            else:
+                for color in other_colors:
+                    qb.conditions.append(f"{p}colors LIKE ?")
+                    qb.params.append(f'%"{color}"%')
+
+        # Color identity
+        if filters.color_identity:
+            for ci_color in filters.color_identity:
+                qb.conditions.append(f"{p}color_identity LIKE ?")
+                qb.params.append(f'%"{ci_color}"%')
+
+        # Type line
+        if filters.type:
+            qb.conditions.append(f"{p}type_line LIKE ?")
+            qb.params.append(f"%{filters.type}%")
+
+        # Subtype (appears after "—" in type_line, e.g., "Creature — Dog")
+        if filters.subtype:
+            # Match subtype as a whole word after the em dash
+            # Use word boundaries to avoid partial matches (e.g., "Dog" shouldn't match "Dogsnail")
+            qb.conditions.append(
+                f"({p}type_line LIKE ? OR {p}type_line LIKE ? OR {p}type_line LIKE ?)"
+            )
+            # Match: "— Dog" (at end), "— Dog " (followed by space), " Dog " (in middle of subtypes)
+            qb.params.append(f"%— {filters.subtype}")  # At end of type line
+            qb.params.append(f"%— {filters.subtype} %")  # Followed by another subtype
+            qb.params.append(f"% {filters.subtype} %")  # In middle of subtypes
+
+        # Supertype (appears before main type, e.g., "Legendary Creature")
+        if filters.supertype:
+            qb.conditions.append(f"{p}type_line LIKE ?")
+            qb.params.append(f"%{filters.supertype}%")
+
+        # Oracle text
+        if filters.text:
+            qb.conditions.append(f"{p}oracle_text LIKE ?")
+            qb.params.append(f"%{filters.text}%")
+
+        # Set code
+        if filters.set_code:
+            qb.conditions.append(f"{p}set_code COLLATE NOCASE = ?")
+            qb.params.append(filters.set_code)
+
+        # Rarity
+        if filters.rarity:
+            qb.conditions.append(f"{p}rarity COLLATE NOCASE = ?")
+            qb.params.append(filters.rarity)
+
+        # CMC filters
+        if filters.cmc is not None:
+            qb.conditions.append(f"{p}cmc = ?")
+            qb.params.append(filters.cmc)
+        if filters.cmc_min is not None:
+            qb.conditions.append(f"{p}cmc >= ?")
+            qb.params.append(filters.cmc_min)
+        if filters.cmc_max is not None:
+            qb.conditions.append(f"{p}cmc <= ?")
+            qb.params.append(filters.cmc_max)
+
+        # Power/toughness
+        if filters.power:
+            qb.conditions.append(f"{p}power = ?")
+            qb.params.append(filters.power)
+        if filters.toughness:
+            qb.conditions.append(f"{p}toughness = ?")
+            qb.params.append(filters.toughness)
+
+        # Keywords (JSON array)
+        if filters.keywords:
+            for kw in filters.keywords:
+                qb.conditions.append(f"{p}keywords LIKE ?")
+                qb.params.append(f'%"{kw}"%')
+
+        # Format legality (use optimized generated columns)
+        if filters.format_legal:
+            fmt = filters.format_legal.lower()
+            if fmt == "commander":
+                qb.conditions.append(f"{p}legal_commander = 1")
+            elif fmt == "modern":
+                qb.conditions.append(f"{p}legal_modern = 1")
+            elif fmt == "standard":
+                qb.conditions.append(f"{p}legal_standard = 1")
+            elif fmt in VALID_FORMATS:
+                qb.conditions.append(f"json_extract({p}legalities, '$.{fmt}') = 'legal'")
+
+        # Artist
+        if filters.artist:
+            qb.conditions.append(f"{p}artist COLLATE NOCASE LIKE ?")
+            qb.params.append(f"%{filters.artist}%")
+
         return qb
