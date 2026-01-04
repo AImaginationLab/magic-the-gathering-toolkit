@@ -32,6 +32,7 @@ interface DeckCard {
   flavor_name?: string | null;
   colors?: string[] | null;
   image_small?: string | null;
+  owned?: boolean | null;
 }
 
 // Board type for the deck list tabs
@@ -637,7 +638,15 @@ function CardSearchPanel({
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = colors.void.light;
                 const rect = e.currentTarget.getBoundingClientRect();
-                setTooltipPosition({ x: rect.right + 8, y: rect.top });
+                // Calculate tooltip position, ensuring it stays within viewport
+                const tooltipHeight = 250; // Estimated max height
+                const viewportHeight = window.innerHeight;
+                let y = rect.top;
+                // If tooltip would overflow bottom, position it above or adjust
+                if (y + tooltipHeight > viewportHeight - 20) {
+                  y = Math.max(20, viewportHeight - tooltipHeight - 20);
+                }
+                setTooltipPosition({ x: rect.right + 8, y });
                 setHoveredCard(card.name);
                 onCardHover?.(card);
               }}
@@ -1130,6 +1139,20 @@ function DraggableCardRow({
       {/* Card info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
+          {/* Owned indicator */}
+          {card.owned && (
+            <span
+              title="In your collection"
+              style={{
+                color: colors.status.success,
+                fontSize: "12px",
+                flexShrink: 0,
+              }}
+            >
+              ✓
+            </span>
+          )}
+
           <span
             className="text-sm font-display truncate"
             style={{

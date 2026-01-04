@@ -192,6 +192,23 @@ class QueryBuilder:
             qb.conditions.append(f"{p}type_line LIKE ?")
             qb.params.append(f"%{filters.type}%")
 
+        # Subtype (appears after "—" in type_line, e.g., "Creature — Dog")
+        if filters.subtype:
+            # Match subtype as a whole word after the em dash
+            # Use word boundaries to avoid partial matches (e.g., "Dog" shouldn't match "Dogsnail")
+            qb.conditions.append(
+                f"({p}type_line LIKE ? OR {p}type_line LIKE ? OR {p}type_line LIKE ?)"
+            )
+            # Match: "— Dog" (at end), "— Dog " (followed by space), " Dog " (in middle of subtypes)
+            qb.params.append(f"%— {filters.subtype}")  # At end of type line
+            qb.params.append(f"%— {filters.subtype} %")  # Followed by another subtype
+            qb.params.append(f"% {filters.subtype} %")  # In middle of subtypes
+
+        # Supertype (appears before main type, e.g., "Legendary Creature")
+        if filters.supertype:
+            qb.conditions.append(f"{p}type_line LIKE ?")
+            qb.params.append(f"%{filters.supertype}%")
+
         # Oracle text
         if filters.text:
             qb.conditions.append(f"{p}oracle_text LIKE ?")

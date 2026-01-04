@@ -3786,6 +3786,17 @@
               }
             ],
             "title": "Image Small"
+          },
+          "owned": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owned"
           }
         },
         "type": "object",
@@ -7131,6 +7142,12 @@
             ],
             "title": "Creature Types",
             "description": "Filter by creature types (tribals)"
+          },
+          "owned_only": {
+            "type": "boolean",
+            "title": "Owned Only",
+            "description": "Only suggest cards from user's collection",
+            "default": false
           }
         },
         "type": "object",

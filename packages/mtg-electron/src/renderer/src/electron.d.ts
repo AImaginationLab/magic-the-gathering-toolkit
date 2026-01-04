@@ -53,8 +53,18 @@ interface CommanderMatch {
   name: string;
   colors: string[];
   archetype: string | null;
-  completion_pct: number;
+  score: number;
   reasons: string[];
+  score_breakdown?: {
+    edhrec: number;
+    theme: number;
+    combo: number;
+    synergy: number;
+    ownership: number;
+  };
+  is_owned?: boolean;
+  combo_count?: number;
+  synergy_cards?: string[];
 }
 
 interface CollectionCard {
@@ -211,6 +221,7 @@ interface ElectronAPI {
           setCodes?: string[];
           themes?: string[];
           creatureTypes?: string[];
+          ownedOnly?: boolean;
         },
       ) => Promise<SuggestCardsResult>;
       findCommanders: (options?: {

@@ -90,6 +90,8 @@ class DeckCardResponse(BaseModel):
     flavor_name: str | None = None
     colors: list[str] | None = None
     image_small: str | None = None
+    # Collection status
+    owned: bool | None = None  # True if card is in user's collection
 
 
 class DeckResponse(BaseModel):
@@ -211,6 +213,9 @@ async def get_deck(request: Request, deck_id: int) -> DeckResponse:
     card_names = [c.card_name for c in cards]
     cards_by_name = await mtg_db.get_cards_by_names(card_names) if card_names else {}
 
+    # Get collection card names for owned indicator
+    owned_cards = await user_db.get_collection_card_names()
+
     card_count = sum(c.quantity for c in cards if not c.is_sideboard and not c.is_maybeboard)
     sideboard_count = sum(c.quantity for c in cards if c.is_sideboard)
     maybeboard_count = sum(c.quantity for c in cards if c.is_maybeboard)
@@ -238,6 +243,8 @@ async def get_deck(request: Request, deck_id: int) -> DeckResponse:
                 flavor_name=card_data.flavor_name if card_data else None,
                 colors=card_data.colors if card_data else None,
                 image_small=card_data.image_small if card_data else None,
+                # Collection status
+                owned=card.card_name in owned_cards,
             )
         )
 

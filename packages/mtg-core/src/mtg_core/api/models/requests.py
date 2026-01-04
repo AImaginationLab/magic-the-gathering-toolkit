@@ -57,6 +57,7 @@ class SuggestCardsRequest(BaseModel):
     creature_types: list[str] | None = Field(
         default=None, description="Filter by creature types (tribals)"
     )
+    owned_only: bool = Field(default=False, description="Only suggest cards from user's collection")
 
 
 class FindCommandersRequest(BaseModel):

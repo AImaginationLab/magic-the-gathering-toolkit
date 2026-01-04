@@ -14,10 +14,10 @@ from ...data.models.responses import (
     SynergyResult,
 )
 from ...exceptions import CardNotFoundError
+from ...tools.recommendations.constants import THEME_KEYWORDS
 from .constants import (
     ABILITY_SYNERGIES,
     KEYWORD_SYNERGIES,
-    THEME_INDICATORS,
     TYPE_SYNERGIES,
 )
 from .detection import (
@@ -555,6 +555,9 @@ async def suggest_cards(
     format_legal: str | None = None,
     budget_max: float | None = None,
     max_results: int = 10,
+    themes: list[str] | None = None,
+    creature_types: list[str] | None = None,
+    collection_card_names: set[str] | None = None,
 ) -> SuggestCardsResult:
     """Suggest cards to add to a deck based on themes, synergies, and data.
 
@@ -563,6 +566,16 @@ async def suggest_cards(
     - Commander Spellbook: Combo detection (73K+ combos)
     - EDHREC: Popularity ranking for staple filtering
     - Theme detection: Pattern matching on card text
+
+    Args:
+        db: Database for card lookups
+        deck_cards: Current deck card names
+        format_legal: Format to filter by (e.g. "commander")
+        budget_max: Maximum price per card
+        max_results: Maximum suggestions to return
+        themes: Filter suggestions to these themes (e.g. ["tokens", "graveyard"])
+        creature_types: Filter to these tribals (e.g. ["Elf", "Zombie"])
+        collection_card_names: If provided, only suggest cards in this set (user's collection)
     """
     from ..recommendations.gameplay import get_gameplay_db
     from ..recommendations.spellbook_combos import get_spellbook_detector
@@ -597,14 +610,24 @@ async def suggest_cards(
     candidates: dict[str, _SuggestionCandidate] = {}
     seen_names: set[str] = deck_card_names_lower.copy()
 
+    # Determine which themes to use - user-specified or auto-detected
+    active_themes = themes if themes else detected_themes[:3]
+
     # Source 1: Theme-based suggestions
-    for theme in detected_themes[:3]:
-        if theme not in THEME_INDICATORS or not THEME_INDICATORS[theme]:
+    for theme in active_themes:
+        if theme not in THEME_KEYWORDS or not THEME_KEYWORDS[theme]:
             continue
-        search_term = THEME_INDICATORS[theme][0]
+        search_term = THEME_KEYWORDS[theme][0]
         await _add_theme_candidates(
             db, candidates, search_term, theme, deck_colors, format_legal, budget_max, seen_names
         )
+
+    # Source 1b: Tribal suggestions (if creature_types specified)
+    if creature_types:
+        for tribal in creature_types:
+            await _add_tribal_candidates(
+                db, candidates, tribal, deck_colors, format_legal, budget_max, seen_names
+            )
 
     # Source 2: Keyword/ability synergy suggestions (reuse find_synergies logic)
     await _add_synergy_candidates_from_deck(
@@ -642,6 +665,13 @@ async def suggest_cards(
 
     # Score and rank all candidates
     scored_suggestions = await _score_and_rank_candidates(candidates, gameplay_db)
+
+    # Filter by collection if specified
+    if collection_card_names:
+        collection_lower = {normalize_card_name(n) for n in collection_card_names}
+        scored_suggestions = [
+            s for s in scored_suggestions if normalize_card_name(s.name) in collection_lower
+        ]
 
     return SuggestCardsResult(
         suggestions=scored_suggestions[:max_results],
@@ -714,6 +744,81 @@ async def _add_theme_candidates(
 
         cand = candidates[card.name]
         cand.reasons.append(f"Fits {theme} theme")
+        cand.categories.add("synergy")
+        cand.mana_cost = card.mana_cost
+        cand.type_line = card.type
+        cand.price_usd = price_usd
+        cand.edhrec_rank = card.edhrec_rank
+        cand.cmc = card.cmc or 0.0
+
+
+async def _add_tribal_candidates(
+    db: UnifiedDatabase,
+    candidates: dict[str, _SuggestionCandidate],
+    tribal: str,
+    deck_colors: list[str],
+    format_legal: str | None,
+    budget_max: float | None,
+    seen_names: set[str],
+) -> None:
+    """Add tribal-based candidates (cards of a specific creature type or that care about it)."""
+    # Search for creatures of this type
+    results, _ = await db.search_cards(
+        SearchCardsInput(
+            subtype=tribal,
+            color_identity=deck_colors if deck_colors else None,  # type: ignore[arg-type]
+            format_legal=format_legal,  # type: ignore[arg-type]
+            page_size=20,
+        )
+    )
+
+    for card in results:
+        name_lower = normalize_card_name(card.name)
+        if name_lower in seen_names:
+            continue
+        seen_names.add(name_lower)
+
+        price_usd = await _get_card_price(db, card.name)
+        if budget_max is not None and price_usd is not None and price_usd > budget_max:
+            continue
+
+        if card.name not in candidates:
+            candidates[card.name] = _SuggestionCandidate(card.name)
+
+        cand = candidates[card.name]
+        cand.reasons.append(f"{tribal} tribal")
+        cand.categories.add("synergy")
+        cand.mana_cost = card.mana_cost
+        cand.type_line = card.type
+        cand.price_usd = price_usd
+        cand.edhrec_rank = card.edhrec_rank
+        cand.cmc = card.cmc or 0.0
+
+    # Also search for cards that "care about" this creature type (lords, etc.)
+    caring_results, _ = await db.search_cards(
+        SearchCardsInput(
+            text=tribal,
+            color_identity=deck_colors if deck_colors else None,  # type: ignore[arg-type]
+            format_legal=format_legal,  # type: ignore[arg-type]
+            page_size=15,
+        )
+    )
+
+    for card in caring_results:
+        name_lower = normalize_card_name(card.name)
+        if name_lower in seen_names:
+            continue
+        seen_names.add(name_lower)
+
+        price_usd = await _get_card_price(db, card.name)
+        if budget_max is not None and price_usd is not None and price_usd > budget_max:
+            continue
+
+        if card.name not in candidates:
+            candidates[card.name] = _SuggestionCandidate(card.name)
+
+        cand = candidates[card.name]
+        cand.reasons.append(f"Synergizes with {tribal}s")
         cand.categories.add("synergy")
         cand.mana_cost = card.mana_cost
         cand.type_line = card.type

@@ -39,8 +39,18 @@ interface CommanderMatch {
   name: string;
   colors: string[];
   archetype: string | null;
-  completion_pct: number;
+  score: number;
   reasons: string[];
+  score_breakdown?: {
+    edhrec: number;
+    theme: number;
+    combo: number;
+    synergy: number;
+    ownership: number;
+  };
+  is_owned?: boolean;
+  combo_count?: number;
+  synergy_cards?: string[];
 }
 
 type TabMode = "suggestions" | "commanders" | "decks";
@@ -249,6 +259,7 @@ export function DeckSuggestionsScreen(): ReactNode {
             filters.archetypes.length > 0 ? filters.archetypes : undefined,
           creatureTypes:
             filters.tribals.length > 0 ? filters.tribals : undefined,
+          ownedOnly: filters.ownedOnly,
         },
       );
       setCardSuggestions(result);
@@ -916,6 +927,15 @@ function CommanderFinderView({
               {/* Commander info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
+                  {/* Owned indicator */}
+                  {commander.is_owned && (
+                    <span
+                      title="In your collection"
+                      style={{ color: colors.status.success, fontSize: 12 }}
+                    >
+                      ✓
+                    </span>
+                  )}
                   <span
                     className="text-sm font-display truncate"
                     style={{ color: colors.gold.standard }}
@@ -945,6 +965,14 @@ function CommanderFinderView({
                       })
                     )}
                   </div>
+                  {/* Score indicator */}
+                  <span
+                    className="text-xs font-mono ml-auto"
+                    style={{ color: colors.text.muted }}
+                    title={`Score: ${(commander.score * 100).toFixed(0)}%${commander.combo_count ? ` • ${commander.combo_count} combos` : ""}`}
+                  >
+                    {(commander.score * 100).toFixed(0)}%
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
                   {/* Synergy badges */}
@@ -1113,9 +1141,22 @@ function DeckIdeasView({
   );
 }
 
-// Loading state with animated spinner and elapsed time
+// Loading tips that rotate during long operations
+const LOADING_TIPS = [
+  "Analyzing your collection for synergies...",
+  "Checking combo potential with known interactions...",
+  "Evaluating color identity matches...",
+  "Scoring commanders by EDHREC popularity...",
+  "Finding cards that work well together...",
+  "Calculating deck completion percentages...",
+  "Identifying tribal synergies...",
+  "Looking for hidden gem commanders...",
+];
+
+// Loading state with animated spinner, elapsed time, and rotating tips
 function LoadingState({ message }: { message: string }): ReactNode {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [tipIndex, setTipIndex] = useState(0);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -1124,12 +1165,24 @@ function LoadingState({ message }: { message: string }): ReactNode {
     return () => clearInterval(timer);
   }, []);
 
+  // Rotate tips every 4 seconds after initial 3 second delay
+  useEffect(() => {
+    if (elapsedSeconds < 3) return;
+    const tipTimer = setInterval(() => {
+      setTipIndex((prev) => (prev + 1) % LOADING_TIPS.length);
+    }, 4000);
+    return () => clearInterval(tipTimer);
+  }, [elapsedSeconds >= 3]);
+
   const formatTime = (seconds: number): string => {
     if (seconds < 60) return `${seconds}s`;
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}m ${secs}s`;
   };
+
+  // Progress dots animation
+  const dots = ".".repeat((elapsedSeconds % 3) + 1);
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center py-16">
@@ -1173,21 +1226,31 @@ function LoadingState({ message }: { message: string }): ReactNode {
         {message.toUpperCase()}
       </p>
 
-      {/* Elapsed time */}
+      {/* Elapsed time with animated dots */}
       <p
         className="mt-2 text-xs font-mono"
         style={{ color: colors.text.muted }}
       >
-        {formatTime(elapsedSeconds)} elapsed
+        {formatTime(elapsedSeconds)} elapsed{dots.padEnd(3, "\u00A0")}
       </p>
 
-      {/* Helpful tip after 5 seconds */}
-      {elapsedSeconds >= 5 && (
+      {/* Rotating tips after 3 seconds */}
+      {elapsedSeconds >= 3 && (
         <p
-          className="mt-4 text-xs max-w-xs text-center"
-          style={{ color: colors.text.muted, opacity: 0.7 }}
+          className="mt-4 text-xs max-w-xs text-center transition-opacity duration-500"
+          style={{ color: colors.text.muted, opacity: 0.8 }}
         >
-          Analyzing your collection and finding the best matches...
+          {LOADING_TIPS[tipIndex]}
+        </p>
+      )}
+
+      {/* Reassurance after 15 seconds */}
+      {elapsedSeconds >= 15 && (
+        <p
+          className="mt-2 text-xs max-w-xs text-center"
+          style={{ color: colors.gold.dim, opacity: 0.6 }}
+        >
+          Still working - larger collections take longer to analyze
         </p>
       )}
     </div>

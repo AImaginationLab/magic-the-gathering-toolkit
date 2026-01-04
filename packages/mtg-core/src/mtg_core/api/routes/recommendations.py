@@ -73,12 +73,20 @@ async def suggest_cards_for_deck(
     db = request.app.state.db_manager.db
     user_db = request.app.state.db_manager.user
 
+    # Get collection card names if filtering by owned cards
+    collection_card_names: set[str] | None = None
+    if body.owned_only and user_db is not None:
+        collection_card_names = await user_db.get_collection_card_names()
+
     result = await suggest_cards(
         db,
         deck_cards=body.deck_cards,
         format_legal=body.format_legal,
         budget_max=body.budget_max,
         max_results=body.max_results,
+        themes=body.themes,
+        creature_types=body.creature_types,
+        collection_card_names=collection_card_names,
     )
 
     # Populate owned field if user database is available
@@ -95,7 +103,15 @@ async def find_commanders(
     request: Request,
     body: FindCommandersRequest,
 ) -> list[dict[str, Any]]:
-    """Find commanders that work well with a collection."""
+    """Find commanders that work well with a collection.
+
+    Uses find_best_commanders which scores by:
+    - EDHREC rank (popularity/proven power)
+    - Theme/archetype match
+    - Combo potential with owned cards
+    - Synergy with collection
+    - 17Lands performance data
+    """
     db = request.app.state.db_manager.db
     user_db = request.app.state.db_manager.user
     deck_finder = get_deck_finder()
@@ -130,26 +146,42 @@ async def find_commanders(
         set_codes=body.set_codes,
     )
 
-    suggestions = await deck_finder.find_commander_decks(
-        _collection_cards=collection_card_names,
-        card_data=card_data_list,
-        limit=body.limit,
+    # Use find_best_commanders for proper scoring
+    # Extract archetype/tribe from filters for scoring
+    archetype = body.theme or (body.themes[0] if body.themes else None)
+    tribe = body.creature_type or (body.creature_types[0] if body.creature_types else None)
+
+    matches = await deck_finder.find_best_commanders(
+        archetype=archetype,
+        tribe=tribe,
+        collection=card_data_list,
         filters=filters,
+        limit=body.limit,
     )
 
-    # Extract commander information
+    # Convert CommanderMatch to response format
     result: list[dict[str, Any]] = []
-    for sug in suggestions:
-        if sug.commander:
-            result.append(
-                {
-                    "name": sug.commander,
-                    "colors": sug.colors,
-                    "archetype": sug.archetype,
-                    "completion_pct": sug.completion_pct,
-                    "reasons": sug.reasons,
-                }
-            )
+    for match in matches:
+        result.append(
+            {
+                "name": match.name,
+                "colors": match.color_identity,
+                "archetype": archetype,
+                "score": match.total_score,
+                "reasons": match.reasons,
+                # Include score breakdown for transparency
+                "score_breakdown": {
+                    "edhrec": match.edhrec_score,
+                    "theme": match.theme_score,
+                    "combo": match.combo_score,
+                    "synergy": match.synergy_score,
+                    "ownership": match.ownership_bonus,
+                },
+                "is_owned": match.is_owned,
+                "combo_count": match.combo_count,
+                "synergy_cards": match.synergy_cards[:5],  # Top 5 synergy cards
+            }
+        )
     return result
 
 

@@ -318,6 +318,7 @@ export class MTGApiClient {
       setCodes?: string[];
       themes?: string[];
       creatureTypes?: string[];
+      ownedOnly?: boolean;
     } = {},
   ): Promise<SuggestCardsResult> {
     logger.debug("suggestCards", deckCards.length, "cards", options);
@@ -330,6 +331,7 @@ export class MTGApiClient {
         set_codes: options.setCodes ?? null,
         themes: options.themes ?? null,
         creature_types: options.creatureTypes ?? null,
+        owned_only: options.ownedOnly ?? false,
       },
     });
     if (error) throw this.toApiError(error);

@@ -1516,6 +1516,8 @@ export interface components {
             colors?: string[] | null;
             /** Image Small */
             image_small?: string | null;
+            /** Owned */
+            owned?: boolean | null;
         };
         /**
          * DeckHealthIssue
@@ -2972,6 +2974,12 @@ export interface components {
              * @description Filter by creature types (tribals)
              */
             creature_types?: string[] | null;
+            /**
+             * Owned Only
+             * @description Only suggest cards from user's collection
+             * @default false
+             */
+            owned_only: boolean;
         };
         /**
          * SuggestCardsResult

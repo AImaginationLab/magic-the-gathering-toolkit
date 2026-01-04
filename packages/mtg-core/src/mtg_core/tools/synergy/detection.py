@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import re
 from typing import TYPE_CHECKING, Any
 
 from ...data.database.combos import ComboCardRow, ComboDatabase, ComboRow
 from ...data.models.responses import Combo, ComboCard
-from .constants import KNOWN_COMBOS, THEME_INDICATORS
+from ...tools.recommendations.constants import THEME_KEYWORDS
+from .constants import KNOWN_COMBOS
 from .scoring import normalize_card_name
 
 if TYPE_CHECKING:
@@ -15,36 +15,54 @@ if TYPE_CHECKING:
 
 
 def detect_themes(cards: list[Card]) -> list[str]:
-    """Detect deck themes from card texts."""
-    theme_scores: dict[str, int] = dict.fromkeys(THEME_INDICATORS, 0)
+    """Detect deck themes from card texts and keywords.
+
+    Uses THEME_KEYWORDS from recommendations/constants.py which provides
+    a comprehensive mapping of theme names to detection patterns.
+
+    Detection sources:
+    - Card oracle text (pattern matching)
+    - Card keywords (exact match)
+    - Card subtypes (for tribal detection)
+    """
+    theme_scores: dict[str, int] = dict.fromkeys(THEME_KEYWORDS, 0)
 
     for card in cards:
-        if not card.text:
-            continue
+        card_text_lower = (card.text or "").lower()
+        card_keywords_lower = {k.lower() for k in (card.keywords or [])}
 
-        card_text_lower = card.text.lower()
-        for theme, patterns in THEME_INDICATORS.items():
+        for theme, patterns in THEME_KEYWORDS.items():
             for pattern in patterns:
-                try:
-                    if re.search(pattern, card_text_lower, re.IGNORECASE):
-                        theme_scores[theme] += 1
-                        break
-                except re.error:
-                    if pattern.lower() in card_text_lower:
-                        theme_scores[theme] += 1
-                        break
+                pattern_lower = pattern.lower()
 
+                # Check keywords first (exact match is faster)
+                if pattern_lower in card_keywords_lower:
+                    theme_scores[theme] += 1
+                    break
+
+                # Then check oracle text
+                if pattern_lower in card_text_lower:
+                    theme_scores[theme] += 1
+                    break
+
+    # Detect tribal themes from subtypes
     subtype_counts: dict[str, int] = {}
     for card in cards:
         if card.subtypes:
             for subtype in card.subtypes:
                 subtype_counts[subtype] = subtype_counts.get(subtype, 0) + 1
 
+    # Add tribal as a theme if any subtype has 5+ cards
     for _subtype, count in subtype_counts.items():
         if count >= 5:
-            theme_scores["tribal"] += count
+            if "Tribal" not in theme_scores:
+                theme_scores["Tribal"] = 0
+            theme_scores["Tribal"] += count
 
-    return [theme for theme, score in theme_scores.items() if score >= 3]
+    # Return themes with score >= 3, sorted by score descending
+    detected = [(theme, score) for theme, score in theme_scores.items() if score >= 3]
+    detected.sort(key=lambda x: -x[1])
+    return [theme for theme, _ in detected]
 
 
 def detect_deck_colors(cards: list[Card]) -> list[str]:
